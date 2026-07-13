@@ -1,0 +1,62 @@
+/** @type {import('tailwindcss').Config} */
+// Color/spacing/radius values are kept in sync by hand with constants/colors.ts,
+// constants/spacing.ts (NativeWind classNames need these here; native color props
+// like <Icon color="..."/> need the JS values there — see comments in those files).
+module.exports = {
+  content: ['./app/**/*.{js,jsx,ts,tsx}', './components/**/*.{js,jsx,ts,tsx}'],
+  presets: [require('nativewind/preset')],
+  theme: {
+    extend: {
+      colors: {
+        black: '#0A0A0A',
+        white: '#FFFFFF',
+        brandred: {
+          50: '#FFF1F1',
+          100: '#FFDCDC',
+          200: '#FFB3B3',
+          300: '#FF8080',
+          400: '#F94D4D',
+          500: '#E4111A',
+          600: '#C10D16',
+          700: '#9A0A11',
+          800: '#73070D',
+          900: '#4D0509',
+        },
+        graytone: {
+          50: '#FAFAFA',
+          100: '#F2F2F2',
+          200: '#E4E4E4',
+          300: '#CBCBCB',
+          400: '#A3A3A3',
+          500: '#737373',
+          600: '#525252',
+          700: '#3A3A3A',
+          800: '#242424',
+          900: '#141414',
+        },
+        success: '#1C8A4C',
+        warning: '#B8760E',
+        danger: '#C11E1E',
+      },
+      spacing: {
+        xxs: '2px',
+        xs: '4px',
+        sm: '8px',
+        md: '12px',
+        lg: '16px',
+        xl: '20px',
+        '2xl': '24px',
+        '3xl': '32px',
+        '4xl': '40px',
+        '5xl': '48px',
+      },
+      borderRadius: {
+        sm: '6px',
+        md: '10px',
+        lg: '14px',
+        xl: '20px',
+      },
+    },
+  },
+  plugins: [],
+};
