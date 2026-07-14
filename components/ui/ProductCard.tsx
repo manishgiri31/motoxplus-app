@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { memo, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import type { Product } from '@/api/types';
@@ -12,16 +13,20 @@ export interface ProductCardProps {
   onPress: (product: Product) => void;
 }
 
-export function ProductCard({ product, onPress }: ProductCardProps) {
+// Memoized: this renders inside FlatList grids of 10-50+ items, and the
+// parent list re-renders on every pull-to-refresh/pagination tick — without
+// this, every card would re-render even though only new items were added.
+export const ProductCard = memo(function ProductCard({ product, onPress }: ProductCardProps) {
   const primaryImage = product.productImages.find((i) => i.isPrimary) ?? product.productImages[0];
   const wishlisted = useWishlistStore((s) => s.isWishlisted(product.id));
   const toggleWishlist = useWishlistStore((s) => s.toggle);
 
   const outOfStock = product.stock <= 0;
+  const handlePress = useCallback(() => onPress(product), [onPress, product]);
 
   return (
     <Pressable
-      onPress={() => onPress(product)}
+      onPress={handlePress}
       className="w-full bg-white rounded-lg border border-graytone-200 overflow-hidden active:opacity-80"
     >
       <View className="relative">
@@ -30,7 +35,8 @@ export function ProductCard({ product, onPress }: ProductCardProps) {
           className="w-full h-36 bg-graytone-100"
           contentFit="cover"
           transition={150}
-          cachePolicy="disk"
+          cachePolicy="memory-disk"
+          recyclingKey={product.id}
         />
         <Pressable
           onPress={() =>
@@ -66,4 +72,4 @@ export function ProductCard({ product, onPress }: ProductCardProps) {
       </View>
     </Pressable>
   );
-}
+});
