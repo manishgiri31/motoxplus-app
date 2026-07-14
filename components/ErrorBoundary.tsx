@@ -34,9 +34,9 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <SafeAreaView className="flex-1 bg-white items-center justify-center px-2xl gap-md">
-          <Text className="text-h3 font-semibold text-black text-center">Something went wrong</Text>
-          <Text className="text-[14px] text-graytone-500 text-center">
+        <SafeAreaView className="flex-1 bg-background items-center justify-center px-2xl gap-md">
+          <Text className="text-h3 font-semibold text-text text-center">Something went wrong</Text>
+          <Text className="text-[14px] text-muted text-center">
             The app hit an unexpected error. Try again, or restart the app if it keeps happening.
           </Text>
           <Button label="Try again" onPress={this.reset} />

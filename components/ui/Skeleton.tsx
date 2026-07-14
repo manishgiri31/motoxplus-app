@@ -27,7 +27,7 @@ export function Skeleton({ width = '100%', height = 16, radius = 6, className }:
   return (
     <Animated.View
       style={[{ width, height, borderRadius: radius }, style]}
-      className={`bg-graytone-200 ${className ?? ''}`}
+      className={`bg-border ${className ?? ''}`}
     />
   );
 }

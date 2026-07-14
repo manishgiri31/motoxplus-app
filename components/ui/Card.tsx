@@ -8,7 +8,7 @@ interface BaseCardProps {
 export function Card({ className, children, ...rest }: BaseCardProps & ViewProps) {
   return (
     <View
-      className={`bg-white rounded-lg border border-graytone-200 ${className ?? ''}`}
+      className={`bg-card rounded-lg border border-border ${className ?? ''}`}
       {...rest}
     >
       {children}
@@ -23,7 +23,7 @@ export function PressableCard({
 }: BaseCardProps & Omit<PressableProps, 'children'>) {
   return (
     <Pressable
-      className={`bg-white rounded-lg border border-graytone-200 active:opacity-70 ${className ?? ''}`}
+      className={`bg-card rounded-lg border border-border active:opacity-70 ${className ?? ''}`}
       {...rest}
     >
       {children}

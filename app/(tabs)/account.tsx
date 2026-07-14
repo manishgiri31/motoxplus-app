@@ -8,6 +8,7 @@ import { useDealerAccount } from '@/api/hooks/useDealerAccount';
 import { useAuth } from '@/auth/useAuth';
 import { Badge, type BadgeTone } from '@/components/ui';
 import { env } from '@/config/env';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 const dealerStatusTone: Record<string, BadgeTone> = {
   ACTIVE: 'success',
@@ -26,16 +27,17 @@ interface MenuRowProps {
 }
 
 function MenuRow({ icon, label, onPress, destructive }: MenuRowProps) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center justify-between py-md px-lg border-b border-graytone-100 active:bg-graytone-50"
+      className="flex-row items-center justify-between py-md px-lg border-b border-border active:bg-surface"
     >
       <View className="flex-row items-center gap-md">
-        <Feather name={icon} size={18} color={destructive ? '#C11E1E' : '#0A0A0A'} />
-        <Text className={`text-[15px] ${destructive ? 'text-danger' : 'text-black'}`}>{label}</Text>
+        <Feather name={icon} size={18} color={destructive ? colors.danger : colors.text} />
+        <Text className={`text-[15px] ${destructive ? 'text-danger' : 'text-text'}`}>{label}</Text>
       </View>
-      <Feather name="chevron-right" size={18} color="#CBCBCB" />
+      <Feather name="chevron-right" size={18} color={colors.border} />
     </Pressable>
   );
 }
@@ -59,27 +61,27 @@ export default function AccountScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView contentContainerClassName="pb-2xl">
         <View className="px-lg pt-sm pb-lg gap-xs">
-          <Text className="text-h2 font-bold text-black">Account</Text>
+          <Text className="text-h2 font-bold text-text">Account</Text>
         </View>
 
-        <View className="mx-lg mb-lg p-lg rounded-lg bg-graytone-50 gap-sm">
+        <View className="mx-lg mb-lg p-lg rounded-lg bg-surface gap-sm">
           <View className="flex-row items-center gap-md">
-            <View className="w-14 h-14 rounded-full bg-black items-center justify-center">
-              <Text className="text-white text-[18px] font-bold">
+            <View className="w-14 h-14 rounded-full bg-secondary items-center justify-center">
+              <Text className="text-secondary-foreground text-[18px] font-bold">
                 {(user?.name ?? dealer?.ownerName ?? '?').charAt(0).toUpperCase()}
               </Text>
             </View>
             <View className="flex-1 gap-xxs">
-              <Text className="text-[16px] font-semibold text-black">{user?.name ?? dealerAccount?.ownerName}</Text>
-              <Text className="text-[13px] text-graytone-500">{user?.email}</Text>
+              <Text className="text-[16px] font-semibold text-text">{user?.name ?? dealerAccount?.ownerName}</Text>
+              <Text className="text-[13px] text-muted">{user?.email}</Text>
             </View>
           </View>
           {dealer && (
             <View className="flex-row items-center justify-between mt-sm">
-              <Text className="text-[14px] font-medium text-black">{dealer.companyName}</Text>
+              <Text className="text-[14px] font-medium text-text">{dealer.companyName}</Text>
               <Badge label={dealer.status} tone={dealerStatusTone[dealer.status] ?? 'neutral'} />
             </View>
           )}

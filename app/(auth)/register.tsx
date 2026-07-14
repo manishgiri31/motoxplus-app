@@ -1,17 +1,29 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { authService } from '@/api/services/authService';
 import { getErrorMessage } from '@/api/errors';
+import { authService } from '@/api/services/authService';
 import { registerSchema, type RegisterFormValues } from '@/auth/validation';
 import { Button, Input } from '@/components/ui';
+import { logger } from '@/utils/logger';
 
 export default function RegisterScreen() {
   const [formError, setFormError] = useState<string | null>(null);
+
+  const ownerNameRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const stateRef = useRef<TextInput>(null);
+  const shopAddressRef = useRef<TextInput>(null);
+  const pincodeRef = useRef<TextInput>(null);
+  const gstRef = useRef<TextInput>(null);
+  const panRef = useRef<TextInput>(null);
 
   const {
     control,
@@ -37,6 +49,8 @@ export default function RegisterScreen() {
   });
 
   const onSubmit = async (values: RegisterFormValues) => {
+    if (isSubmitting) return;
+
     setFormError(null);
     try {
       const cleaned = {
@@ -55,20 +69,23 @@ export default function RegisterScreen() {
         [{ text: 'Go to sign in', onPress: () => router.replace('/(auth)/login') }]
       );
     } catch (err) {
-      setFormError(getErrorMessage(err, 'Registration failed'));
+      logger.error('Registration failed', {
+        hasResponse: !!(err as { response?: unknown })?.response,
+      });
+      setFormError(getErrorMessage(err));
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="px-2xl py-2xl gap-lg" keyboardShouldPersistTaps="handled">
           <View className="gap-xs">
-            <Text className="text-[13px] font-semibold uppercase tracking-wide text-brandred-500">
+            <Text className="text-[13px] font-semibold uppercase tracking-[3px] text-primary">
               MotoXPlus Dealer
             </Text>
-            <Text className="text-h1 font-bold text-black">Create dealer account</Text>
-            <Text className="text-body text-graytone-500">
+            <Text className="text-h1 font-bold text-text">Create dealer account</Text>
+            <Text className="text-body text-muted">
               Company and GST details are used to verify and approve your dealer account.
             </Text>
           </View>
@@ -77,35 +94,87 @@ export default function RegisterScreen() {
             control={control}
             name="companyName"
             render={({ field, fieldState }) => (
-              <Input label="Company name" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                label="Company name"
+                autoFocus
+                returnKeyType="next"
+                onSubmitEditing={() => ownerNameRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
           <Controller
             control={control}
             name="ownerName"
             render={({ field, fieldState }) => (
-              <Input label="Owner name" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={ownerNameRef}
+                label="Owner name"
+                returnKeyType="next"
+                onSubmitEditing={() => phoneRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
           <Controller
             control={control}
             name="phone"
             render={({ field, fieldState }) => (
-              <Input label="Mobile number" keyboardType="phone-pad" maxLength={10} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={phoneRef}
+                label="Mobile number"
+                keyboardType="phone-pad"
+                maxLength={10}
+                returnKeyType="next"
+                onSubmitEditing={() => emailRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
           <Controller
             control={control}
             name="email"
             render={({ field, fieldState }) => (
-              <Input label="Email" autoCapitalize="none" keyboardType="email-address" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={emailRef}
+                label="Email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
           <Controller
             control={control}
             name="password"
             render={({ field, fieldState }) => (
-              <Input label="Password" secureTextEntry autoCapitalize="none" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} helperText="At least 8 characters" />
+              <Input
+                ref={passwordRef}
+                label="Password"
+                secureTextEntry
+                autoCapitalize="none"
+                returnKeyType="next"
+                onSubmitEditing={() => cityRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+                helperText="At least 8 characters"
+              />
             )}
           />
 
@@ -115,7 +184,16 @@ export default function RegisterScreen() {
                 control={control}
                 name="city"
                 render={({ field, fieldState }) => (
-                  <Input label="City" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+                  <Input
+                    ref={cityRef}
+                    label="City"
+                    returnKeyType="next"
+                    onSubmitEditing={() => stateRef.current?.focus()}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    error={fieldState.error?.message}
+                  />
                 )}
               />
             </View>
@@ -124,7 +202,16 @@ export default function RegisterScreen() {
                 control={control}
                 name="state"
                 render={({ field, fieldState }) => (
-                  <Input label="State" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+                  <Input
+                    ref={stateRef}
+                    label="State"
+                    returnKeyType="next"
+                    onSubmitEditing={() => shopAddressRef.current?.focus()}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    error={fieldState.error?.message}
+                  />
                 )}
               />
             </View>
@@ -134,33 +221,73 @@ export default function RegisterScreen() {
             control={control}
             name="shopAddress"
             render={({ field, fieldState }) => (
-              <Input label="Shop address (optional)" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={shopAddressRef}
+                label="Shop address (optional)"
+                returnKeyType="next"
+                onSubmitEditing={() => pincodeRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
           <Controller
             control={control}
             name="pincode"
             render={({ field, fieldState }) => (
-              <Input label="Pincode (optional)" keyboardType="number-pad" maxLength={6} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={pincodeRef}
+                label="Pincode (optional)"
+                keyboardType="number-pad"
+                maxLength={6}
+                returnKeyType="next"
+                onSubmitEditing={() => gstRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
 
-          <Text className="text-h3 font-semibold text-black mt-md">GST details (optional)</Text>
-          <Text className="text-body-sm text-graytone-500 -mt-sm">
+          <Text className="text-h3 font-semibold text-text mt-md">GST details (optional)</Text>
+          <Text className="text-body-sm text-muted -mt-sm">
             Adding GST/PAN speeds up dealer approval, but you can also add these later.
           </Text>
           <Controller
             control={control}
             name="gstNumber"
             render={({ field, fieldState }) => (
-              <Input label="GST number" autoCapitalize="characters" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={gstRef}
+                label="GST number"
+                autoCapitalize="characters"
+                returnKeyType="next"
+                onSubmitEditing={() => panRef.current?.focus()}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
           <Controller
             control={control}
             name="panNumber"
             render={({ field, fieldState }) => (
-              <Input label="PAN number" autoCapitalize="characters" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+              <Input
+                ref={panRef}
+                label="PAN number"
+                autoCapitalize="characters"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit(onSubmit)}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
             )}
           />
 

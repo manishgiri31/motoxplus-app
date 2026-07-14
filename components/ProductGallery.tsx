@@ -92,7 +92,7 @@ export function ProductGallery({ images }: { images: ProductImage[] }) {
   const sorted = [...images].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder);
 
   if (sorted.length === 0) {
-    return <View style={{ width: IMAGE_SIZE, height: IMAGE_SIZE }} className="bg-graytone-100" />;
+    return <View style={{ width: IMAGE_SIZE, height: IMAGE_SIZE }} className="bg-surface" />;
   }
 
   return (
@@ -115,7 +115,7 @@ export function ProductGallery({ images }: { images: ProductImage[] }) {
           {sorted.map((image, i) => (
             <View
               key={image.id}
-              className={`h-1.5 rounded-full ${i === activeIndex ? 'w-4 bg-black' : 'w-1.5 bg-graytone-300'}`}
+              className={`h-1.5 rounded-full ${i === activeIndex ? 'w-4 bg-secondary' : 'w-1.5 bg-border'}`}
             />
           ))}
         </View>

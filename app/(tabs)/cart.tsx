@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAddToCart, useCart, useRemoveCartItem } from '@/api/hooks/useCart';
 import type { CartItem } from '@/api/types';
 import { Button, EmptyState, ErrorState, ListRowSkeleton } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { formatCurrency } from '@/utils/format';
 
@@ -17,10 +18,12 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   const addToCart = useAddToCart();
   const removeItem = useRemoveCartItem();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
+  const colors = useThemeColors();
 
   const unitPrice = item.variant?.price ?? item.product.price;
   const moq = item.product.moq;
   const primaryImage = item.product.productImages.find((i) => i.isPrimary) ?? item.product.productImages[0];
+  const atMinQuantity = item.quantity - moq < moq;
 
   const changeQuantity = (nextQuantity: number) => {
     if (nextQuantity < moq) return;
@@ -44,45 +47,45 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   };
 
   return (
-    <View className="flex-row gap-md p-lg border-b border-graytone-100">
+    <View className="flex-row gap-md p-lg border-b border-border">
       <Image
         source={primaryImage ? { uri: primaryImage.imageUrl } : undefined}
-        className="w-16 h-16 rounded-md bg-graytone-100"
+        className="w-16 h-16 rounded-md bg-surface"
         cachePolicy="memory-disk"
         recyclingKey={item.productId}
       />
       <View className="flex-1 gap-xs">
-        <Text className="text-[14px] font-semibold text-black" numberOfLines={2}>
+        <Text className="text-[14px] font-semibold text-text" numberOfLines={2}>
           {item.product.name}
         </Text>
-        {item.variant && <Text className="text-[12px] text-graytone-500">{item.variant.label}</Text>}
-        <Text className="text-[14px] font-bold text-black">{formatCurrency(unitPrice)}</Text>
+        {item.variant && <Text className="text-[12px] text-muted">{item.variant.label}</Text>}
+        <Text className="text-[14px] font-bold text-text">{formatCurrency(unitPrice)}</Text>
 
         <View className="flex-row items-center justify-between mt-xs">
-          <View className="flex-row items-center border border-graytone-300 rounded-md">
+          <View className="flex-row items-center border border-border rounded-md">
             <Pressable
               onPress={() => changeQuantity(item.quantity - moq)}
-              disabled={item.quantity - moq < moq}
+              disabled={atMinQuantity}
               className="w-9 h-9 items-center justify-center"
             >
-              <Feather name="minus" size={16} color={item.quantity - moq < moq ? '#CBCBCB' : '#0A0A0A'} />
+              <Feather name="minus" size={16} color={atMinQuantity ? colors.border : colors.text} />
             </Pressable>
-            <Text className="w-8 text-center text-[14px] font-semibold text-black">{item.quantity}</Text>
+            <Text className="w-8 text-center text-[14px] font-semibold text-text">{item.quantity}</Text>
             <Pressable onPress={() => changeQuantity(item.quantity + moq)} className="w-9 h-9 items-center justify-center">
-              <Feather name="plus" size={16} color="#0A0A0A" />
+              <Feather name="plus" size={16} color={colors.text} />
             </Pressable>
           </View>
 
           <View className="flex-row gap-lg">
             <Pressable onPress={moveToWishlist} hitSlop={8}>
-              <Feather name="heart" size={18} color="#525252" />
+              <Feather name="heart" size={18} color={colors.muted} />
             </Pressable>
             <Pressable onPress={() => removeItem.mutate(item.id)} hitSlop={8}>
-              <Feather name="trash-2" size={18} color="#C11E1E" />
+              <Feather name="trash-2" size={18} color={colors.danger} />
             </Pressable>
           </View>
         </View>
-        {moq > 1 && <Text className="text-[11px] text-graytone-400">Sold in multiples of {moq}</Text>}
+        {moq > 1 && <Text className="text-[11px] text-muted">Sold in multiples of {moq}</Text>}
       </View>
     </View>
   );
@@ -109,7 +112,7 @@ export default function CartScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
         {Array.from({ length: 4 }).map((_, i) => (
           <ListRowSkeleton key={i} />
         ))}
@@ -119,16 +122,16 @@ export default function CartScreen() {
 
   if (isError) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
         <ErrorState error={error} onRetry={refetch} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="px-lg pt-sm pb-lg">
-        <Text className="text-h2 font-bold text-black">Cart</Text>
+        <Text className="text-h2 font-bold text-text">Cart</Text>
       </View>
 
       {items.length === 0 ? (
@@ -148,26 +151,26 @@ export default function CartScreen() {
             contentContainerClassName="pb-lg"
           />
 
-          <View className="border-t border-graytone-200 px-lg pt-lg pb-sm gap-sm">
+          <View className="border-t border-border px-lg pt-lg pb-sm gap-sm">
             <View className="flex-row justify-between">
-              <Text className="text-[14px] text-graytone-600">Subtotal</Text>
-              <Text className="text-[14px] text-black">{formatCurrency(totals.subtotal)}</Text>
+              <Text className="text-[14px] text-muted">Subtotal</Text>
+              <Text className="text-[14px] text-text">{formatCurrency(totals.subtotal)}</Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-[14px] text-graytone-600">GST</Text>
-              <Text className="text-[14px] text-black">{formatCurrency(totals.gstAmount)}</Text>
+              <Text className="text-[14px] text-muted">GST</Text>
+              <Text className="text-[14px] text-text">{formatCurrency(totals.gstAmount)}</Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-[14px] text-graytone-600">Shipping</Text>
-              <Text className="text-[14px] text-black">
+              <Text className="text-[14px] text-muted">Shipping</Text>
+              <Text className="text-[14px] text-text">
                 {totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}
               </Text>
             </View>
-            <View className="flex-row justify-between pt-sm border-t border-graytone-100">
-              <Text className="text-[16px] font-bold text-black">Total</Text>
-              <Text className="text-[16px] font-bold text-black">{formatCurrency(totals.grandTotal)}</Text>
+            <View className="flex-row justify-between pt-sm border-t border-border">
+              <Text className="text-[16px] font-bold text-text">Total</Text>
+              <Text className="text-[16px] font-bold text-text">{formatCurrency(totals.grandTotal)}</Text>
             </View>
-            <Text className="text-[11px] text-graytone-400">
+            <Text className="text-[11px] text-muted">
               Final total is confirmed by the server when you place the order.
             </Text>
 

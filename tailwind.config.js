@@ -2,14 +2,19 @@
 // Color/spacing/radius values are kept in sync by hand with constants/colors.ts,
 // constants/spacing.ts (NativeWind classNames need these here; native color props
 // like <Icon color="..."/> need the JS values there — see comments in those files).
+//
+// darkMode: 'class' is required — not optional — because nativewind's
+// colorScheme.set()/useColorScheme().setColorScheme() (used for the manual
+// theme override in Settings) throws at runtime under the default 'media'
+// strategy. See node_modules/nativewind/dist/stylesheet.js.
 module.exports = {
+  darkMode: 'class',
   content: ['./app/**/*.{js,jsx,ts,tsx}', './components/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        black: '#0A0A0A',
-        white: '#FFFFFF',
+        // Static brand colors — same in both themes, safe to hardcode.
         brandred: {
           50: '#FFF1F1',
           100: '#FFDCDC',
@@ -22,6 +27,9 @@ module.exports = {
           800: '#73070D',
           900: '#4D0509',
         },
+        // Static gray ramp — still available for one-off cases, but prefer
+        // the semantic tokens below (background/surface/border/text/muted)
+        // in screens/components so dark mode is automatic.
         graytone: {
           50: '#FAFAFA',
           100: '#F2F2F2',
@@ -34,9 +42,28 @@ module.exports = {
           800: '#242424',
           900: '#141414',
         },
-        success: '#1C8A4C',
-        warning: '#B8760E',
-        danger: '#C11E1E',
+        // Semantic tokens — resolve to CSS variables defined per-theme in
+        // global.css (:root for light, .dark:root for dark). These are what
+        // screens/components should actually use: bg-background, text-text,
+        // bg-surface, bg-card, border-border, text-muted, bg-primary,
+        // bg-secondary, text-success/warning/danger, etc.
+        background: 'rgb(var(--background) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
+        text: 'rgb(var(--text) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        primary: {
+          DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+          foreground: 'rgb(var(--primary-foreground) / <alpha-value>)',
+        },
+        secondary: {
+          DEFAULT: 'rgb(var(--secondary) / <alpha-value>)',
+          foreground: 'rgb(var(--secondary-foreground) / <alpha-value>)',
+        },
+        success: 'rgb(var(--success) / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
+        danger: 'rgb(var(--danger) / <alpha-value>)',
       },
       spacing: {
         xxs: '2px',

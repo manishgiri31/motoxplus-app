@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Semantic theme tokens. Values are space-separated RGB triplets so Tailwind's
+ * opacity modifier (bg-background/50) works via rgb(var(--x) / <alpha-value>)
+ * in tailwind.config.js. Referenced by constants/colors.ts (kept in sync by
+ * hand) for the JS-side values native color props need (icons, StatusBar).
+ *
+ * darkMode: 'class' in tailwind.config.js means the `.dark:root` block below
+ * is applied whenever nativewind's colorScheme is "dark" (system or manual
+ * override) — see hooks/use-color-scheme.ts.
+ */
+:root {
+  --background: 255 255 255;
+  --surface: 250 250 250;
+  --card: 255 255 255;
+  --border: 228 228 228;
+  --text: 10 10 10;
+  --muted: 115 115 115;
+  --primary: 228 17 26;
+  --primary-foreground: 255 255 255;
+  --secondary: 10 10 10;
+  --secondary-foreground: 255 255 255;
+  --success: 28 138 76;
+  --warning: 184 118 14;
+  --danger: 193 30 30;
+}
+
+.dark:root {
+  --background: 10 10 10;
+  --surface: 20 20 20;
+  --card: 36 36 36;
+  --border: 58 58 58;
+  --text: 255 255 255;
+  --muted: 163 163 163;
+  --primary: 228 17 26;
+  --primary-foreground: 255 255 255;
+  --secondary: 255 255 255;
+  --secondary-foreground: 10 10 10;
+  --success: 52 199 116;
+  --warning: 217 152 34;
+  --danger: 224 76 76;
+}

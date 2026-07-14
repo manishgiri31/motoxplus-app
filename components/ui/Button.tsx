@@ -1,5 +1,7 @@
 import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
 
+import { useThemeColors } from '@/hooks/use-theme-colors';
+
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -13,18 +15,18 @@ export interface ButtonProps extends Omit<PressableProps, 'children'> {
 }
 
 const containerByVariant: Record<ButtonVariant, string> = {
-  primary: 'bg-brandred-500 active:bg-brandred-600',
-  secondary: 'bg-black active:bg-graytone-800',
-  outline: 'bg-transparent border border-black active:bg-graytone-100',
-  ghost: 'bg-transparent active:bg-graytone-100',
-  destructive: 'bg-danger active:bg-red-700',
+  primary: 'bg-primary active:bg-brandred-600',
+  secondary: 'bg-secondary active:opacity-90',
+  outline: 'bg-transparent border border-secondary active:bg-surface',
+  ghost: 'bg-transparent active:bg-surface',
+  destructive: 'bg-danger active:opacity-90',
 };
 
 const labelByVariant: Record<ButtonVariant, string> = {
-  primary: 'text-white',
-  secondary: 'text-white',
-  outline: 'text-black',
-  ghost: 'text-black',
+  primary: 'text-primary-foreground',
+  secondary: 'text-secondary-foreground',
+  outline: 'text-text',
+  ghost: 'text-text',
   destructive: 'text-white',
 };
 
@@ -44,7 +46,16 @@ export function Button({
   className,
   ...pressableProps
 }: ButtonProps & { className?: string }) {
+  const colors = useThemeColors();
   const isDisabled = disabled || loading;
+
+  // primary/destructive both use primaryForeground — white in both themes.
+  const spinnerColor =
+    variant === 'outline' || variant === 'ghost'
+      ? colors.text
+      : variant === 'secondary'
+        ? colors.secondaryForeground
+        : colors.primaryForeground;
 
   return (
     <Pressable
@@ -54,9 +65,7 @@ export function Button({
       className={`flex-row items-center justify-center gap-sm ${containerByVariant[variant]} ${sizeStyles[size].container} ${fullWidth ? 'w-full' : ''} ${isDisabled ? 'opacity-50' : ''} ${className ?? ''}`}
       {...pressableProps}
     >
-      {loading && (
-        <ActivityIndicator size="small" color={variant === 'outline' || variant === 'ghost' ? '#0A0A0A' : '#FFFFFF'} />
-      )}
+      {loading && <ActivityIndicator size="small" color={spinnerColor} />}
       <Text className={`font-semibold ${labelByVariant[variant]} ${sizeStyles[size].label}`}>{label}</Text>
     </Pressable>
   );

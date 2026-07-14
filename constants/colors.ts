@@ -1,12 +1,16 @@
 /**
  * Brand palette — premium automotive: black / white / red, minimal & industrial.
- * These are the raw brand tokens; tailwind.config.js maps them into NativeWind
- * utility classes (bg-brand-red, text-ink, etc.) for the design system.
+ *
+ * `palette` holds raw, mode-independent brand colors (the red ramp, gray
+ * ramp). `semanticColors` mirrors the CSS custom properties defined in
+ * global.css (:root / .dark:root) exactly — keep these two in sync by hand.
+ * global.css drives NativeWind className-based styling (bg-background,
+ * text-text, ...); this file exists for the cases that need a plain color
+ * string in JS — native `color` props (icons, ActivityIndicator, StatusBar)
+ * that don't accept a className. Use `useThemeColors()` for those.
  */
 
 export const palette = {
-  black: '#0A0A0A',
-  white: '#FFFFFF',
   red: {
     50: '#FFF1F1',
     100: '#FFDCDC',
@@ -31,43 +35,40 @@ export const palette = {
     800: '#242424',
     900: '#141414',
   },
-  success: '#1C8A4C',
-  warning: '#B8760E',
-  danger: '#C11E1E',
 } as const;
 
-export const brandColors = {
+export const semanticColors = {
   light: {
-    background: palette.white,
-    surface: palette.gray[50],
-    surfaceElevated: palette.white,
-    border: palette.gray[200],
-    ink: palette.black,
-    inkMuted: palette.gray[600],
-    inkSubtle: palette.gray[400],
-    primary: palette.red[500],
-    primaryPressed: palette.red[600],
-    onPrimary: palette.white,
-    success: palette.success,
-    warning: palette.warning,
-    danger: palette.danger,
+    background: '#FFFFFF',
+    surface: '#FAFAFA',
+    card: '#FFFFFF',
+    border: '#E4E4E4',
+    text: '#0A0A0A',
+    muted: '#737373',
+    primary: '#E4111A',
+    primaryForeground: '#FFFFFF',
+    secondary: '#0A0A0A',
+    secondaryForeground: '#FFFFFF',
+    success: '#1C8A4C',
+    warning: '#B8760E',
+    danger: '#C11E1E',
   },
   dark: {
-    background: palette.black,
-    surface: palette.gray[900],
-    surfaceElevated: palette.gray[800],
-    border: palette.gray[700],
-    ink: palette.white,
-    inkMuted: palette.gray[300],
-    inkSubtle: palette.gray[500],
-    primary: palette.red[500],
-    primaryPressed: palette.red[400],
-    onPrimary: palette.white,
-    success: palette.success,
-    warning: palette.warning,
-    danger: palette.danger,
+    background: '#0A0A0A',
+    surface: '#141414',
+    card: '#242424',
+    border: '#3A3A3A',
+    text: '#FFFFFF',
+    muted: '#A3A3A3',
+    primary: '#E4111A',
+    primaryForeground: '#FFFFFF',
+    secondary: '#FFFFFF',
+    secondaryForeground: '#0A0A0A',
+    success: '#34C774',
+    warning: '#D99822',
+    danger: '#E04C4C',
   },
 } as const;
 
-export type BrandColorScheme = keyof typeof brandColors;
-export type BrandColorToken = keyof typeof brandColors.light;
+export type ThemeMode = keyof typeof semanticColors;
+export type SemanticColorToken = keyof typeof semanticColors.light;

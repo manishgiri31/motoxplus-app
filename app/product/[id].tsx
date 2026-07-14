@@ -8,15 +8,16 @@ import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct, useProducts } from '@/api/hooks/useProducts';
 import { ProductGallery } from '@/components/ProductGallery';
 import { Badge, Button, ErrorState, PriceTag, ProductCard } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 
 function SpecRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <View className="flex-row justify-between py-sm border-b border-graytone-100">
-      <Text className="text-[13px] text-graytone-500">{label}</Text>
-      <Text className="text-[13px] font-medium text-black flex-1 text-right" numberOfLines={2}>
+    <View className="flex-row justify-between py-sm border-b border-border">
+      <Text className="text-[13px] text-muted">{label}</Text>
+      <Text className="text-[13px] font-medium text-text flex-1 text-right" numberOfLines={2}>
         {value}
       </Text>
     </View>
@@ -28,6 +29,7 @@ export default function ProductDetailScreen() {
   const navigation = useNavigation();
   const productQuery = useProduct(id);
   const product = productQuery.data;
+  const colors = useThemeColors();
 
   const addToCart = useAddToCart();
   const recordView = useRecentlyViewedStore((s) => s.recordView);
@@ -52,14 +54,14 @@ export default function ProductDetailScreen() {
   if (productQuery.isLoading || !product) {
     if (productQuery.isError) {
       return (
-        <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+        <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
           <ErrorState error={productQuery.error} onRetry={() => productQuery.refetch()} />
         </SafeAreaView>
       );
     }
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center" edges={['bottom']}>
-        <Text className="text-graytone-400">Loading…</Text>
+      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
+        <Text className="text-muted">Loading…</Text>
       </SafeAreaView>
     );
   }
@@ -84,20 +86,20 @@ export default function ProductDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <ScrollView contentContainerClassName="pb-2xl">
         <ProductGallery images={product.productImages} />
 
         <View className="p-lg gap-md">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-md gap-xxs">
-              <Text className="text-[12px] font-semibold uppercase text-graytone-500">{product.brand}</Text>
-              <Text className="text-h2 font-bold text-black">{product.name}</Text>
-              <Text className="text-[12px] text-graytone-400">Part #{product.partNumber}</Text>
+              <Text className="text-[12px] font-semibold uppercase text-muted">{product.brand}</Text>
+              <Text className="text-h2 font-bold text-text">{product.name}</Text>
+              <Text className="text-[12px] text-muted">Part #{product.partNumber}</Text>
             </View>
             <View className="flex-row gap-md">
               <Pressable onPress={handleShare} hitSlop={8}>
-                <Feather name="share-2" size={22} color="#0A0A0A" />
+                <Feather name="share-2" size={22} color={colors.text} />
               </Pressable>
               <Pressable
                 onPress={() =>
@@ -112,13 +114,13 @@ export default function ProductDetailScreen() {
                 }
                 hitSlop={8}
               >
-                <Feather name="heart" size={22} color={wishlisted ? '#E4111A' : '#0A0A0A'} />
+                <Feather name="heart" size={22} color={wishlisted ? colors.primary : colors.text} />
               </Pressable>
             </View>
           </View>
 
           <PriceTag price={product.price} mrp={product.mrp} size="lg" />
-          <Text className="text-[12px] text-graytone-400 -mt-sm">Dealer price · GST {product.gstRate}% extra</Text>
+          <Text className="text-[12px] text-muted -mt-sm">Dealer price · GST {product.gstRate}% extra</Text>
 
           <View className="flex-row items-center gap-sm">
             <Badge label={outOfStock ? 'Out of stock' : `${product.stock} in stock`} tone={outOfStock ? 'danger' : 'success'} />
@@ -126,7 +128,7 @@ export default function ProductDetailScreen() {
           </View>
 
           <View className="mt-md">
-            <Text className="text-h3 font-semibold text-black mb-sm">Specifications</Text>
+            <Text className="text-h3 font-semibold text-text mb-sm">Specifications</Text>
             <SpecRow label="Brand" value={product.brand} />
             <SpecRow label="Part number" value={product.partNumber} />
             <SpecRow label="SKU" value={product.sku} />
@@ -141,15 +143,15 @@ export default function ProductDetailScreen() {
 
           {product.description && (
             <View className="mt-md">
-              <Text className="text-h3 font-semibold text-black mb-sm">Description</Text>
-              <Text className="text-[14px] text-graytone-600 leading-5">{product.description}</Text>
+              <Text className="text-h3 font-semibold text-text mb-sm">Description</Text>
+              <Text className="text-[14px] text-muted leading-5">{product.description}</Text>
             </View>
           )}
         </View>
 
         {related.length > 0 && (
           <View className="gap-md mt-lg">
-            <Text className="text-h3 font-semibold text-black px-lg">More from {product.category.name}</Text>
+            <Text className="text-h3 font-semibold text-text px-lg">More from {product.category.name}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-lg gap-md">
               {related.map((p) => (
                 <View key={p.id} className="w-40">
@@ -161,17 +163,17 @@ export default function ProductDetailScreen() {
         )}
       </ScrollView>
 
-      <View className="flex-row items-center gap-md p-lg border-t border-graytone-200">
-        <View className="flex-row items-center border border-graytone-300 rounded-md">
+      <View className="flex-row items-center gap-md p-lg border-t border-border">
+        <View className="flex-row items-center border border-border rounded-md">
           <Pressable
             onPress={() => setQuantity((q) => Math.max(product.moq, q - product.moq))}
             className="w-10 h-11 items-center justify-center"
           >
-            <Feather name="minus" size={16} color="#0A0A0A" />
+            <Feather name="minus" size={16} color={colors.text} />
           </Pressable>
-          <Text className="w-10 text-center text-[15px] font-semibold text-black">{quantity}</Text>
+          <Text className="w-10 text-center text-[15px] font-semibold text-text">{quantity}</Text>
           <Pressable onPress={() => setQuantity((q) => q + product.moq)} className="w-10 h-11 items-center justify-center">
-            <Feather name="plus" size={16} color="#0A0A0A" />
+            <Feather name="plus" size={16} color={colors.text} />
           </Pressable>
         </View>
         <Button

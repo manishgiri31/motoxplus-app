@@ -15,6 +15,7 @@ import type { PaymentType } from '@/api/types';
 import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
 import { Button, Input } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/utils/format';
 
 const FREE_DELIVERY_THRESHOLD = 25000;
@@ -31,6 +32,7 @@ export default function CheckoutScreen() {
   const { data: cart } = useCart();
   const createOrder = useCreateOrder();
   const createRazorpayOrder = useCreateRazorpayOrder();
+  const colors = useThemeColors();
 
   const [paymentType, setPaymentType] = useState<PaymentType>('COD');
   const [formError, setFormError] = useState<string | null>(null);
@@ -115,17 +117,17 @@ export default function CheckoutScreen() {
 
   if (items.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center" edges={['bottom']}>
-        <Text className="text-graytone-500">Your cart is empty.</Text>
+      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
+        <Text className="text-muted">Your cart is empty.</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="p-lg gap-lg" keyboardShouldPersistTaps="handled">
-          <Text className="text-h3 font-semibold text-black">Delivery address</Text>
+          <Text className="text-h3 font-semibold text-text">Delivery address</Text>
           <Controller
             control={control}
             name="deliveryName"
@@ -182,47 +184,47 @@ export default function CheckoutScreen() {
             )}
           />
 
-          <Text className="text-h3 font-semibold text-black mt-md">Payment method</Text>
+          <Text className="text-h3 font-semibold text-text mt-md">Payment method</Text>
           <View className="gap-sm">
             {paymentOptions.map((opt) => (
               <Pressable
                 key={opt.value}
                 onPress={() => setPaymentType(opt.value)}
                 className={`flex-row items-center justify-between p-lg rounded-md border ${
-                  paymentType === opt.value ? 'border-black bg-graytone-50' : 'border-graytone-200'
+                  paymentType === opt.value ? 'border-secondary bg-surface' : 'border-border'
                 }`}
               >
                 <View>
-                  <Text className="text-[14px] font-semibold text-black">{opt.label}</Text>
-                  <Text className="text-[12px] text-graytone-500">{opt.hint}</Text>
+                  <Text className="text-[14px] font-semibold text-text">{opt.label}</Text>
+                  <Text className="text-[12px] text-muted">{opt.hint}</Text>
                 </View>
-                {paymentType === opt.value && <Feather name="check-circle" size={20} color="#E4111A" />}
+                {paymentType === opt.value && <Feather name="check-circle" size={20} color={colors.primary} />}
               </Pressable>
             ))}
           </View>
 
-          <Text className="text-h3 font-semibold text-black mt-md">Order summary</Text>
+          <Text className="text-h3 font-semibold text-text mt-md">Order summary</Text>
           <View className="gap-sm">
             <View className="flex-row justify-between">
-              <Text className="text-[14px] text-graytone-600">Subtotal</Text>
-              <Text className="text-[14px] text-black">{formatCurrency(totals.subtotal)}</Text>
+              <Text className="text-[14px] text-muted">Subtotal</Text>
+              <Text className="text-[14px] text-text">{formatCurrency(totals.subtotal)}</Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-[14px] text-graytone-600">GST</Text>
-              <Text className="text-[14px] text-black">{formatCurrency(totals.gstAmount)}</Text>
+              <Text className="text-[14px] text-muted">GST</Text>
+              <Text className="text-[14px] text-text">{formatCurrency(totals.gstAmount)}</Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-[14px] text-graytone-600">Delivery charges</Text>
-              <Text className="text-[14px] text-black">{totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}</Text>
+              <Text className="text-[14px] text-muted">Delivery charges</Text>
+              <Text className="text-[14px] text-text">{totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}</Text>
             </View>
-            <View className="flex-row justify-between pt-sm border-t border-graytone-100">
-              <Text className="text-[16px] font-bold text-black">Total</Text>
-              <Text className="text-[16px] font-bold text-black">{formatCurrency(totals.grandTotal)}</Text>
+            <View className="flex-row justify-between pt-sm border-t border-border">
+              <Text className="text-[16px] font-bold text-text">Total</Text>
+              <Text className="text-[16px] font-bold text-text">{formatCurrency(totals.grandTotal)}</Text>
             </View>
             {paymentType === 'ADVANCE_20' && (
               <View className="flex-row justify-between">
-                <Text className="text-[13px] text-graytone-500">Due now (20%)</Text>
-                <Text className="text-[13px] font-semibold text-black">{formatCurrency(totals.amountDue)}</Text>
+                <Text className="text-[13px] text-muted">Due now (20%)</Text>
+                <Text className="text-[13px] font-semibold text-text">{formatCurrency(totals.amountDue)}</Text>
               </View>
             )}
           </View>

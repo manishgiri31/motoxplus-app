@@ -1,19 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { isAxiosError } from 'axios';
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
 import { Button, Input } from '@/components/ui';
+import { logger } from '@/utils/logger';
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const {
     control,
@@ -25,33 +26,40 @@ export default function LoginScreen() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
+    // Belt-and-suspenders duplicate-submit guard — the Button is already
+    // disabled while isSubmitting, but that flips one render after the first
+    // tap, which is enough time for a fast double-tap to fire onSubmit twice.
+    if (isSubmitting) return;
+
     setFormError(null);
     try {
       // Backend re-detects email vs. mobile from the string itself regardless
       // of which field it arrives in — see motoxplus-web login route.
       await login({ email: values.identifier.trim(), password: values.password });
     } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 423) {
-        setFormError(getErrorMessage(err));
-        return;
-      }
-      setFormError(getErrorMessage(err, 'Invalid email/mobile or password'));
+      logger.error('Login failed', {
+        // Never log the password. Status/code is enough to diagnose from here.
+        hasResponse: !!(err as { response?: unknown })?.response,
+      });
+      setFormError(getErrorMessage(err));
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerClassName="flex-1 justify-center px-2xl gap-2xl" keyboardShouldPersistTaps="handled">
           <View className="gap-xs">
-            <Text className="text-[13px] font-semibold uppercase tracking-wide text-brandred-500">
+            <Text className="text-[13px] font-semibold uppercase tracking-[3px] text-primary">
               MotoXPlus Dealer
             </Text>
-            <Text className="text-display font-bold text-black">Welcome back</Text>
-            <Text className="text-[15px] text-graytone-500">Sign in to manage your orders</Text>
+            <Text className="text-[40px] leading-[44px] font-extrabold text-text -tracking-wide">
+              Welcome Back
+            </Text>
+            <Text className="text-[16px] text-muted mt-xs">Sign in to manage your business</Text>
           </View>
 
           <View className="gap-lg">
@@ -61,9 +69,12 @@ export default function LoginScreen() {
               render={({ field, fieldState }) => (
                 <Input
                   label="Email or mobile number"
+                  autoFocus
                   autoCapitalize="none"
                   autoComplete="username"
                   keyboardType="email-address"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                   value={field.value}
                   onChangeText={field.onChange}
                   onBlur={field.onBlur}
@@ -76,10 +87,13 @@ export default function LoginScreen() {
               name="password"
               render={({ field, fieldState }) => (
                 <Input
+                  ref={passwordRef}
                   label="Password"
                   secureTextEntry
                   autoCapitalize="none"
                   autoComplete="password"
+                  returnKeyType="go"
+                  onSubmitEditing={handleSubmit(onSubmit)}
                   value={field.value}
                   onChangeText={field.onChange}
                   onBlur={field.onBlur}
@@ -91,7 +105,7 @@ export default function LoginScreen() {
             {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
 
             <Link href="/(auth)/forgot-password" className="self-end">
-              <Text className="text-[13px] font-semibold text-black">Forgot password?</Text>
+              <Text className="text-[13px] font-semibold text-text">Forgot password?</Text>
             </Link>
 
             <Button
@@ -104,9 +118,9 @@ export default function LoginScreen() {
           </View>
 
           <View className="flex-row justify-center gap-xs">
-            <Text className="text-[14px] text-graytone-500">New dealer?</Text>
+            <Text className="text-[14px] text-muted">New dealer?</Text>
             <Link href="/(auth)/register">
-              <Text className="text-[14px] font-semibold text-brandred-500">Create an account</Text>
+              <Text className="text-[14px] font-semibold text-primary">Create an account</Text>
             </Link>
           </View>
         </ScrollView>

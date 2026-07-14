@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/ui';
 // pass) — this is an honest empty state, not a fake feed.
 export default function NotificationsScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <EmptyState
         icon="bell-off"
         title="No notifications yet"

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct } from '@/api/hooks/useProducts';
 import { Button, EmptyState } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { formatCurrency } from '@/utils/format';
 
@@ -15,28 +16,29 @@ const WishlistRow = memo(function WishlistRow({ item }: { item: WishlistItem }) 
   const remove = useWishlistStore((s) => s.remove);
   const productQuery = useProduct(item.productId);
   const addToCart = useAddToCart();
+  const colors = useThemeColors();
 
   return (
     <Pressable
       onPress={() => router.push(`/product/${item.productId}`)}
-      className="flex-row items-center gap-md p-lg border-b border-graytone-100"
+      className="flex-row items-center gap-md p-lg border-b border-border"
     >
       <Image
         source={item.imageUrl ? { uri: item.imageUrl } : undefined}
-        className="w-16 h-16 rounded-md bg-graytone-100"
+        className="w-16 h-16 rounded-md bg-surface"
         cachePolicy="memory-disk"
         recyclingKey={item.productId}
       />
       <View className="flex-1 gap-xs">
-        <Text className="text-[13px] font-medium text-graytone-500 uppercase">{item.brand}</Text>
-        <Text className="text-[14px] font-semibold text-black" numberOfLines={2}>
+        <Text className="text-[13px] font-medium text-muted uppercase">{item.brand}</Text>
+        <Text className="text-[14px] font-semibold text-text" numberOfLines={2}>
           {item.name}
         </Text>
-        <Text className="text-[14px] font-bold text-black">{formatCurrency(item.price)}</Text>
+        <Text className="text-[14px] font-bold text-text">{formatCurrency(item.price)}</Text>
       </View>
       <View className="gap-sm items-end">
         <Pressable onPress={() => remove(item.productId)} hitSlop={8}>
-          <Feather name="trash-2" size={18} color="#C11E1E" />
+          <Feather name="trash-2" size={18} color={colors.danger} />
         </Pressable>
         <Button
           label="Add"
@@ -63,7 +65,7 @@ export default function WishlistScreen() {
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.addedAt - a.addedAt), [items]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       {items.length === 0 ? (
         <EmptyState
           icon="heart"

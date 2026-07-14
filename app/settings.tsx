@@ -43,10 +43,10 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <ScrollView contentContainerClassName="p-lg gap-2xl">
         <View className="gap-md">
-          <Text className="text-h3 font-semibold text-black">Appearance</Text>
+          <Text className="text-h3 font-semibold text-text">Appearance</Text>
           <View className="flex-row gap-sm">
             {themeOptions.map((opt) => (
               <Chip
@@ -60,7 +60,7 @@ export default function SettingsScreen() {
         </View>
 
         <View className="gap-md">
-          <Text className="text-h3 font-semibold text-black">Account</Text>
+          <Text className="text-h3 font-semibold text-text">Account</Text>
           <Button label="Sign out" variant="outline" onPress={logout} fullWidth />
           <Button label="Delete account" variant="destructive" onPress={confirmDeleteAccount} fullWidth />
         </View>

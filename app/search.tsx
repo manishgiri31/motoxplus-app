@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Product, ProductSuggestion } from '@/api/types';
 import { EmptyState, ProductCard } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.
 function openProduct(product: Product) {
@@ -24,27 +25,28 @@ function useDebouncedValue(value: string, delayMs: number) {
 }
 
 const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: ProductSuggestion }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={() => router.push(`/product/${suggestion.id}`)}
-      className="flex-row items-center gap-md px-lg py-md border-b border-graytone-100 active:bg-graytone-50"
+      className="flex-row items-center gap-md px-lg py-md border-b border-border active:bg-surface"
     >
       {suggestion.imageUrl ? (
         <Image
           source={{ uri: suggestion.imageUrl }}
-          className="w-10 h-10 rounded-md bg-graytone-100"
+          className="w-10 h-10 rounded-md bg-surface"
           cachePolicy="memory-disk"
         />
       ) : (
-        <View className="w-10 h-10 rounded-md bg-graytone-100 items-center justify-center">
-          <Feather name="box" size={16} color="#A3A3A3" />
+        <View className="w-10 h-10 rounded-md bg-surface items-center justify-center">
+          <Feather name="box" size={16} color={colors.muted} />
         </View>
       )}
       <View className="flex-1">
-        <Text className="text-[14px] font-medium text-black" numberOfLines={1}>
+        <Text className="text-[14px] font-medium text-text" numberOfLines={1}>
           {suggestion.name}
         </Text>
-        <Text className="text-[12px] text-graytone-500">
+        <Text className="text-[12px] text-muted">
           {suggestion.categoryName} · {suggestion.brand}
         </Text>
       </View>
@@ -55,6 +57,7 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
+  const colors = useThemeColors();
 
   const suggestionsQuery = useProductSearch(debouncedQuery);
   const resultsQuery = useInfiniteProducts({ search: debouncedQuery.trim().length >= 2 ? debouncedQuery : undefined });
@@ -63,27 +66,27 @@ export default function SearchScreen() {
   const showSuggestions = debouncedQuery.trim().length >= 2 && debouncedQuery.trim().length < 4;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-row items-center gap-sm px-lg py-md border-b border-graytone-100">
-        <View className="flex-1 flex-row items-center h-11 rounded-md bg-graytone-100 px-md gap-sm">
-          <Feather name="search" size={18} color="#737373" />
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="flex-row items-center gap-sm px-lg py-md border-b border-border">
+        <View className="flex-1 flex-row items-center h-11 rounded-md bg-surface px-md gap-sm">
+          <Feather name="search" size={18} color={colors.muted} />
           <TextInput
             autoFocus
             value={query}
             onChangeText={setQuery}
             placeholder="Search parts, brands, part numbers…"
-            placeholderTextColor="#A3A3A3"
-            className="flex-1 text-[15px] text-black"
+            placeholderTextColor={colors.muted}
+            className="flex-1 text-[15px] text-text"
             returnKeyType="search"
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <Feather name="x" size={16} color="#737373" />
+              <Feather name="x" size={16} color={colors.muted} />
             </Pressable>
           )}
         </View>
         <Pressable onPress={() => router.back()}>
-          <Text className="text-[15px] font-medium text-black">Cancel</Text>
+          <Text className="text-[15px] font-medium text-text">Cancel</Text>
         </Pressable>
       </View>
 
@@ -116,7 +119,7 @@ export default function SearchScreen() {
           onEndReached={() => {
             if (resultsQuery.hasNextPage && !resultsQuery.isFetchingNextPage) resultsQuery.fetchNextPage();
           }}
-          ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color="#0A0A0A" /> : null}
+          ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
           ListEmptyComponent={
             !resultsQuery.isLoading ? (
               <EmptyState icon="search" title="No results" message={`Nothing found for "${query}"`} />

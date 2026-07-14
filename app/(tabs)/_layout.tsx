@@ -2,12 +2,10 @@ import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { brandColors } from '@/constants/colors';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = brandColors[colorScheme];
+  const colors = useThemeColors();
 
   return (
     <Tabs
@@ -15,7 +13,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.inkSubtle,
+        tabBarInactiveTintColor: colors.muted,
         tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
         // Each tab mounts only on first visit, and its screen tree is frozen
         // (no re-renders, paused effects) while another tab is focused —

@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
@@ -24,6 +24,7 @@ export default function ForgotPasswordScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
   const requestForm = useForm<ForgotPasswordRequestValues>({
     resolver: zodResolver(forgotPasswordRequestSchema),
@@ -84,12 +85,12 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="flex-1 justify-center px-2xl gap-2xl" keyboardShouldPersistTaps="handled">
           <View className="gap-xs">
-            <Text className="text-h1 font-bold text-black">Reset password</Text>
-            <Text className="text-body text-graytone-500">
+            <Text className="text-h1 font-bold text-text">Reset password</Text>
+            <Text className="text-body text-muted">
               {step === 'request' && 'Enter your email or mobile number to receive a code.'}
               {step === 'otp' && 'Enter the 6-digit code we sent you.'}
               {step === 'reset' && 'Choose a new password for your account.'}
@@ -104,7 +105,10 @@ export default function ForgotPasswordScreen() {
                 render={({ field, fieldState }) => (
                   <Input
                     label="Email or mobile number"
+                    autoFocus
                     autoCapitalize="none"
+                    returnKeyType="go"
+                    onSubmitEditing={requestForm.handleSubmit(submitRequest)}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -131,8 +135,11 @@ export default function ForgotPasswordScreen() {
                 render={({ field, fieldState }) => (
                   <Input
                     label="6-digit code"
+                    autoFocus
                     keyboardType="number-pad"
                     maxLength={6}
+                    returnKeyType="go"
+                    onSubmitEditing={otpForm.handleSubmit(submitOtp)}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -159,8 +166,11 @@ export default function ForgotPasswordScreen() {
                 render={({ field, fieldState }) => (
                   <Input
                     label="New password"
+                    autoFocus
                     secureTextEntry
                     autoCapitalize="none"
+                    returnKeyType="next"
+                    onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -173,9 +183,12 @@ export default function ForgotPasswordScreen() {
                 name="confirmPassword"
                 render={({ field, fieldState }) => (
                   <Input
+                    ref={confirmPasswordRef}
                     label="Confirm new password"
                     secureTextEntry
                     autoCapitalize="none"
+                    returnKeyType="go"
+                    onSubmitEditing={resetForm.handleSubmit(submitReset)}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}

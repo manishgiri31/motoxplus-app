@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInfiniteProducts } from '@/api/hooks/useProducts';
 import type { Product } from '@/api/types';
 import { EmptyState, ErrorState, ProductCard, ProductCardSkeleton } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.
 function openProduct(product: Product) {
@@ -15,6 +16,7 @@ function openProduct(product: Product) {
 export default function CategoryProductsScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const navigation = useNavigation();
+  const colors = useThemeColors();
 
   const query = useInfiniteProducts({ category: slug });
   const products = useMemo(() => query.data?.pages.flatMap((p) => p.products) ?? [], [query.data]);
@@ -25,7 +27,7 @@ export default function CategoryProductsScreen() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
         <ScrollView contentContainerClassName="p-lg">
           <View className="flex-row flex-wrap gap-md">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -41,14 +43,14 @@ export default function CategoryProductsScreen() {
 
   if (query.isError) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <FlatList
         data={products}
         keyExtractor={(item) => item.id}
@@ -68,7 +70,7 @@ export default function CategoryProductsScreen() {
         onEndReached={() => {
           if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage();
         }}
-        ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator className="py-lg" color="#0A0A0A" /> : null}
+        ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
         ListEmptyComponent={<EmptyState icon="box" title="No products in this category yet" />}
       />
     </SafeAreaView>

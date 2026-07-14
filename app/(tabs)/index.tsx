@@ -9,6 +9,7 @@ import { useInfiniteProducts } from '@/api/hooks/useProducts';
 import { useRecentlyViewedProducts } from '@/api/hooks/useRecentlyViewedProducts';
 import type { Category, Product } from '@/api/types';
 import { ErrorState, ProductCard, ProductCardSkeleton } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { discountPercent } from '@/utils/format';
 
 // Module-level (not recreated per render) so ProductCard's memo() comparison
@@ -18,15 +19,16 @@ function openProduct(product: Product) {
 }
 
 const CategoryPill = memo(function CategoryPill({ category }: { category: Category }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={() => router.push(`/category/${category.slug}`)}
       className="w-24 items-center gap-xs mr-md"
     >
-      <View className="w-16 h-16 rounded-full bg-graytone-100 items-center justify-center overflow-hidden">
-        <Feather name="grid" size={22} color="#525252" />
+      <View className="w-16 h-16 rounded-full bg-surface items-center justify-center overflow-hidden">
+        <Feather name="grid" size={22} color={colors.muted} />
       </View>
-      <Text className="text-[12px] font-medium text-black text-center" numberOfLines={2}>
+      <Text className="text-[12px] font-medium text-text text-center" numberOfLines={2}>
         {category.name}
       </Text>
     </Pressable>
@@ -37,7 +39,7 @@ const ProductRail = memo(function ProductRail({ title, products }: { title: stri
   if (products.length === 0) return null;
   return (
     <View className="gap-md mb-2xl">
-      <Text className="text-h3 font-semibold text-black px-lg">{title}</Text>
+      <Text className="text-h3 font-semibold text-text px-lg">{title}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-lg gap-md">
         {products.map((product) => (
           <View key={product.id} className="w-40">
@@ -53,6 +55,7 @@ export default function HomeScreen() {
   const categoriesQuery = useCategories();
   const productsQuery = useInfiniteProducts();
   const { products: recentlyViewed } = useRecentlyViewedProducts();
+  const colors = useThemeColors();
 
   const allProducts = useMemo(
     () => (productsQuery.data?.pages ?? []).flatMap((p) => p.products),
@@ -80,36 +83,38 @@ export default function HomeScreen() {
     <View>
       <View className="flex-row items-center justify-between px-lg pt-sm pb-lg">
         <View>
-          <Text className="text-[13px] font-semibold uppercase tracking-wide text-brandred-500">MotoXPlus</Text>
-          <Text className="text-h2 font-bold text-black">Dealer Catalog</Text>
+          <Text className="text-[13px] font-semibold uppercase tracking-wide text-primary">MotoXPlus</Text>
+          <Text className="text-h2 font-bold text-text">Dealer Catalog</Text>
         </View>
         <Pressable onPress={() => router.push('/notifications')} hitSlop={8}>
-          <Feather name="bell" size={22} color="#0A0A0A" />
+          <Feather name="bell" size={22} color={colors.text} />
         </Pressable>
       </View>
 
       <Pressable
         onPress={() => router.push('/search')}
-        className="mx-lg mb-2xl h-12 rounded-md bg-graytone-100 flex-row items-center px-md gap-sm"
+        className="mx-lg mb-2xl h-12 rounded-md bg-surface flex-row items-center px-md gap-sm"
       >
-        <Feather name="search" size={18} color="#737373" />
-        <Text className="text-[15px] text-graytone-500">Search parts, brands, part numbers…</Text>
+        <Feather name="search" size={18} color={colors.muted} />
+        <Text className="text-[15px] text-muted">Search parts, brands, part numbers…</Text>
       </Pressable>
 
-      <View className="mx-lg mb-2xl rounded-lg bg-black px-xl py-2xl">
-        <Text className="text-[13px] font-semibold uppercase tracking-wide text-brandred-500 mb-xs">
+      <View className="mx-lg mb-2xl rounded-lg bg-secondary px-xl py-2xl">
+        <Text className="text-[13px] font-semibold uppercase tracking-wide text-primary mb-xs">
           Genuine Parts, Direct to Dealer
         </Text>
-        <Text className="text-h2 font-bold text-white mb-xs">Order in minutes,{'\n'}delivered nationwide.</Text>
+        <Text className="text-h2 font-bold text-secondary-foreground mb-xs">
+          Order in minutes,{'\n'}delivered nationwide.
+        </Text>
       </View>
 
       {categoriesQuery.isLoading ? (
         <View className="px-lg mb-2xl">
-          <ActivityIndicator color="#0A0A0A" />
+          <ActivityIndicator color={colors.text} />
         </View>
       ) : popularCategories.length > 0 ? (
         <View className="gap-md mb-2xl">
-          <Text className="text-h3 font-semibold text-black px-lg">Popular Categories</Text>
+          <Text className="text-h3 font-semibold text-text px-lg">Popular Categories</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-lg">
             {popularCategories.map((c) => (
               <CategoryPill key={c.id} category={c} />
@@ -121,20 +126,20 @@ export default function HomeScreen() {
       <ProductRail title="Offers" products={offers} />
       <ProductRail title="Recently Viewed" products={recentlyViewed} />
 
-      <Text className="text-h3 font-semibold text-black px-lg mb-md">New Arrivals</Text>
+      <Text className="text-h3 font-semibold text-text px-lg mb-md">New Arrivals</Text>
     </View>
   );
 
   if (productsQuery.isError) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
         <ErrorState error={productsQuery.error} onRetry={() => productsQuery.refetch()} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       {productsQuery.isLoading ? (
         <ScrollView contentContainerClassName="p-lg">
           <View className="flex-row flex-wrap gap-md">
@@ -170,9 +175,7 @@ export default function HomeScreen() {
             }
           }}
           ListFooterComponent={
-            productsQuery.isFetchingNextPage ? (
-              <ActivityIndicator className="py-lg" color="#0A0A0A" />
-            ) : null
+            productsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null
           }
         />
       )}
