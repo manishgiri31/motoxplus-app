@@ -1,7 +1,29 @@
 // Types mirror the real backend responses documented in docs/api.md.
 // The response envelope is NOT uniform across endpoints — see docs/api.md §1.
 
-export type UserRole = 'DEALER' | 'ADMIN' | 'SUPER_ADMIN' | 'VENDOR' | 'STAFF';
+// Mirrors prisma/schema.prisma `UserRole` in motoxplus-web (the source of
+// truth) member-for-member. The app only grants access to DEALER — every
+// other role authenticates successfully against the backend but is rejected
+// by auth/access.ts#canAccessDealerApp. Keeping the full enum (rather than a
+// narrowed DEALER-only type) lets the client reason correctly about every
+// value the API can actually return, instead of silently widening unknown
+// roles to `string`.
+export type UserRole =
+  | 'GUEST'
+  | 'DEALER'
+  | 'ADMIN'
+  | 'SUPER_ADMIN'
+  | 'VENDOR'
+  | 'STAFF'
+  | 'SALES'
+  | 'SUPPORT'
+  | 'PRODUCTION'
+  | 'DISPATCH'
+  | 'ACCOUNTS'
+  | 'MARKETING';
+
+// Mirrors prisma/schema.prisma `DealerStatus` exactly. Only 'ACTIVE' passes
+// auth/access.ts#canAccessDealerApp.
 export type DealerStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
 
 export interface AuthUser {
@@ -46,28 +68,6 @@ export interface MeResponse {
 export interface RefreshResponse {
   accessToken: string;
   refreshToken: string;
-}
-
-export interface DealerRegisterPayload {
-  companyName: string;
-  ownerName: string;
-  phone: string;
-  email: string;
-  password: string;
-  state: string;
-  city: string;
-  gstNumber?: string;
-  panNumber?: string;
-  aadhaarNumber?: string;
-  companyAddress?: string;
-  shopAddress?: string;
-  pincode?: string;
-}
-
-export interface DealerRegisterResponse {
-  success: true;
-  userId: string;
-  email: string;
 }
 
 export interface ForgotPasswordPayload {

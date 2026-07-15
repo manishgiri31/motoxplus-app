@@ -1,11 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'expo-router';
-import { useRef, useState } from 'react';
+import * as Linking from 'expo-linking';
+import { Link, router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
+import { DEALER_APPLICATION_URL, DealerAccessDeniedError } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
 import { Button, Input } from '@/components/ui';
@@ -14,9 +16,18 @@ import { logger } from '@/utils/logger';
 import { runConnectivityDiagnostics } from '@/utils/networkDiagnostics';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, accessDenied } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
+
+  // AuthProvider sets accessDenied both from a failed login attempt and from
+  // a rejected cold-start session restore — this is the single place that
+  // reacts to it, so both cases land on the same Access Denied screen.
+  useEffect(() => {
+    if (accessDenied) {
+      router.replace('/(auth)/access-denied');
+    }
+  }, [accessDenied]);
 
   const {
     control,
@@ -54,6 +65,12 @@ export default function LoginScreen() {
       // of which field it arrives in — see motoxplus-web login route.
       await login({ email: values.identifier.trim(), password: values.password });
     } catch (err) {
+      if (err instanceof DealerAccessDeniedError) {
+        // Don't show an inline form error here — the accessDenied effect
+        // above is about to replace this screen with the dedicated
+        // Access Denied screen.
+        return;
+      }
       logger.error('Login failed', {
         // Never log the password. Status/code is enough to diagnose from here.
         hasResponse: !!(err as { response?: unknown })?.response,
@@ -141,11 +158,16 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View className="flex-row justify-center gap-xs">
-            <Text className="text-[14px] text-muted">New dealer?</Text>
-            <Link href="/(auth)/register">
-              <Text className="text-[14px] font-semibold text-primary">Create an account</Text>
-            </Link>
+          <View className="items-center gap-2xs">
+            <Text className="text-[14px] text-muted">Need a dealer account?</Text>
+            <Pressable onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}>
+              <Text className="text-[14px] font-semibold text-primary">
+                Apply on MotoXPlus Website
+              </Text>
+            </Pressable>
+            <Text className="text-[12px] text-muted text-center">
+              Dealer applications are completed on the MotoXPlus website.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

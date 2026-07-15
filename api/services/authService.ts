@@ -1,7 +1,5 @@
 import { apiClient } from '../client';
 import type {
-  DealerRegisterPayload,
-  DealerRegisterResponse,
   ForgotPasswordPayload,
   ForgotPasswordResponse,
   LoginResponse,
@@ -28,9 +26,6 @@ export const authService = {
   },
 
   me: () => apiClient.get<MeResponse>('/mobile/auth/me').then((r) => r.data),
-
-  register: (payload: DealerRegisterPayload) =>
-    apiClient.post<DealerRegisterResponse>('/dealer/register', payload).then((r) => r.data),
 
   forgotPassword: (payload: ForgotPasswordPayload) =>
     apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', payload).then((r) => r.data),

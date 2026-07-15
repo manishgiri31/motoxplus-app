@@ -62,6 +62,13 @@ apiClient.interceptors.response.use(
 
 let refreshPromise: Promise<string | null> | null = null;
 
+// POST /mobile/auth/refresh returns only a token pair, not (user, dealer) —
+// there's nothing here for auth/access.ts#canAccessDealerApp to check. That's
+// fine: role/status are re-verified the next time this token is used to hit
+// GET /mobile/auth/me (app cold start, or a future refreshUser() call), and
+// if the backend has revoked the refresh token itself (e.g. account
+// suspended server-side), this call fails outright and the `!newAccessToken`
+// branch below logs the user out regardless.
 async function refreshAccessToken(): Promise<string | null> {
   const tokens = await secureStorage.getTokens();
   if (!tokens?.refreshToken) return null;
