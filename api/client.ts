@@ -3,12 +3,15 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { emitAuthFailure } from '@/auth/authEvents';
 import { secureStorage } from '@/auth/secureStorage';
 import { env } from '@/config/env';
+import { logger } from '@/utils/logger';
 import type { RefreshResponse } from './types';
 
 type RetryableConfig = InternalAxiosRequestConfig & {
   _authRetry?: boolean;
   _retryCount?: number;
 };
+
+logger.info('API client baseURL resolved', { apiUrl: env.apiUrl });
 
 export const apiClient = axios.create({
   baseURL: env.apiUrl,
@@ -24,12 +27,38 @@ const refreshClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
+  // eslint-disable-next-line no-console
+  console.log('REQUEST INTERCEPTOR HIT');
+  // eslint-disable-next-line no-console
+  console.log('STEP 5');
   const tokens = await secureStorage.getTokens();
   if (tokens?.accessToken) {
     config.headers.set('Authorization', `Bearer ${tokens.accessToken}`);
   }
+  // This is the last point before axios hands the request off to the native
+  // networking layer — the closest real boundary to "axios.post() actually
+  // sending" that axios exposes (there is no separate call site for it:
+  // authService.login's `apiClient.post(...)` *is* the axios.post call).
+  // eslint-disable-next-line no-console
+  console.log('STEP 6');
+  logger.request(config);
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => {
+    // eslint-disable-next-line no-console
+    console.log('RESPONSE INTERCEPTOR HIT');
+    logger.response(response);
+    return response;
+  },
+  (error: AxiosError) => {
+    // eslint-disable-next-line no-console
+    console.log('NETWORK ERROR INTERCEPTOR HIT');
+    logger.networkError(error, 'apiClient');
+    return Promise.reject(error);
+  }
+);
 
 let refreshPromise: Promise<string | null> | null = null;
 

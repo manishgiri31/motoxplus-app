@@ -9,7 +9,9 @@ import { getErrorMessage } from '@/api/errors';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
 import { Button, Input } from '@/components/ui';
+import { BUILD_DATE, BUILD_ID } from '@/utils/buildInfo';
 import { logger } from '@/utils/logger';
+import { runConnectivityDiagnostics } from '@/utils/networkDiagnostics';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -33,6 +35,21 @@ export default function LoginScreen() {
 
     setFormError(null);
     try {
+      // eslint-disable-next-line no-console
+      console.log('STEP 1');
+
+      // One-time network audit instrumentation (see AGENTS task tracking the
+      // "hasResponse: false" investigation) — dev-only pre-flight so a dead
+      // connection is caught and fully logged before it gets conflated with
+      // an auth failure. Remove once the root cause is confirmed fixed.
+      if (__DEV__) {
+        const reachable = await runConnectivityDiagnostics();
+        if (!reachable) {
+          setFormError('Could not reach motoxplus.com at all (see Metro logs for diagnostics).');
+          return;
+        }
+      }
+
       // Backend re-detects email vs. mobile from the string itself regardless
       // of which field it arrives in — see motoxplus-web login route.
       await login({ email: values.identifier.trim(), password: values.password });
@@ -52,6 +69,13 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerClassName="flex-1 justify-center px-2xl gap-2xl" keyboardShouldPersistTaps="handled">
+          {__DEV__ && (
+            <View className="bg-danger/10 px-sm py-xs rounded-md">
+              <Text className="text-[11px] font-mono text-danger">DEV BUILD</Text>
+              <Text className="text-[11px] font-mono text-danger">{BUILD_DATE}</Text>
+              <Text className="text-[11px] font-mono text-danger">{BUILD_ID}</Text>
+            </View>
+          )}
           <View className="gap-xs">
             <Text className="text-[13px] font-semibold uppercase tracking-[3px] text-primary">
               MotoXPlus Dealer

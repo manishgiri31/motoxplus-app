@@ -56,6 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearSession]);
 
   const login = useCallback(async (payload: LoginPayload) => {
+    // STEP 2/3 are colocated here on purpose: useAuth() (auth/useAuth.ts) is
+    // a pure `useContext` passthrough with no execution boundary of its own —
+    // it re-runs on every render of every consumer, not just on submit, so a
+    // log inside the hook itself would be render noise, not signal. This is
+    // the first point where "the function useAuth() handed back" actually
+    // executes.
+    // eslint-disable-next-line no-console
+    console.log('STEP 2');
+    // eslint-disable-next-line no-console
+    console.log('STEP 3');
     const res = await authService.login(payload);
     await secureStorage.setTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     setUser(res.user);
