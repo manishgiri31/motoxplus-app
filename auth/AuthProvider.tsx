@@ -47,7 +47,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const tokens = await secureStorage.getTokens();
+      // A storage read failure (corrupted keychain entry, OS-level access
+      // error, ...) must degrade to "no session" like a missing token would,
+      // not leave isLoading stuck true forever — the splash screen only
+      // hides once isLoading flips to false (see RootLayout), so an
+      // uncaught throw here previously meant a permanently blank app with
+      // no way to recover short of reinstalling.
+      let tokens: Awaited<ReturnType<typeof secureStorage.getTokens>> = null;
+      try {
+        tokens = await secureStorage.getTokens();
+      } catch {
+        setIsLoading(false);
+        return;
+      }
       if (!tokens) {
         setIsLoading(false);
         return;
