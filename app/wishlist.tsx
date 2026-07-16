@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { memo, useMemo } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -7,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct } from '@/api/hooks/useProducts';
-import { Button, EmptyState } from '@/components/ui';
+import { Button, EmptyState, Image } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { formatCurrency } from '@/utils/format';

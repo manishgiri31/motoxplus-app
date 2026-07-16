@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { memo, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -7,6 +6,7 @@ import type { Product } from '@/api/types';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { Badge } from './Badge';
+import { Image } from './Image';
 import { PriceTag } from './PriceTag';
 
 export interface ProductCardProps {

@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { memo, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
@@ -7,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Product, ProductSuggestion } from '@/api/types';
-import { EmptyState, ProductCard } from '@/components/ui';
+import { EmptyState, Image, ProductCard } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.

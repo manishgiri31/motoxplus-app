@@ -5,6 +5,7 @@ export * from './Chip';
 export * from './Dropdown';
 export * from './EmptyState';
 export * from './ErrorState';
+export * from './Image';
 export * from './Input';
 export * from './PriceTag';
 export * from './ProductCard';
