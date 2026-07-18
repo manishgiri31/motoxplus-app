@@ -67,7 +67,7 @@ export default function ProductDetailScreen() {
   }
 
   const outOfStock = product.stock <= 0;
-  const primaryImage = product.productImages.find((i) => i.isPrimary) ?? product.productImages[0];
+  const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
 
   const handleAddToCart = () => {
     addToCart.mutate(
@@ -88,7 +88,7 @@ export default function ProductDetailScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <ScrollView contentContainerClassName="pb-2xl">
-        <ProductGallery images={product.productImages} />
+        <ProductGallery images={product.productImages ?? []} />
 
         <View className="p-lg gap-md">
           <View className="flex-row items-start justify-between">

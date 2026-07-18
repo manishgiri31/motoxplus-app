@@ -10,6 +10,7 @@ import { Button, EmptyState, ErrorState, Image, ListRowSkeleton } from '@/compon
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { formatCurrency } from '@/utils/format';
+import { getImageSource } from '@/utils/image';
 
 const FREE_DELIVERY_THRESHOLD = 25000;
 
@@ -21,7 +22,11 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
 
   const unitPrice = item.variant?.price ?? item.product.price;
   const moq = item.product.moq;
-  const primaryImage = item.product.productImages.find((i) => i.isPrimary) ?? item.product.productImages[0];
+  // Unlike GET /api/products[/:id], GET /api/cart's embedded product does not
+  // include productImages (see docs/api.md §6) — only category is promised.
+  // Guard against the missing field instead of assuming every Product-shaped
+  // object was fetched from the products endpoints.
+  const primaryImage = item.product.productImages?.find((i) => i.isPrimary) ?? item.product.productImages?.[0];
   const atMinQuantity = item.quantity - moq < moq;
 
   const changeQuantity = (nextQuantity: number) => {
@@ -48,7 +53,7 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   return (
     <View className="flex-row gap-md p-lg border-b border-border">
       <Image
-        source={primaryImage ? { uri: primaryImage.imageUrl } : undefined}
+        source={getImageSource(primaryImage?.imageUrl)}
         className="w-16 h-16 rounded-md bg-surface"
         cachePolicy="memory-disk"
         recyclingKey={item.productId}

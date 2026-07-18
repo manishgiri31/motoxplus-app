@@ -8,6 +8,7 @@ import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Product, ProductSuggestion } from '@/api/types';
 import { EmptyState, Image, ProductCard } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { getImageSource } from '@/utils/image';
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.
 function openProduct(product: Product) {
@@ -25,14 +26,15 @@ function useDebouncedValue(value: string, delayMs: number) {
 
 const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: ProductSuggestion }) {
   const colors = useThemeColors();
+  const imageSource = getImageSource(suggestion.imageUrl);
   return (
     <Pressable
       onPress={() => router.push(`/product/${suggestion.id}`)}
       className="flex-row items-center gap-md px-lg py-md border-b border-border active:bg-surface"
     >
-      {suggestion.imageUrl ? (
+      {imageSource ? (
         <Image
-          source={{ uri: suggestion.imageUrl }}
+          source={imageSource}
           className="w-10 h-10 rounded-md bg-surface"
           cachePolicy="memory-disk"
         />
@@ -120,9 +122,11 @@ export default function SearchScreen() {
           }}
           ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
           ListEmptyComponent={
-            !resultsQuery.isLoading ? (
+            resultsQuery.isLoading ? (
+              <ActivityIndicator className="py-2xl" color={colors.text} />
+            ) : (
               <EmptyState icon="search" title="No results" message={`Nothing found for "${query}"`} />
-            ) : null
+            )
           }
         />
       )}

@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { Product } from '@/api/types';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { getImageSource } from '@/utils/image';
 import { Badge } from './Badge';
 import { Image } from './Image';
 import { PriceTag } from './PriceTag';
@@ -18,7 +19,12 @@ export interface ProductCardProps {
 // parent list re-renders on every pull-to-refresh/pagination tick — without
 // this, every card would re-render even though only new items were added.
 export const ProductCard = memo(function ProductCard({ product, onPress }: ProductCardProps) {
-  const primaryImage = product.productImages.find((i) => i.isPrimary) ?? product.productImages[0];
+  // productImages is reliably present wherever this card is fed data today
+  // (GET /api/products[/:id] only), but Product is a shared type also used
+  // for cart/order line items where the backend omits this field entirely —
+  // guard here so a future data source swap can't reintroduce the crash
+  // that hit the cart screen for the same reason.
+  const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
   const wishlisted = useWishlistStore((s) => s.isWishlisted(product.id));
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const colors = useThemeColors();
@@ -33,7 +39,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
     >
       <View className="relative">
         <Image
-          source={primaryImage ? { uri: primaryImage.imageUrl } : undefined}
+          source={getImageSource(primaryImage?.imageUrl)}
           className="w-full h-36 bg-surface"
           contentFit="cover"
           transition={150}

@@ -13,13 +13,6 @@ import { AppProviders } from '@/providers/AppProviders';
 // Side-effect import — starts the persisted theme preference's rehydration
 // (and re-applies it via nativewind's colorScheme.set) as early as possible.
 import '@/stores/settingsStore';
-import { logBuildInfo } from '@/utils/buildInfo';
-
-// Module-scope, not inside a component — runs once, the moment this module
-// is first evaluated, which is as early as any app code executes. If this
-// line's UUID/timestamp doesn't show up in the console on launch, the device
-// is not running this bundle, full stop.
-logBuildInfo();
 
 SplashScreen.preventAutoHideAsync();
 

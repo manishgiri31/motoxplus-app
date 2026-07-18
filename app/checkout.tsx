@@ -3,7 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
@@ -29,7 +29,7 @@ const paymentOptions: { label: string; value: PaymentType; hint: string }[] = [
 export default function CheckoutScreen() {
   const { dealer } = useAuth();
   const { data: dealerAccount } = useDealerAccount();
-  const { data: cart } = useCart();
+  const { data: cart, isLoading: isCartLoading } = useCart();
   const createOrder = useCreateOrder();
   const createRazorpayOrder = useCreateRazorpayOrder();
   const colors = useThemeColors();
@@ -114,6 +114,14 @@ export default function CheckoutScreen() {
       setFormError(getErrorMessage(err, 'Could not place order'));
     }
   };
+
+  if (isCartLoading) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
+        <ActivityIndicator color={colors.text} />
+      </SafeAreaView>
+    );
+  }
 
   if (items.length === 0) {
     return (

@@ -19,11 +19,8 @@ export interface LoginPayload {
 }
 
 export const authService = {
-  login: (payload: LoginPayload) => {
-    // eslint-disable-next-line no-console
-    console.log('STEP 4');
-    return apiClient.post<LoginResponse>('/mobile/auth/login', payload).then((r) => r.data);
-  },
+  login: (payload: LoginPayload) =>
+    apiClient.post<LoginResponse>('/mobile/auth/login', payload).then((r) => r.data),
 
   me: () => apiClient.get<MeResponse>('/mobile/auth/me').then((r) => r.data),
 

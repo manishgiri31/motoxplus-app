@@ -11,7 +11,6 @@ import { DEALER_APPLICATION_URL, DealerAccessDeniedError } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
 import { Button, Input } from '@/components/ui';
-import { BUILD_DATE, BUILD_ID } from '@/utils/buildInfo';
 import { logger } from '@/utils/logger';
 import { runConnectivityDiagnostics } from '@/utils/networkDiagnostics';
 
@@ -46,13 +45,9 @@ export default function LoginScreen() {
 
     setFormError(null);
     try {
-      // eslint-disable-next-line no-console
-      console.log('STEP 1');
-
-      // One-time network audit instrumentation (see AGENTS task tracking the
-      // "hasResponse: false" investigation) — dev-only pre-flight so a dead
-      // connection is caught and fully logged before it gets conflated with
-      // an auth failure. Remove once the root cause is confirmed fixed.
+      // Dev-only pre-flight so a dead connection is caught and fully logged
+      // before it gets conflated with an auth failure. No-op in production
+      // builds (see utils/networkDiagnostics.ts).
       if (__DEV__) {
         const reachable = await runConnectivityDiagnostics();
         if (!reachable) {
@@ -86,13 +81,6 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerClassName="flex-1 justify-center px-2xl gap-2xl" keyboardShouldPersistTaps="handled">
-          {__DEV__ && (
-            <View className="bg-danger/10 px-sm py-xs rounded-md">
-              <Text className="text-[11px] font-mono text-danger">DEV BUILD</Text>
-              <Text className="text-[11px] font-mono text-danger">{BUILD_DATE}</Text>
-              <Text className="text-[11px] font-mono text-danger">{BUILD_ID}</Text>
-            </View>
-          )}
           <View className="gap-xs">
             <Text className="text-[13px] font-semibold uppercase tracking-[3px] text-primary">
               MotoXPlus Dealer

@@ -10,6 +10,7 @@ import { Button, EmptyState, Image } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { formatCurrency } from '@/utils/format';
+import { getImageSource } from '@/utils/image';
 
 const WishlistRow = memo(function WishlistRow({ item }: { item: WishlistItem }) {
   const remove = useWishlistStore((s) => s.remove);
@@ -23,7 +24,7 @@ const WishlistRow = memo(function WishlistRow({ item }: { item: WishlistItem }) 
       className="flex-row items-center gap-md p-lg border-b border-border"
     >
       <Image
-        source={item.imageUrl ? { uri: item.imageUrl } : undefined}
+        source={getImageSource(item.imageUrl)}
         className="w-16 h-16 rounded-md bg-surface"
         cachePolicy="memory-disk"
         recyclingKey={item.productId}

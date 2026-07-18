@@ -24,7 +24,6 @@ function logDeviceInfo() {
   const androidConstants =
     Platform.OS === 'android' ? (Platform.constants as AndroidPlatformConstants) : undefined;
 
-  // eslint-disable-next-line no-console
   console.info(
     '[DEVICE INFO]',
     JSON.stringify(
@@ -55,9 +54,7 @@ function logDeviceInfo() {
 export async function runConnectivityDiagnostics(): Promise<boolean> {
   // Literal, grep-able markers with no `await` above them — if these two
   // lines don't appear, this function never ran, period.
-  // eslint-disable-next-line no-console
   console.log('DIAGNOSTICS START');
-  // eslint-disable-next-line no-console
   console.log('DEVICE INFO', { apiUrl: env.apiUrl, platform: Platform.OS, version: Platform.Version });
 
   logDeviceInfo();
@@ -66,7 +63,6 @@ export async function runConnectivityDiagnostics(): Promise<boolean> {
   for (const url of CHECK_URLS) {
     try {
       const response = await axios.get(url, { timeout: 10000, validateStatus: () => true });
-      // eslint-disable-next-line no-console
       console.info(
         '[DIAGNOSTIC GET OK]',
         JSON.stringify(

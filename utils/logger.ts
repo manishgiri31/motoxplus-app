@@ -9,13 +9,11 @@ type LogLevel = 'info' | 'warn' | 'error';
  */
 function log(level: LogLevel, message: string, extra?: Record<string, unknown>) {
   if (__DEV__) {
-    // eslint-disable-next-line no-console
     console[level](`[${level.toUpperCase()}] ${message}`, extra ?? '');
     return;
   }
   if (level === 'error') {
     // No crash reporter wired up yet — at least surface it in production logs.
-    // eslint-disable-next-line no-console
     console.error(message, extra ?? '');
   }
 }
@@ -45,7 +43,6 @@ function resolveFullURL(config?: { url?: string; baseURL?: string }): string | u
 
 function logRequest(config: InternalAxiosRequestConfig) {
   if (!__DEV__) return;
-  // eslint-disable-next-line no-console
   console.info('[HTTP REQUEST]', {
     url: config.url,
     baseURL: config.baseURL,
@@ -59,7 +56,6 @@ function logRequest(config: InternalAxiosRequestConfig) {
 
 function logResponse(response: AxiosResponse) {
   if (!__DEV__) return;
-  // eslint-disable-next-line no-console
   console.info('[HTTP RESPONSE]', {
     url: response.config?.url,
     status: response.status,
@@ -101,12 +97,9 @@ function redactBody(data: unknown): unknown {
 function logNetworkError(error: AxiosError, context?: string) {
   // Ground truth, unprocessed, first — if anything below ever misbehaves,
   // this line already has the real object on record.
-  // eslint-disable-next-line no-console
   console.error('RAW AXIOS ERROR', error);
-  // eslint-disable-next-line no-console
   console.error('RAW ERROR TOJSON', error.toJSON?.());
 
-  // eslint-disable-next-line no-console
   console.error('[HTTP NETWORK ERROR]', {
     context,
     name: error.name,
