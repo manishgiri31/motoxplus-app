@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -58,10 +59,18 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ErrorBoundary>
-      <AppProviders>
-        <RootNavigator />
-      </AppProviders>
-    </ErrorBoundary>
+    // ProductGallery's pinch/pan/double-tap zoom uses GestureDetector, which
+    // requires a GestureHandlerRootView ancestor somewhere in the tree —
+    // without it, react-native-gesture-handler throws "GestureDetector must
+    // be used as a descendant of GestureHandlerRootView" the moment any
+    // screen using it mounts (every product detail screen). style={{flex:1}}
+    // is required too — omitting it leaves the view collapsed to zero size.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <AppProviders>
+          <RootNavigator />
+        </AppProviders>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
