@@ -148,7 +148,13 @@ export default function LoginScreen() {
 
           <View className="items-center gap-2xs">
             <Text className="text-[14px] text-muted">Need a dealer account?</Text>
-            <Pressable onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}>
+            <Pressable
+              onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}
+              hitSlop={10}
+              className="py-xs"
+              accessibilityRole="link"
+              accessibilityLabel="Apply on MotoXPlus Website"
+            >
               <Text className="text-[14px] font-semibold text-primary">
                 Apply on MotoXPlus Website
               </Text>

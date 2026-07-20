@@ -3,6 +3,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { emitAuthFailure } from '@/auth/authEvents';
 import { secureStorage } from '@/auth/secureStorage';
 import { env } from '@/config/env';
+import { HapticService } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
 import type { RefreshResponse } from './types';
 
@@ -89,6 +90,7 @@ apiClient.interceptors.response.use(
       if (!newAccessToken) {
         await secureStorage.clearTokens();
         emitAuthFailure();
+        HapticService.error();
         return Promise.reject(error);
       }
 
@@ -110,6 +112,12 @@ apiClient.interceptors.response.use(
       return apiClient(config);
     }
 
+    // Single choke point for the "API Errors"/"Payment Failed" haptic: this
+    // only runs once a failure is truly terminal (401 refresh exhausted,
+    // retries exhausted, or non-retryable) — never on a request that's about
+    // to be silently replayed above, so a transient blip that resolves on
+    // retry doesn't buzz the user for no reason.
+    HapticService.error();
     return Promise.reject(error);
   }
 );

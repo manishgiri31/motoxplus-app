@@ -1,13 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Product, ProductSuggestion } from '@/api/types';
 import { EmptyState, Image, ProductCard } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.
@@ -31,6 +32,8 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
     <Pressable
       onPress={() => router.push(`/product/${suggestion.id}`)}
       className="flex-row items-center gap-md px-lg py-md border-b border-border active:bg-surface"
+      accessibilityRole="button"
+      accessibilityLabel={`${suggestion.name}, ${suggestion.categoryName}, ${suggestion.brand}`}
     >
       {imageSource ? (
         <Image
@@ -79,14 +82,20 @@ export default function SearchScreen() {
             placeholderTextColor={colors.muted}
             className="flex-1 text-[15px] text-text"
             returnKeyType="search"
+            accessibilityLabel="Search parts, brands, part numbers"
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Pressable
+              onPress={() => setQuery('')}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <Feather name="x" size={16} color={colors.muted} />
             </Pressable>
           )}
         </View>
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Cancel">
           <Text className="text-[15px] font-medium text-text">Cancel</Text>
         </Pressable>
       </View>
@@ -98,6 +107,15 @@ export default function SearchScreen() {
           data={suggestionsQuery.data.suggestions}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <SuggestionRow suggestion={item} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={suggestionsQuery.isRefetching}
+              onRefresh={() => {
+                HapticService.light();
+                suggestionsQuery.refetch();
+              }}
+            />
+          }
           ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing found for "${query}"`} />}
         />
       ) : (
@@ -120,12 +138,27 @@ export default function SearchScreen() {
           onEndReached={() => {
             if (resultsQuery.hasNextPage && !resultsQuery.isFetchingNextPage) resultsQuery.fetchNextPage();
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={resultsQuery.isRefetching && !resultsQuery.isFetchingNextPage}
+              onRefresh={() => {
+                HapticService.light();
+                resultsQuery.refetch();
+              }}
+            />
+          }
           ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
           ListEmptyComponent={
             resultsQuery.isLoading ? (
               <ActivityIndicator className="py-2xl" color={colors.text} />
             ) : (
-              <EmptyState icon="search" title="No results" message={`Nothing found for "${query}"`} />
+              <EmptyState
+                icon="search"
+                title="No results"
+                message={`Nothing found for "${query}". Try a different name, brand, or part number.`}
+                actionLabel="Clear search"
+                onAction={() => setQuery('')}
+              />
             )
           }
         />

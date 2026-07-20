@@ -17,6 +17,7 @@ import { useAuth } from '@/auth/useAuth';
 import { Button, Input } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/utils/format';
+import { HapticService } from '@/utils/haptics';
 
 const FREE_DELIVERY_THRESHOLD = 25000;
 
@@ -94,6 +95,11 @@ export default function CheckoutScreen() {
     setFormError(null);
     try {
       const { order, isCOD } = await createOrder.mutateAsync({ ...values, paymentType });
+      // Order created — this is the "Order placed" moment for both the COD
+      // and online-payment paths below; real payment capture isn't wired up
+      // in this build (see the comment further down), so there's no separate
+      // "payment success" event to fire yet.
+      HapticService.success();
 
       if (isCOD) {
         router.replace(`/order/${order.id}`);
@@ -111,9 +117,15 @@ export default function CheckoutScreen() {
         [{ text: 'View order', onPress: () => router.replace(`/order/${order.id}`) }]
       );
     } catch (err) {
+      // No HapticService.error() here: this failure already passed through
+      // apiClient's response interceptor, which fires the error haptic once
+      // for every surfaced API/payment failure app-wide. Adding one here too
+      // would double-fire for the same tap.
       setFormError(getErrorMessage(err, 'Could not place order'));
     }
   };
+
+  const onInvalid = () => HapticService.error();
 
   if (isCartLoading) {
     return (
@@ -198,6 +210,10 @@ export default function CheckoutScreen() {
               <Pressable
                 key={opt.value}
                 onPress={() => setPaymentType(opt.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: paymentType === opt.value }}
+                accessibilityLabel={opt.label}
+                accessibilityHint={opt.hint}
                 className={`flex-row items-center justify-between p-lg rounded-md border ${
                   paymentType === opt.value ? 'border-secondary bg-surface' : 'border-border'
                 }`}
@@ -241,7 +257,7 @@ export default function CheckoutScreen() {
 
           <Button
             label={paymentType === 'COD' ? 'Place order' : 'Place order & pay'}
-            onPress={handleSubmit(onSubmit)}
+            onPress={handleSubmit(onSubmit, onInvalid)}
             loading={isSubmitting || createOrder.isPending || createRazorpayOrder.isPending}
             fullWidth
             size="lg"

@@ -11,6 +11,7 @@ import { Badge, Button, ErrorState, PriceTag, ProductCard } from '@/components/u
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { HapticService } from '@/utils/haptics';
 
 function SpecRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -70,6 +71,7 @@ export default function ProductDetailScreen() {
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
 
   const handleAddToCart = () => {
+    HapticService.light();
     addToCart.mutate(
       { payload: { productId: product.id, quantity }, product },
       {
@@ -98,11 +100,12 @@ export default function ProductDetailScreen() {
               <Text className="text-[12px] text-muted">Part #{product.partNumber}</Text>
             </View>
             <View className="flex-row gap-md">
-              <Pressable onPress={handleShare} hitSlop={8}>
+              <Pressable onPress={handleShare} hitSlop={12} accessibilityRole="button" accessibilityLabel="Share product">
                 <Feather name="share-2" size={22} color={colors.text} />
               </Pressable>
               <Pressable
-                onPress={() =>
+                onPress={() => {
+                  HapticService.light();
                   toggleWishlist({
                     productId: product.id,
                     name: product.name,
@@ -110,9 +113,11 @@ export default function ProductDetailScreen() {
                     mrp: product.mrp,
                     imageUrl: primaryImage?.imageUrl ?? null,
                     brand: product.brand,
-                  })
-                }
-                hitSlop={8}
+                  });
+                }}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
               >
                 <Feather name="heart" size={22} color={wishlisted ? colors.primary : colors.text} />
               </Pressable>
@@ -166,13 +171,28 @@ export default function ProductDetailScreen() {
       <View className="flex-row items-center gap-md p-lg border-t border-border">
         <View className="flex-row items-center border border-border rounded-md">
           <Pressable
-            onPress={() => setQuantity((q) => Math.max(product.moq, q - product.moq))}
+            onPress={() => {
+              HapticService.medium();
+              setQuantity((q) => Math.max(product.moq, q - product.moq));
+            }}
             className="w-10 h-11 items-center justify-center"
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Decrease quantity"
           >
             <Feather name="minus" size={16} color={colors.text} />
           </Pressable>
           <Text className="w-10 text-center text-[15px] font-semibold text-text">{quantity}</Text>
-          <Pressable onPress={() => setQuantity((q) => q + product.moq)} className="w-10 h-11 items-center justify-center">
+          <Pressable
+            onPress={() => {
+              HapticService.medium();
+              setQuantity((q) => q + product.moq);
+            }}
+            className="w-10 h-11 items-center justify-center"
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Increase quantity"
+          >
             <Feather name="plus" size={16} color={colors.text} />
           </Pressable>
         </View>

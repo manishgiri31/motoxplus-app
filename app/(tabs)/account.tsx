@@ -32,6 +32,8 @@ function MenuRow({ icon, label, onPress, destructive }: MenuRowProps) {
     <Pressable
       onPress={onPress}
       className="flex-row items-center justify-between py-md px-lg border-b border-border active:bg-surface"
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <View className="flex-row items-center gap-md">
         <Feather name={icon} size={18} color={destructive ? colors.danger : colors.text} />

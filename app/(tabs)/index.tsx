@@ -11,6 +11,7 @@ import type { Category, Product } from '@/api/types';
 import { ErrorState, ProductCard, ProductCardSkeleton } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { discountPercent } from '@/utils/format';
+import { HapticService } from '@/utils/haptics';
 
 // Module-level (not recreated per render) so ProductCard's memo() comparison
 // sees a stable onPress reference instead of a new closure every render.
@@ -24,6 +25,8 @@ const CategoryPill = memo(function CategoryPill({ category }: { category: Catego
     <Pressable
       onPress={() => router.push(`/category/${category.slug}`)}
       className="w-24 items-center gap-xs mr-md"
+      accessibilityRole="button"
+      accessibilityLabel={category.name}
     >
       <View className="w-16 h-16 rounded-full bg-surface items-center justify-center overflow-hidden">
         <Feather name="grid" size={22} color={colors.muted} />
@@ -75,6 +78,7 @@ export default function HomeScreen() {
   const isRefreshing = (productsQuery.isRefetching || categoriesQuery.isRefetching) && !productsQuery.isFetchingNextPage;
 
   const onRefresh = () => {
+    HapticService.light();
     productsQuery.refetch();
     categoriesQuery.refetch();
   };
@@ -86,7 +90,12 @@ export default function HomeScreen() {
           <Text className="text-[13px] font-semibold uppercase tracking-wide text-primary">MotoXPlus</Text>
           <Text className="text-h2 font-bold text-text">Dealer Catalog</Text>
         </View>
-        <Pressable onPress={() => router.push('/notifications')} hitSlop={8}>
+        <Pressable
+          onPress={() => router.push('/notifications')}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
           <Feather name="bell" size={22} color={colors.text} />
         </Pressable>
       </View>
@@ -94,6 +103,8 @@ export default function HomeScreen() {
       <Pressable
         onPress={() => router.push('/search')}
         className="mx-lg mb-2xl h-12 rounded-md bg-surface flex-row items-center px-md gap-sm"
+        accessibilityRole="button"
+        accessibilityLabel="Search parts, brands, part numbers"
       >
         <Feather name="search" size={18} color={colors.muted} />
         <Text className="text-[15px] text-muted">Search parts, brands, part numbers…</Text>

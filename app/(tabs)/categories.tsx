@@ -7,6 +7,7 @@ import { useCategories } from '@/api/hooks/useCategories';
 import type { Category } from '@/api/types';
 import { EmptyState, ErrorState } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { HapticService } from '@/utils/haptics';
 
 export default function CategoriesScreen() {
   const { data: categories, isLoading, isError, error, refetch, isRefetching } = useCategories();
@@ -16,6 +17,8 @@ export default function CategoriesScreen() {
     <Pressable
       onPress={() => router.push(`/category/${item.slug}`)}
       className="flex-1 m-xs bg-card border border-border rounded-lg p-lg gap-sm active:opacity-70"
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, ${item._count.products} products`}
     >
       <View className="w-12 h-12 rounded-full bg-surface items-center justify-center">
         <Feather name="grid" size={20} color={colors.text} />
@@ -41,10 +44,26 @@ export default function CategoriesScreen() {
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerClassName="px-sm pb-2xl"
-          refreshControl={<RefreshControl refreshing={isRefetching && !isLoading} onRefresh={refetch} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching && !isLoading}
+              onRefresh={() => {
+                HapticService.light();
+                refetch();
+              }}
+            />
+          }
           renderItem={renderItem}
           ListEmptyComponent={
-            !isLoading ? <EmptyState icon="grid" title="No categories yet" /> : null
+            !isLoading ? (
+              <EmptyState
+                icon="grid"
+                title="No categories yet"
+                message="Categories will appear here once they're added to the catalog."
+                actionLabel="Go to Home"
+                onAction={() => router.push('/(tabs)')}
+              />
+            ) : null
           }
         />
       )}

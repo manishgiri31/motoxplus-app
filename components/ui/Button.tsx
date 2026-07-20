@@ -62,6 +62,9 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
+      // 'sm' renders at 36px tall (below the 44x44 touch-target minimum) —
+      // hitSlop extends the tappable area without changing the visual size.
+      hitSlop={size === 'sm' ? 8 : undefined}
       className={`flex-row items-center justify-center gap-sm ${containerByVariant[variant]} ${sizeStyles[size].container} ${fullWidth ? 'w-full' : ''} ${isDisabled ? 'opacity-50' : ''} ${className ?? ''}`}
       {...pressableProps}
     >

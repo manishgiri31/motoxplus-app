@@ -8,6 +8,7 @@ import type { Order, OrderStatus } from '@/api/types';
 import { Badge, type BadgeTone, EmptyState, ErrorState } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/utils/format';
+import { HapticService } from '@/utils/haptics';
 
 const statusTone: Record<OrderStatus, BadgeTone> = {
   PENDING: 'warning',
@@ -22,6 +23,8 @@ const OrderRow = memo(function OrderRow({ order }: { order: Order }) {
     <Pressable
       onPress={() => router.push(`/order/${order.id}`)}
       className="p-lg border-b border-border gap-sm active:bg-surface"
+      accessibilityRole="button"
+      accessibilityLabel={`Order ${order.orderNumber}, ${order.status}, ${order.items.length} items, ${formatCurrency(order.grandTotal)}`}
     >
       <View className="flex-row justify-between items-start">
         <View className="gap-xxs">
@@ -73,14 +76,37 @@ export default function OrdersScreen() {
         data={data?.orders ?? []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <OrderRow order={item} />}
-        refreshControl={<RefreshControl refreshing={isFetching && !isLoading} onRefresh={() => refetch()} />}
+        contentContainerClassName={(data?.orders ?? []).length === 0 ? 'flex-1' : undefined}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={() => {
+              HapticService.light();
+              refetch();
+            }}
+          />
+        }
         ListEmptyComponent={
-          <EmptyState icon="package" title="No orders yet" message="Orders you place will show up here." />
+          <EmptyState
+            icon="package"
+            title="No orders yet"
+            message="Orders you place will show up here."
+            actionLabel="Browse products"
+            onAction={() => router.push('/(tabs)')}
+          />
         }
         ListFooterComponent={
           data && totalPages > 1 ? (
             <View className="flex-row items-center justify-center gap-lg py-lg">
-              <Pressable disabled={page <= 1} onPress={() => setPage((p) => p - 1)}>
+              <Pressable
+                disabled={page <= 1}
+                onPress={() => setPage((p) => p - 1)}
+                hitSlop={10}
+                className="py-xs"
+                accessibilityRole="button"
+                accessibilityLabel="Previous page"
+                accessibilityState={{ disabled: page <= 1 }}
+              >
                 <Text className={`text-[14px] font-semibold ${page <= 1 ? 'text-muted' : 'text-text'}`}>
                   Previous
                 </Text>
@@ -88,7 +114,15 @@ export default function OrdersScreen() {
               <Text className="text-[13px] text-muted">
                 Page {page} of {totalPages}
               </Text>
-              <Pressable disabled={page >= totalPages} onPress={() => setPage((p) => p + 1)}>
+              <Pressable
+                disabled={page >= totalPages}
+                onPress={() => setPage((p) => p + 1)}
+                hitSlop={10}
+                className="py-xs"
+                accessibilityRole="button"
+                accessibilityLabel="Next page"
+                accessibilityState={{ disabled: page >= totalPages }}
+              >
                 <Text className={`text-[14px] font-semibold ${page >= totalPages ? 'text-muted' : 'text-text'}`}>
                   Next
                 </Text>

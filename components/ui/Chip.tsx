@@ -12,6 +12,10 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      // h-9 (36px) is below the 44x44 touch-target minimum — hitSlop extends
+      // the tappable area without changing the chip's visual size.
+      hitSlop={6}
       className={`h-9 px-md rounded-full border justify-center ${
         selected ? 'bg-secondary border-secondary' : 'bg-card border-border'
       }`}

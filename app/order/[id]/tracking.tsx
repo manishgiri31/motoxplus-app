@@ -61,7 +61,10 @@ export default function OrderTrackingScreen() {
         {data.trackingUrl && (
           <Pressable
             onPress={() => WebBrowser.openBrowserAsync(data.trackingUrl)}
-            className="flex-row items-center gap-sm"
+            className="flex-row items-center gap-sm py-xs"
+            hitSlop={10}
+            accessibilityRole="link"
+            accessibilityLabel="View on carrier's site"
           >
             <Feather name="external-link" size={16} color={colors.primary} />
             <Text className="text-[14px] font-semibold text-primary">View on carrier&apos;s site</Text>
