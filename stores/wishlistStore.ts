@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -56,3 +57,18 @@ export const useWishlistStore = create<WishlistState>()(
     }
   )
 );
+
+// `items` reads as [] the instant the app opens, before persisted data has
+// been read back from AsyncStorage — without this, a screen showing the
+// wishlist can flash an "empty" state for a returning user who actually has
+// saved items, right up until hydration finishes a moment later.
+export function useWishlistHasHydrated() {
+  const [hasHydrated, setHasHydrated] = useState(useWishlistStore.persist.hasHydrated());
+
+  useEffect(() => {
+    setHasHydrated(useWishlistStore.persist.hasHydrated());
+    return useWishlistStore.persist.onFinishHydration(() => setHasHydrated(true));
+  }, []);
+
+  return hasHydrated;
+}

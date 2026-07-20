@@ -2,12 +2,14 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct, useProducts } from '@/api/hooks/useProducts';
 import { ProductGallery } from '@/components/ProductGallery';
-import { Badge, Button, ErrorState, PriceTag, ProductCard } from '@/components/ui';
+import { Badge, Button, ErrorState, PriceTag, ProductCard, ProductDetailSkeleton, SuccessToast } from '@/components/ui';
+import { usePulseAnimation } from '@/hooks/use-pulse-animation';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -38,6 +40,9 @@ export default function ProductDetailScreen() {
   const toggleWishlist = useWishlistStore((s) => s.toggle);
 
   const [quantity, setQuantity] = useState(1);
+  const [addedMessage, setAddedMessage] = useState<string | null>(null);
+  const heartPulse = usePulseAnimation();
+  const quantityPulse = usePulseAnimation(1.15);
 
   useEffect(() => {
     if (product) {
@@ -61,8 +66,10 @@ export default function ProductDetailScreen() {
       );
     }
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
-        <Text className="text-muted">Loading…</Text>
+      <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+        <ScrollView contentContainerClassName="pb-2xl">
+          <ProductDetailSkeleton />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -75,7 +82,7 @@ export default function ProductDetailScreen() {
     addToCart.mutate(
       { payload: { productId: product.id, quantity }, product },
       {
-        onSuccess: () => Alert.alert('Added to cart', `${product.name} × ${quantity}`),
+        onSuccess: () => setAddedMessage(`Added ${product.name} × ${quantity} to cart`),
         onError: () => Alert.alert('Could not add to cart', 'Please try again.'),
       }
     );
@@ -88,7 +95,7 @@ export default function ProductDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-background relative" edges={['bottom']}>
       <ScrollView contentContainerClassName="pb-2xl">
         <ProductGallery images={product.productImages ?? []} />
 
@@ -106,6 +113,7 @@ export default function ProductDetailScreen() {
               <Pressable
                 onPress={() => {
                   HapticService.light();
+                  heartPulse.pulse();
                   toggleWishlist({
                     productId: product.id,
                     name: product.name,
@@ -119,7 +127,9 @@ export default function ProductDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
               >
-                <Feather name="heart" size={22} color={wishlisted ? colors.primary : colors.text} />
+                <Animated.View style={heartPulse.style}>
+                  <Feather name="heart" size={22} color={wishlisted ? colors.primary : colors.text} />
+                </Animated.View>
               </Pressable>
             </View>
           </View>
@@ -173,6 +183,7 @@ export default function ProductDetailScreen() {
           <Pressable
             onPress={() => {
               HapticService.medium();
+              quantityPulse.pulse();
               setQuantity((q) => Math.max(product.moq, q - product.moq));
             }}
             className="w-10 h-11 items-center justify-center"
@@ -182,10 +193,13 @@ export default function ProductDetailScreen() {
           >
             <Feather name="minus" size={16} color={colors.text} />
           </Pressable>
-          <Text className="w-10 text-center text-[15px] font-semibold text-text">{quantity}</Text>
+          <Animated.Text style={quantityPulse.style} className="w-10 text-center text-[15px] font-semibold text-text">
+            {quantity}
+          </Animated.Text>
           <Pressable
             onPress={() => {
               HapticService.medium();
+              quantityPulse.pulse();
               setQuantity((q) => q + product.moq);
             }}
             className="w-10 h-11 items-center justify-center"
@@ -206,6 +220,8 @@ export default function ProductDetailScreen() {
           className="flex-1"
         />
       </View>
+
+      {addedMessage && <SuccessToast message={addedMessage} onHide={() => setAddedMessage(null)} />}
     </SafeAreaView>
   );
 }

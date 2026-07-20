@@ -7,8 +7,11 @@ actually exists in this repo right now.
 
 - [x] **Splash screen** — configured in `app.json` (`expo-splash-screen` plugin) and wired in
       `app/_layout.tsx`: stays visible until auth session hydration finishes, then hides.
-- [x] **App icons** — using the default Expo template assets (`assets/images/icon.png`,
-      `android-icon-*.png`). These are **not real MotoXPlus brand icons** — swap them before shipping.
+- [x] **App icons** — replaced the default Expo template assets with a simple placeholder mark
+      (a white "M" on the app's brand red, `#E4111A`) covering `icon.png`, the Android adaptive
+      icon layers, `favicon.png`, and `splash-icon.png` (used for both light and dark splash).
+      This is **still not a real MotoXPlus brand icon** — swap it for real brand assets before
+      shipping (see the deferred item below).
 - [x] **Deep linking** — `app.json` already declares `"scheme": "motoxplusapp"`, and Expo Router
       auto-generates a linking config from the file-based routes with zero extra code. A link like
       `motoxplusapp://product/<id>` will open the product detail screen once the app is installed.
@@ -43,7 +46,8 @@ actually exists in this repo right now.
 - [ ] **App Store / Play Store submission** — needs store listings, screenshots, privacy-policy URL
       (the web app's `/privacy` already exists and is linked from Settings — reuse that URL for the
       store listing), and signing credentials.
-- [ ] **Real brand app icon + splash image** — still the Expo default assets.
+- [ ] **Real brand app icon + splash image** — currently a placeholder monogram (see "App icons"
+      above), not real MotoXPlus brand assets.
 - [ ] **Online payment (Razorpay) native SDK** — `api/services/paymentService.ts` creates the
       Razorpay order for real, but `react-native-razorpay` was deliberately **not installed** in this
       pass: it's a native module that isn't present in Expo Go, so importing it would break the whole

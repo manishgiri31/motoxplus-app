@@ -9,11 +9,13 @@ import Animated, {
 
 import type { ProductImage } from '@/api/types';
 import { Image } from '@/components/ui';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH;
 
 function ZoomableImage({ uri }: { uri: string }) {
+  const colors = useThemeColors();
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -71,7 +73,7 @@ function ZoomableImage({ uri }: { uri: string }) {
   }));
 
   return (
-    <View style={{ width: IMAGE_SIZE, height: IMAGE_SIZE, overflow: 'hidden' }}>
+    <View style={{ width: IMAGE_SIZE, height: IMAGE_SIZE, overflow: 'hidden', backgroundColor: colors.surface }}>
       <GestureDetector gesture={composed}>
         <Animated.View style={[{ width: '100%', height: '100%' }, animatedStyle]}>
           <Image

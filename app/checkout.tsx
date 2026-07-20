@@ -16,10 +16,9 @@ import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
 import { Button, Input } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
-
-const FREE_DELIVERY_THRESHOLD = 25000;
 
 const paymentOptions: { label: string; value: PaymentType; hint: string }[] = [
   { label: 'Cash on Delivery', value: 'COD', hint: 'Pay when your order arrives' },
@@ -41,20 +40,9 @@ export default function CheckoutScreen() {
   const items = cart?.items ?? [];
 
   const totals = useMemo(() => {
-    const cartItems = cart?.items ?? [];
-    let subtotal = 0;
-    let gstAmount = 0;
-    for (const item of cartItems) {
-      const unitPrice = item.variant?.price ?? item.product.price;
-      const lineSubtotal = unitPrice * item.quantity;
-      subtotal += lineSubtotal;
-      gstAmount += (lineSubtotal * item.product.gstRate) / 100;
-    }
-    const taxedTotal = subtotal + gstAmount;
-    const shipping = taxedTotal >= FREE_DELIVERY_THRESHOLD ? 0 : Math.round(taxedTotal * 0.05 * 100) / 100;
-    const grandTotal = taxedTotal + shipping;
-    const amountDue = paymentType === 'ADVANCE_20' ? grandTotal * 0.2 : grandTotal;
-    return { subtotal, gstAmount, shipping, grandTotal, amountDue };
+    const base = calculateCartTotals(cart?.items ?? []);
+    const amountDue = paymentType === 'ADVANCE_20' ? base.grandTotal * 0.2 : base.grandTotal;
+    return { ...base, amountDue };
   }, [cart, paymentType]);
 
   const {

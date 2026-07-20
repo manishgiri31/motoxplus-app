@@ -2,24 +2,26 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useMemo } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart, useCart, useRemoveCartItem } from '@/api/hooks/useCart';
 import type { CartItem } from '@/api/types';
 import { Button, EmptyState, ErrorState, Image, ListRowSkeleton } from '@/components/ui';
+import { usePulseAnimation } from '@/hooks/use-pulse-animation';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
-
-const FREE_DELIVERY_THRESHOLD = 25000;
 
 const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   const addToCart = useAddToCart();
   const removeItem = useRemoveCartItem();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const colors = useThemeColors();
+  const quantityPulse = usePulseAnimation(1.15);
 
   const unitPrice = item.variant?.price ?? item.product.price;
   const moq = item.product.moq;
@@ -33,6 +35,7 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   const changeQuantity = (nextQuantity: number) => {
     if (nextQuantity < moq) return;
     HapticService.medium();
+    quantityPulse.pulse();
     addToCart.mutate({
       payload: { productId: item.productId, quantity: nextQuantity, variantId: item.variantId ?? undefined },
       product: item.product,
@@ -56,7 +59,7 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   };
 
   return (
-    <View className="flex-row gap-md p-lg border-b border-border">
+    <Animated.View exiting={SlideOutRight.duration(200)} className="flex-row gap-md p-lg border-b border-border">
       <Image
         source={getImageSource(primaryImage?.imageUrl)}
         className="w-16 h-16 rounded-md bg-surface"
@@ -82,7 +85,9 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
             >
               <Feather name="minus" size={16} color={atMinQuantity ? colors.border : colors.text} />
             </Pressable>
-            <Text className="w-8 text-center text-[14px] font-semibold text-text">{item.quantity}</Text>
+            <Animated.Text style={quantityPulse.style} className="w-8 text-center text-[14px] font-semibold text-text">
+              {item.quantity}
+            </Animated.Text>
             <Pressable
               onPress={() => changeQuantity(item.quantity + moq)}
               className="w-9 h-9 items-center justify-center"
@@ -113,7 +118,7 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
         </View>
         {moq > 1 && <Text className="text-[11px] text-muted">Sold in multiples of {moq}</Text>}
       </View>
-    </View>
+    </Animated.View>
   );
 });
 
@@ -126,20 +131,7 @@ export default function CartScreen() {
     refetch();
   };
 
-  const totals = useMemo(() => {
-    const cartItems = cart?.items ?? [];
-    let subtotal = 0;
-    let gstAmount = 0;
-    for (const item of cartItems) {
-      const unitPrice = item.variant?.price ?? item.product.price;
-      const lineSubtotal = unitPrice * item.quantity;
-      subtotal += lineSubtotal;
-      gstAmount += (lineSubtotal * item.product.gstRate) / 100;
-    }
-    const taxedTotal = subtotal + gstAmount;
-    const shipping = cartItems.length === 0 ? 0 : taxedTotal >= FREE_DELIVERY_THRESHOLD ? 0 : Math.round(taxedTotal * 0.05 * 100) / 100;
-    return { subtotal, gstAmount, shipping, grandTotal: taxedTotal + shipping };
-  }, [cart]);
+  const totals = useMemo(() => calculateCartTotals(cart?.items ?? []), [cart]);
 
   if (isLoading) {
     return (
@@ -161,9 +153,9 @@ export default function CartScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="px-lg pt-sm pb-lg">
+      <Animated.View entering={FadeIn.duration(200)} className="px-lg pt-sm pb-lg">
         <Text className="text-h2 font-bold text-text">Cart</Text>
-      </View>
+      </Animated.View>
 
       <FlatList
         data={items}

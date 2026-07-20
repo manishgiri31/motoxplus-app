@@ -1,8 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { memo, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import type { Product } from '@/api/types';
+import { usePulseAnimation } from '@/hooks/use-pulse-animation';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
@@ -32,6 +34,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
 
   const outOfStock = product.stock <= 0;
   const handlePress = useCallback(() => onPress(product), [onPress, product]);
+  const heartPulse = usePulseAnimation();
 
   return (
     // Plain View here (not Pressable): Pressable defaults accessible={true},
@@ -77,6 +80,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
       <Pressable
         onPress={() => {
           HapticService.light();
+          heartPulse.pulse();
           toggleWishlist({
             productId: product.id,
             name: product.name,
@@ -93,7 +97,9 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
         // effective touch target up to the 44x44 accessibility minimum.
         className="absolute top-sm right-sm w-8 h-8 rounded-full bg-card/90 items-center justify-center"
       >
-        <Feather name="heart" size={16} color={wishlisted ? colors.primary : colors.muted} />
+        <Animated.View style={heartPulse.style}>
+          <Feather name="heart" size={16} color={wishlisted ? colors.primary : colors.muted} />
+        </Animated.View>
       </Pressable>
     </View>
   );

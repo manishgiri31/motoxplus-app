@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { memo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrders } from '@/api/hooks/useOrders';
 import type { Order, OrderStatus } from '@/api/types';
-import { Badge, type BadgeTone, EmptyState, ErrorState } from '@/components/ui';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { Badge, type BadgeTone, EmptyState, ErrorState, OrderRowSkeleton } from '@/components/ui';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
@@ -46,14 +46,18 @@ const OrderRow = memo(function OrderRow({ order }: { order: Order }) {
 export default function OrdersScreen() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, error, refetch, isFetching } = useOrders(page);
-  const colors = useThemeColors();
 
   const totalPages = data ? Math.ceil(data.total / data.pageSize) : 1;
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['top']}>
-        <ActivityIndicator color={colors.text} />
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="px-lg pt-sm pb-lg">
+          <Text className="text-h2 font-bold text-text">Orders</Text>
+        </View>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <OrderRowSkeleton key={i} />
+        ))}
       </SafeAreaView>
     );
   }
@@ -68,9 +72,9 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="px-lg pt-sm pb-lg">
+      <Animated.View entering={FadeIn.duration(200)} className="px-lg pt-sm pb-lg">
         <Text className="text-h2 font-bold text-text">Orders</Text>
-      </View>
+      </Animated.View>
 
       <FlatList
         data={data?.orders ?? []}

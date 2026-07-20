@@ -8,16 +8,40 @@ import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts } from '@/api/hooks/useProducts';
 import { useRecentlyViewedProducts } from '@/api/hooks/useRecentlyViewedProducts';
 import type { Category, Product } from '@/api/types';
-import { ErrorState, ProductCard, ProductCardSkeleton } from '@/components/ui';
+import { BannerCarousel, type BannerSlide } from '@/components/BannerCarousel';
+import { CategoryPillSkeleton, ErrorState, Image, ProductCard, ProductCardSkeleton } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { discountPercent } from '@/utils/format';
+import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
+import { discountPercent, formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
+import { getImageSource } from '@/utils/image';
 
 // Module-level (not recreated per render) so ProductCard's memo() comparison
 // sees a stable onPress reference instead of a new closure every render.
 function openProduct(product: Product) {
   router.push(`/product/${product.id}`);
 }
+
+// No banner API exists on the backend — these are static, client-side
+// promo slides. Module-level so BannerCarousel's props stay referentially
+// stable across renders.
+const PROMO_SLIDES: BannerSlide[] = [
+  {
+    id: 'genuine-parts',
+    eyebrow: 'Genuine Parts, Direct to Dealer',
+    title: 'Order in minutes,\ndelivered nationwide.',
+  },
+  {
+    id: 'free-delivery',
+    eyebrow: 'Free Delivery',
+    title: `Free shipping on orders\nover ${formatCurrency(FREE_DELIVERY_THRESHOLD)}.`,
+  },
+  {
+    id: 'new-arrivals',
+    eyebrow: 'New This Week',
+    title: 'Fresh stock added\nevery week.',
+  },
+];
 
 const CategoryPill = memo(function CategoryPill({ category }: { category: Category }) {
   const colors = useThemeColors();
@@ -29,7 +53,11 @@ const CategoryPill = memo(function CategoryPill({ category }: { category: Catego
       accessibilityLabel={category.name}
     >
       <View className="w-16 h-16 rounded-full bg-surface items-center justify-center overflow-hidden">
-        <Feather name="grid" size={22} color={colors.muted} />
+        {category.image ? (
+          <Image source={getImageSource(category.image)} className="w-full h-full" cachePolicy="memory-disk" />
+        ) : (
+          <Feather name="grid" size={22} color={colors.muted} />
+        )}
       </View>
       <Text className="text-[12px] font-medium text-text text-center" numberOfLines={2}>
         {category.name}
@@ -110,18 +138,16 @@ export default function HomeScreen() {
         <Text className="text-[15px] text-muted">Search parts, brands, part numbers…</Text>
       </Pressable>
 
-      <View className="mx-lg mb-2xl rounded-lg bg-secondary px-xl py-2xl">
-        <Text className="text-[13px] font-semibold uppercase tracking-wide text-primary mb-xs">
-          Genuine Parts, Direct to Dealer
-        </Text>
-        <Text className="text-h2 font-bold text-secondary-foreground mb-xs">
-          Order in minutes,{'\n'}delivered nationwide.
-        </Text>
-      </View>
+      <BannerCarousel slides={PROMO_SLIDES} />
 
       {categoriesQuery.isLoading ? (
-        <View className="px-lg mb-2xl">
-          <ActivityIndicator color={colors.text} />
+        <View className="gap-md mb-2xl">
+          <Text className="text-h3 font-semibold text-text px-lg">Popular Categories</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-lg">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <CategoryPillSkeleton key={i} />
+            ))}
+          </ScrollView>
         </View>
       ) : popularCategories.length > 0 ? (
         <View className="gap-md mb-2xl">

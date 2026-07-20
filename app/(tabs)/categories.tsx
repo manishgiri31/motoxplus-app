@@ -1,13 +1,15 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/api/hooks/useCategories';
 import type { Category } from '@/api/types';
-import { EmptyState, ErrorState } from '@/components/ui';
+import { CategoryCardSkeleton, EmptyState, ErrorState, Image } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { HapticService } from '@/utils/haptics';
+import { getImageSource } from '@/utils/image';
 
 export default function CategoriesScreen() {
   const { data: categories, isLoading, isError, error, refetch, isRefetching } = useCategories();
@@ -20,9 +22,13 @@ export default function CategoriesScreen() {
       accessibilityRole="button"
       accessibilityLabel={`${item.name}, ${item._count.products} products`}
     >
-      <View className="w-12 h-12 rounded-full bg-surface items-center justify-center">
-        <Feather name="grid" size={20} color={colors.text} />
-      </View>
+      {item.image ? (
+        <Image source={getImageSource(item.image)} className="w-12 h-12 rounded-full bg-surface" cachePolicy="memory-disk" />
+      ) : (
+        <View className="w-12 h-12 rounded-full bg-surface items-center justify-center">
+          <Feather name="grid" size={20} color={colors.text} />
+        </View>
+      )}
       <Text className="text-[15px] font-semibold text-text" numberOfLines={2}>
         {item.name}
       </Text>
@@ -32,18 +38,28 @@ export default function CategoriesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="px-lg pt-sm pb-lg">
+      <Animated.View entering={FadeIn.duration(200)} className="px-lg pt-sm pb-lg">
         <Text className="text-h2 font-bold text-text">Categories</Text>
-      </View>
+      </Animated.View>
 
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
+      ) : isLoading ? (
+        <ScrollView contentContainerClassName="p-sm">
+          <View className="flex-row flex-wrap">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <View key={i} className="w-1/2">
+                <CategoryCardSkeleton />
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={categories ?? []}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          contentContainerClassName="px-sm pb-2xl"
+          contentContainerClassName={`px-sm pb-2xl ${(categories ?? []).length === 0 ? 'flex-1' : ''}`}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching && !isLoading}

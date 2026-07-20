@@ -1,15 +1,30 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
-import type { Product, ProductSuggestion } from '@/api/types';
-import { EmptyState, Image, ProductCard } from '@/components/ui';
+import type { Category, Product, ProductSuggestion } from '@/api/types';
+import { SearchSuggestions } from '@/components/SearchSuggestions';
+import { EmptyState, Image, ProductCard, ProductCardSkeleton } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useRecentSearchesStore } from '@/stores/recentSearchesStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
+
+// No "popular searches" analytics endpoint on the backend — this is a
+// static, curated list of common catalog terms for a motorcycle-parts
+// dealer, shown before the user types anything.
+const POPULAR_SEARCHES = [
+  'Brake Pads',
+  'Engine Oil',
+  'Chain Sprocket Kit',
+  'Clutch Plate',
+  'Spark Plug',
+  'Air Filter',
+];
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.
 function openProduct(product: Product) {
@@ -26,8 +41,6 @@ function useDebouncedValue(value: string, delayMs: number) {
 }
 
 const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: ProductSuggestion }) {
-  const colors = useThemeColors();
-  const imageSource = getImageSource(suggestion.imageUrl);
   return (
     <Pressable
       onPress={() => router.push(`/product/${suggestion.id}`)}
@@ -35,17 +48,11 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
       accessibilityRole="button"
       accessibilityLabel={`${suggestion.name}, ${suggestion.categoryName}, ${suggestion.brand}`}
     >
-      {imageSource ? (
-        <Image
-          source={imageSource}
-          className="w-10 h-10 rounded-md bg-surface"
-          cachePolicy="memory-disk"
-        />
-      ) : (
-        <View className="w-10 h-10 rounded-md bg-surface items-center justify-center">
-          <Feather name="box" size={16} color={colors.muted} />
-        </View>
-      )}
+      <Image
+        source={getImageSource(suggestion.imageUrl)}
+        className="w-10 h-10 rounded-md bg-surface"
+        cachePolicy="memory-disk"
+      />
       <View className="flex-1">
         <Text className="text-[14px] font-medium text-text" numberOfLines={1}>
           {suggestion.name}
@@ -63,11 +70,24 @@ export default function SearchScreen() {
   const debouncedQuery = useDebouncedValue(query, 300);
   const colors = useThemeColors();
 
+  const recentSearches = useRecentSearchesStore((s) => s.queries);
+  const recordSearch = useRecentSearchesStore((s) => s.record);
+  const clearRecentSearches = useRecentSearchesStore((s) => s.clear);
+  const categoriesQuery = useCategories();
+  const suggestedCategories = useMemo(
+    () => [...(categoriesQuery.data ?? [])].sort((a, b) => b._count.products - a._count.products).slice(0, 6),
+    [categoriesQuery.data]
+  );
+
   const suggestionsQuery = useProductSearch(debouncedQuery);
   const resultsQuery = useInfiniteProducts({ search: debouncedQuery.trim().length >= 2 ? debouncedQuery : undefined });
 
   const results = resultsQuery.data?.pages.flatMap((p) => p.products) ?? [];
   const showSuggestions = debouncedQuery.trim().length >= 2 && debouncedQuery.trim().length < 4;
+
+  const selectCategory = (category: Category) => {
+    router.push(`/category/${category.slug}`);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -78,6 +98,7 @@ export default function SearchScreen() {
             autoFocus
             value={query}
             onChangeText={setQuery}
+            onSubmitEditing={() => recordSearch(query)}
             placeholder="Search parts, brands, part numbers…"
             placeholderTextColor={colors.muted}
             className="flex-1 text-[15px] text-text"
@@ -101,12 +122,23 @@ export default function SearchScreen() {
       </View>
 
       {query.trim().length < 2 ? (
-        <EmptyState icon="search" title="Search the catalog" message="Try a product name, brand, or part number." />
+        <SearchSuggestions
+          recentSearches={recentSearches}
+          onSelectSearch={(q) => {
+            setQuery(q);
+            recordSearch(q);
+          }}
+          onClearRecent={clearRecentSearches}
+          popularSearches={POPULAR_SEARCHES}
+          suggestedCategories={suggestedCategories}
+          onSelectCategory={selectCategory}
+        />
       ) : showSuggestions && suggestionsQuery.data ? (
         <FlatList
           data={suggestionsQuery.data.suggestions}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <SuggestionRow suggestion={item} />}
+          contentContainerClassName={suggestionsQuery.data.suggestions.length === 0 ? 'flex-1' : undefined}
           refreshControl={
             <RefreshControl
               refreshing={suggestionsQuery.isRefetching}
@@ -124,7 +156,7 @@ export default function SearchScreen() {
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperClassName="px-lg gap-md"
-          contentContainerClassName="gap-md py-lg"
+          contentContainerClassName={`gap-md py-lg ${results.length === 0 ? 'flex-1' : ''}`}
           renderItem={({ item }: { item: Product }) => (
             <View className="flex-1">
               <ProductCard product={item} onPress={openProduct} />
@@ -150,7 +182,13 @@ export default function SearchScreen() {
           ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
           ListEmptyComponent={
             resultsQuery.isLoading ? (
-              <ActivityIndicator className="py-2xl" color={colors.text} />
+              <View className="flex-row flex-wrap gap-md px-lg py-lg">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <View key={i} className="w-[47%]">
+                    <ProductCardSkeleton />
+                  </View>
+                ))}
+              </View>
             ) : (
               <EmptyState
                 icon="search"

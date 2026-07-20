@@ -3,13 +3,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { memo, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import Animated, { SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct } from '@/api/hooks/useProducts';
-import { Button, EmptyState, Image } from '@/components/ui';
+import { Button, EmptyState, Image, ListRowSkeleton } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
+import { useWishlistHasHydrated, useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
@@ -26,7 +27,10 @@ const WishlistRow = memo(function WishlistRow({ item }: { item: WishlistItem }) 
     // into one focus stop — the Remove and Add buttons below would become
     // unreachable by swipe navigation if they were nested inside an
     // accessible "navigate to product" Pressable instead of siblings of it.
-    <View className="flex-row items-center gap-md p-lg border-b border-border">
+    <Animated.View
+      exiting={SlideOutRight.duration(200)}
+      className="flex-row items-center gap-md p-lg border-b border-border"
+    >
       <Pressable
         onPress={() => router.push(`/product/${item.productId}`)}
         className="flex-1 flex-row items-center gap-md"
@@ -76,13 +80,14 @@ const WishlistRow = memo(function WishlistRow({ item }: { item: WishlistItem }) 
           }}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 });
 
 export default function WishlistScreen() {
   const items = useWishlistStore((s) => s.items);
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.addedAt - a.addedAt), [items]);
+  const hasHydrated = useWishlistHasHydrated();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -102,6 +107,16 @@ export default function WishlistScreen() {
       setIsRefreshing(false);
     }
   };
+
+  if (!hasHydrated) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <ListRowSkeleton key={i} />
+        ))}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>

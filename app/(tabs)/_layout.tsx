@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { CartTabIcon } from '@/components/CartTabIcon';
 import { HapticTab } from '@/components/haptic-tab';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
@@ -40,7 +41,7 @@ export default function TabLayout() {
         name="cart"
         options={{
           title: 'Cart',
-          tabBarIcon: ({ color, size }) => <Feather name="shopping-cart" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <CartTabIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen
