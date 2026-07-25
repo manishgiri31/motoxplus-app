@@ -44,6 +44,7 @@ function RootNavigator() {
           <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
           <Stack.Screen name="search" options={{ title: 'Search', presentation: 'modal' }} />
           <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
+          <Stack.Screen name="invoices" options={{ title: 'Invoices' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         </Stack.Protected>

@@ -15,3 +15,8 @@ export const env = {
   apiUrl,
   razorpayKeyId: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? '',
 } as const;
+
+// The Next.js web app's origin, for deep-linking to pages that only exist
+// there (contact, privacy, terms) — derived from apiUrl since there's no
+// separate EXPO_PUBLIC_WEB_URL.
+export const webOrigin = apiUrl.replace(/\/api\/?$/, '');

@@ -6,18 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
 import { useAuth } from '@/auth/useAuth';
-import { Badge, type BadgeTone } from '@/components/ui';
-import { env } from '@/config/env';
+import { Avatar, Badge } from '@/components/ui';
+import { webOrigin } from '@/config/env';
+import { dealerStatusTone } from '@/constants/dealerStatus';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-
-const dealerStatusTone: Record<string, BadgeTone> = {
-  ACTIVE: 'success',
-  PENDING: 'warning',
-  SUSPENDED: 'danger',
-  REJECTED: 'danger',
-};
-
-const webOrigin = env.apiUrl.replace(/\/api\/?$/, '');
 
 interface MenuRowProps {
   icon: React.ComponentProps<typeof Feather>['name'];
@@ -71,11 +63,7 @@ export default function AccountScreen() {
 
         <View className="mx-lg mb-lg p-lg rounded-lg bg-surface gap-sm">
           <View className="flex-row items-center gap-md">
-            <View className="w-14 h-14 rounded-full bg-secondary items-center justify-center">
-              <Text className="text-secondary-foreground text-[18px] font-bold">
-                {(user?.name ?? dealer?.ownerName ?? '?').charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <Avatar name={user?.name ?? dealer?.ownerName ?? '?'} size={56} />
             <View className="flex-1 gap-xxs">
               <Text className="text-[16px] font-semibold text-text">{user?.name ?? dealerAccount?.ownerName}</Text>
               <Text className="text-[13px] text-muted">{user?.email}</Text>
@@ -84,7 +72,7 @@ export default function AccountScreen() {
           {dealer && (
             <View className="flex-row items-center justify-between mt-sm">
               <Text className="text-[14px] font-medium text-text">{dealer.companyName}</Text>
-              <Badge label={dealer.status} tone={dealerStatusTone[dealer.status] ?? 'neutral'} />
+              <Badge label={dealer.status} tone={dealerStatusTone[dealer.status]} />
             </View>
           )}
           {user && !user.mobileVerified && (

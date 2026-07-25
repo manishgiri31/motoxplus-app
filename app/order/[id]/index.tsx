@@ -4,17 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrder } from '@/api/hooks/useOrders';
 import type { OrderStatus } from '@/api/types';
-import { Badge, type BadgeTone, Button, ErrorState } from '@/components/ui';
+import { Badge, Button, ErrorState } from '@/components/ui';
+import { orderStatusTone } from '@/constants/orderStatus';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/utils/format';
-
-const statusTone: Record<OrderStatus, BadgeTone> = {
-  PENDING: 'warning',
-  CONFIRMED: 'brand',
-  SHIPPED: 'brand',
-  DELIVERED: 'success',
-  CANCELLED: 'danger',
-};
 
 const STEPS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
@@ -67,7 +60,7 @@ export default function OrderDetailScreen() {
               {new Date(order.createdAt).toLocaleString('en-IN')}
             </Text>
           </View>
-          <Badge label={order.status} tone={statusTone[order.status]} />
+          <Badge label={order.status} tone={orderStatusTone[order.status]} />
         </View>
 
         <StatusTimeline status={order.status} />

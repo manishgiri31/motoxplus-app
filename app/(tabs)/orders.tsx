@@ -5,18 +5,11 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrders } from '@/api/hooks/useOrders';
-import type { Order, OrderStatus } from '@/api/types';
-import { Badge, type BadgeTone, EmptyState, ErrorState, OrderRowSkeleton } from '@/components/ui';
+import type { Order } from '@/api/types';
+import { Badge, EmptyState, ErrorState, OrderRowSkeleton } from '@/components/ui';
+import { orderStatusTone } from '@/constants/orderStatus';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
-
-const statusTone: Record<OrderStatus, BadgeTone> = {
-  PENDING: 'warning',
-  CONFIRMED: 'brand',
-  SHIPPED: 'brand',
-  DELIVERED: 'success',
-  CANCELLED: 'danger',
-};
 
 const OrderRow = memo(function OrderRow({ order }: { order: Order }) {
   return (
@@ -33,7 +26,7 @@ const OrderRow = memo(function OrderRow({ order }: { order: Order }) {
             {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
           </Text>
         </View>
-        <Badge label={order.status} tone={statusTone[order.status]} />
+        <Badge label={order.status} tone={orderStatusTone[order.status]} />
       </View>
       <View className="flex-row justify-between">
         <Text className="text-[13px] text-muted">{order.items.length} item(s)</Text>
