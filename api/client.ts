@@ -47,6 +47,16 @@ apiClient.interceptors.response.use(
   }
 );
 
+// The login endpoint's own 401 ("invalid credentials") is a normal, expected
+// outcome, not a sign the current session's tokens are stale — routing it
+// through the refresh-and-auto-logout branch below would pointlessly attempt
+// a token refresh (and, if a valid refresh token happened to still be in
+// storage, rotate/consume it) for what's just a wrong password. Excluded here
+// so a failed login only ever rejects with the plain 401, nothing else.
+function isLoginRequest(config: RetryableConfig): boolean {
+  return config.url?.endsWith('/mobile/auth/login') ?? false;
+}
+
 let refreshPromise: Promise<string | null> | null = null;
 
 // POST /mobile/auth/refresh returns only a token pair, not (user, dealer) —
@@ -77,9 +87,19 @@ apiClient.interceptors.response.use(
     const config = error.config as RetryableConfig | undefined;
     if (!config) return Promise.reject(error);
 
+    // TEMP DEBUG — added while diagnosing a 401 issue, remove once resolved.
+    if (error.response?.status === 401) {
+      console.warn('[TEMP DEBUG 401]', {
+        url: error.config?.url,
+        hadAuthorizationHeader: !!config.headers?.get?.('Authorization'),
+        responseData: error.response?.data,
+      });
+    }
+    // END TEMP DEBUG
+
     // 15-minute access tokens expire mid-session constantly — refresh once and
     // replay the original request rather than surfacing a 401 to the screen.
-    if (error.response?.status === 401 && !config._authRetry) {
+    if (error.response?.status === 401 && !config._authRetry && !isLoginRequest(config)) {
       config._authRetry = true;
 
       refreshPromise ??= refreshAccessToken().finally(() => {
