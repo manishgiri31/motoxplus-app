@@ -17,7 +17,7 @@ import { useAuth } from '@/auth/useAuth';
 import { Button, Input } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { calculateCartTotals } from '@/utils/cartTotals';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
 const paymentOptions: { label: string; value: PaymentType; hint: string }[] = [
@@ -68,7 +68,7 @@ export default function CheckoutScreen() {
     if (!source) return;
     reset({
       deliveryName: dealerAccount?.ownerName ?? dealer?.ownerName ?? '',
-      deliveryPhone: dealerAccount?.phone ?? dealer?.phone ?? '',
+      deliveryPhone: normalizeMobileNumber(dealerAccount?.phone ?? dealer?.phone),
       deliveryAddress: dealerAccount?.address ?? dealer?.address ?? '',
       deliveryCity: dealerAccount?.city ?? dealer?.city ?? '',
       deliveryState: dealerAccount?.state ?? dealer?.state ?? '',

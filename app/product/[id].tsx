@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart } from '@/api/hooks/useCart';
@@ -41,6 +41,7 @@ export default function ProductDetailScreen() {
 
   const [quantity, setQuantity] = useState(1);
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
+  const [showBuyNow, setShowBuyNow] = useState(false);
   const heartPulse = usePulseAnimation();
   const quantityPulse = usePulseAnimation(1.15);
 
@@ -82,10 +83,19 @@ export default function ProductDetailScreen() {
     addToCart.mutate(
       { payload: { productId: product.id, quantity }, product },
       {
-        onSuccess: () => setAddedMessage(`Added ${product.name} × ${quantity} to cart`),
+        onSuccess: () => {
+          setAddedMessage(`Added ${product.name} × ${quantity} to cart`);
+          setShowBuyNow(true);
+        },
         onError: () => Alert.alert('Could not add to cart', 'Please try again.'),
       }
     );
+  };
+
+  const handleBuyNow = () => {
+    HapticService.light();
+    setShowBuyNow(false);
+    router.push('/checkout');
   };
 
   const handleShare = () => {
@@ -220,6 +230,16 @@ export default function ProductDetailScreen() {
           className="flex-1"
         />
       </View>
+
+      {showBuyNow && (
+        <Animated.View
+          entering={FadeInDown.duration(200)}
+          exiting={FadeOutDown.duration(200)}
+          className="absolute bottom-[92px] right-lg"
+        >
+          <Button label="Buy Now" onPress={handleBuyNow} size="md" />
+        </Animated.View>
+      )}
 
       {addedMessage && <SuccessToast message={addedMessage} onHide={() => setAddedMessage(null)} />}
     </SafeAreaView>

@@ -8,11 +8,12 @@ import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Category, Product, ProductSuggestion } from '@/api/types';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
-import { EmptyState, Image, ProductCard, ProductCardSkeleton } from '@/components/ui';
+import { EmptyState, Image, ProductCard, ProductCardSkeleton, SortSheet } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useRecentSearchesStore } from '@/stores/recentSearchesStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
+import { PRODUCT_SORT_OPTIONS, sortProducts, type ProductSortOption } from '@/utils/sortProducts';
 
 // No "popular searches" analytics endpoint on the backend — this is a
 // static, curated list of common catalog terms for a motorcycle-parts
@@ -82,7 +83,11 @@ export default function SearchScreen() {
   const suggestionsQuery = useProductSearch(debouncedQuery);
   const resultsQuery = useInfiniteProducts({ search: debouncedQuery.trim().length >= 2 ? debouncedQuery : undefined });
 
-  const results = resultsQuery.data?.pages.flatMap((p) => p.products) ?? [];
+  const [sort, setSort] = useState<ProductSortOption>('default');
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const fetchedResults = useMemo(() => resultsQuery.data?.pages.flatMap((p) => p.products) ?? [], [resultsQuery.data]);
+  const results = useMemo(() => sortProducts(fetchedResults, sort), [fetchedResults, sort]);
+  const sortLabel = PRODUCT_SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'Featured';
   const showSuggestions = debouncedQuery.trim().length >= 2 && debouncedQuery.trim().length < 4;
 
   const selectCategory = (category: Category) => {
@@ -151,56 +156,81 @@ export default function SearchScreen() {
           ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing found for "${query}"`} />}
         />
       ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperClassName="px-lg gap-md"
-          contentContainerClassName={`gap-md py-lg ${results.length === 0 ? 'flex-1' : ''}`}
-          renderItem={({ item }: { item: Product }) => (
-            <View className="flex-1">
-              <ProductCard product={item} onPress={openProduct} />
+        <>
+          {results.length > 0 && (
+            <View className="flex-row justify-end px-lg py-sm border-b border-border">
+              <Pressable
+                onPress={() => {
+                  HapticService.light();
+                  setSortSheetOpen(true);
+                }}
+                className="flex-row items-center gap-xs"
+                accessibilityRole="button"
+                accessibilityLabel={`Sort by, currently ${sortLabel}`}
+              >
+                <Feather name="sliders" size={14} color={colors.muted} />
+                <Text className="text-[13px] font-medium text-text">Sort: {sortLabel}</Text>
+              </Pressable>
             </View>
           )}
-          removeClippedSubviews
-          initialNumToRender={6}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          onEndReachedThreshold={0.4}
-          onEndReached={() => {
-            if (resultsQuery.hasNextPage && !resultsQuery.isFetchingNextPage) resultsQuery.fetchNextPage();
-          }}
-          refreshControl={
-            <RefreshControl
-              refreshing={resultsQuery.isRefetching && !resultsQuery.isFetchingNextPage}
-              onRefresh={() => {
-                HapticService.light();
-                resultsQuery.refetch();
-              }}
-            />
-          }
-          ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
-          ListEmptyComponent={
-            resultsQuery.isLoading ? (
-              <View className="flex-row flex-wrap gap-md px-lg py-lg">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <View key={i} className="w-[47%]">
-                    <ProductCardSkeleton />
-                  </View>
-                ))}
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperClassName="px-lg gap-md"
+            contentContainerClassName={`gap-md py-lg ${results.length === 0 ? 'flex-1' : ''}`}
+            renderItem={({ item }: { item: Product }) => (
+              <View className="flex-1">
+                <ProductCard product={item} onPress={openProduct} />
               </View>
-            ) : (
-              <EmptyState
-                icon="search"
-                title="No results"
-                message={`Nothing found for "${query}". Try a different name, brand, or part number.`}
-                actionLabel="Clear search"
-                onAction={() => setQuery('')}
+            )}
+            removeClippedSubviews
+            initialNumToRender={6}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            onEndReachedThreshold={0.4}
+            onEndReached={() => {
+              if (resultsQuery.hasNextPage && !resultsQuery.isFetchingNextPage) resultsQuery.fetchNextPage();
+            }}
+            refreshControl={
+              <RefreshControl
+                refreshing={resultsQuery.isRefetching && !resultsQuery.isFetchingNextPage}
+                onRefresh={() => {
+                  HapticService.light();
+                  resultsQuery.refetch();
+                }}
               />
-            )
-          }
-        />
+            }
+            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
+            ListEmptyComponent={
+              resultsQuery.isLoading ? (
+                <View className="flex-row flex-wrap gap-md px-lg py-lg">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <View key={i} className="w-[47%]">
+                      <ProductCardSkeleton />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <EmptyState
+                  icon="search"
+                  title="No results"
+                  message={`Nothing found for "${query}". Try a different name, brand, or part number.`}
+                  actionLabel="Clear search"
+                  onAction={() => setQuery('')}
+                />
+              )
+            }
+          />
+        </>
       )}
+      <SortSheet
+        visible={sortSheetOpen}
+        value={sort}
+        options={PRODUCT_SORT_OPTIONS}
+        onSelect={setSort}
+        onClose={() => setSortSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }

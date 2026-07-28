@@ -1,12 +1,15 @@
+import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, FlatList, ScrollView, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useInfiniteProducts } from '@/api/hooks/useProducts';
 import type { Product } from '@/api/types';
-import { EmptyState, ErrorState, ProductCard, ProductCardSkeleton } from '@/components/ui';
+import { EmptyState, ErrorState, ProductCard, ProductCardSkeleton, SortSheet } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { HapticService } from '@/utils/haptics';
+import { PRODUCT_SORT_OPTIONS, sortProducts, type ProductSortOption } from '@/utils/sortProducts';
 
 // Module-level so ProductCard's memo() sees a stable onPress reference.
 function openProduct(product: Product) {
@@ -19,7 +22,12 @@ export default function CategoryProductsScreen() {
   const colors = useThemeColors();
 
   const query = useInfiniteProducts({ category: slug });
-  const products = useMemo(() => query.data?.pages.flatMap((p) => p.products) ?? [], [query.data]);
+  const fetchedProducts = useMemo(() => query.data?.pages.flatMap((p) => p.products) ?? [], [query.data]);
+
+  const [sort, setSort] = useState<ProductSortOption>('default');
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const products = useMemo(() => sortProducts(fetchedProducts, sort), [fetchedProducts, sort]);
+  const sortLabel = PRODUCT_SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'Featured';
 
   useEffect(() => {
     navigation.setOptions({ title: slug ? slug.replace(/-/g, ' ') : 'Category' });
@@ -51,6 +59,20 @@ export default function CategoryProductsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+      <View className="flex-row justify-end px-lg py-sm border-b border-border">
+        <Pressable
+          onPress={() => {
+            HapticService.light();
+            setSortSheetOpen(true);
+          }}
+          className="flex-row items-center gap-xs"
+          accessibilityRole="button"
+          accessibilityLabel={`Sort by, currently ${sortLabel}`}
+        >
+          <Feather name="sliders" size={14} color={colors.text} />
+          <Text className="text-[13px] font-medium text-text">Sort: {sortLabel}</Text>
+        </Pressable>
+      </View>
       <FlatList
         data={products}
         keyExtractor={(item) => item.id}
@@ -72,6 +94,13 @@ export default function CategoryProductsScreen() {
         }}
         ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
         ListEmptyComponent={<EmptyState icon="box" title="No products in this category yet" />}
+      />
+      <SortSheet
+        visible={sortSheetOpen}
+        value={sort}
+        options={PRODUCT_SORT_OPTIONS}
+        onSelect={setSort}
+        onClose={() => setSortSheetOpen(false)}
       />
     </SafeAreaView>
   );

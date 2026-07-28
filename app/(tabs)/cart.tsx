@@ -6,6 +6,7 @@ import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart, useCart, useRemoveCartItem } from '@/api/hooks/useCart';
+import { useProduct } from '@/api/hooks/useProducts';
 import type { CartItem } from '@/api/types';
 import { Button, EmptyState, ErrorState, Image, ListRowSkeleton } from '@/components/ui';
 import { usePulseAnimation } from '@/hooks/use-pulse-animation';
@@ -27,9 +28,15 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   const moq = item.product.moq;
   // Unlike GET /api/products[/:id], GET /api/cart's embedded product does not
   // include productImages (see docs/api.md §6) — only category is promised.
-  // Guard against the missing field instead of assuming every Product-shaped
-  // object was fetched from the products endpoints.
-  const primaryImage = item.product.productImages?.find((i) => i.isPrimary) ?? item.product.productImages?.[0];
+  // The optimistic item added by useAddToCart carries the full Product (with
+  // images) from wherever it was added, but once the cart is invalidated and
+  // refetched from the server, that field is gone from every item. Fall back
+  // to fetching the product itself (cheap — React Query cache means this is
+  // usually already warm from browsing) so the row doesn't go blank on reload.
+  const hasImages = (item.product.productImages?.length ?? 0) > 0;
+  const fallbackProductQuery = useProduct(hasImages ? undefined : item.productId);
+  const images = hasImages ? item.product.productImages : fallbackProductQuery.data?.productImages;
+  const primaryImage = images?.find((i) => i.isPrimary) ?? images?.[0];
   const atMinQuantity = item.quantity - moq < moq;
 
   const changeQuantity = (nextQuantity: number) => {

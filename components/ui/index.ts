@@ -9,4 +9,5 @@ export * from './Input';
 export * from './PriceTag';
 export * from './ProductCard';
 export * from './Skeleton';
+export * from './SortSheet';
 export * from './SuccessToast';
