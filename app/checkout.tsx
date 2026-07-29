@@ -15,15 +15,26 @@ import type { PaymentType } from '@/api/types';
 import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
 import { Button, Input } from '@/components/ui';
+import { ONLINE_PAYMENTS_ENABLED } from '@/constants/features';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const paymentOptions: { label: string; value: PaymentType; hint: string }[] = [
+const paymentOptions: { label: string; value: PaymentType; hint: string; disabled?: boolean }[] = [
   { label: 'Cash on Delivery', value: 'COD', hint: 'Pay when your order arrives' },
-  { label: 'Pay 20% advance', value: 'ADVANCE_20', hint: 'Online — balance due on delivery' },
-  { label: 'Pay in full', value: 'FULL_100', hint: 'Online — pay the full amount now' },
+  {
+    label: 'Pay 20% advance',
+    value: 'ADVANCE_20',
+    hint: ONLINE_PAYMENTS_ENABLED ? 'Online — balance due on delivery' : 'Coming soon',
+    disabled: !ONLINE_PAYMENTS_ENABLED,
+  },
+  {
+    label: 'Pay in full',
+    value: 'FULL_100',
+    hint: ONLINE_PAYMENTS_ENABLED ? 'Online — pay the full amount now' : 'Coming soon',
+    disabled: !ONLINE_PAYMENTS_ENABLED,
+  },
 ];
 
 export default function CheckoutScreen() {
@@ -197,20 +208,25 @@ export default function CheckoutScreen() {
             {paymentOptions.map((opt) => (
               <Pressable
                 key={opt.value}
-                onPress={() => setPaymentType(opt.value)}
+                onPress={() => !opt.disabled && setPaymentType(opt.value)}
+                disabled={opt.disabled}
                 accessibilityRole="radio"
-                accessibilityState={{ checked: paymentType === opt.value }}
+                accessibilityState={{ checked: paymentType === opt.value, disabled: opt.disabled }}
                 accessibilityLabel={opt.label}
                 accessibilityHint={opt.hint}
                 className={`flex-row items-center justify-between p-lg rounded-md border ${
-                  paymentType === opt.value ? 'border-secondary bg-surface' : 'border-border'
+                  opt.disabled
+                    ? 'border-border opacity-50'
+                    : paymentType === opt.value
+                      ? 'border-secondary bg-surface'
+                      : 'border-border'
                 }`}
               >
                 <View>
-                  <Text className="text-[14px] font-semibold text-text">{opt.label}</Text>
+                  <Text className={`text-[14px] font-semibold ${opt.disabled ? 'text-muted' : 'text-text'}`}>{opt.label}</Text>
                   <Text className="text-[12px] text-muted">{opt.hint}</Text>
                 </View>
-                {paymentType === opt.value && <Feather name="check-circle" size={20} color={colors.primary} />}
+                {!opt.disabled && paymentType === opt.value && <Feather name="check-circle" size={20} color={colors.primary} />}
               </Pressable>
             ))}
           </View>

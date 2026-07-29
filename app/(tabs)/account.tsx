@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,6 +40,11 @@ function MenuRow({ icon, label, onPress, destructive }: MenuRowProps) {
 export default function AccountScreen() {
   const { user, dealer, logout, logoutAllDevices } = useAuth();
   const { data: dealerAccount } = useDealerAccount();
+  const colors = useThemeColors();
+  // Local-only: there's no in-app verify flow yet (pending DLT ID), so this
+  // is a stopgap that just stops nagging for the rest of the session instead
+  // of showing a warning the dealer has no way to act on.
+  const [mobileNagDismissed, setMobileNagDismissed] = useState(false);
 
   const confirmLogout = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -75,10 +81,20 @@ export default function AccountScreen() {
               <Badge label={dealer.status} tone={dealerStatusTone[dealer.status]} />
             </View>
           )}
-          {user && !user.mobileVerified && (
-            <Text className="text-[12px] text-warning mt-xs">
-              Your mobile number isn&apos;t verified yet — verify it to unlock full account features.
-            </Text>
+          {user && !user.mobileVerified && !mobileNagDismissed && (
+            <View className="flex-row items-start justify-between gap-sm mt-xs">
+              <Text className="flex-1 text-[12px] text-warning">
+                Your mobile number isn&apos;t verified yet — verify it to unlock full account features.
+              </Text>
+              <Pressable
+                onPress={() => setMobileNagDismissed(true)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+              >
+                <Feather name="x" size={16} color={colors.muted} />
+              </Pressable>
+            </View>
           )}
         </View>
 
