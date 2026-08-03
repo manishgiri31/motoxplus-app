@@ -2,6 +2,8 @@ export * from './Badge';
 export * from './BlurredPrice';
 export * from './Button';
 export * from './Card';
+export * from './EmptyState';
+export * from './ErrorState';
 export * from './Eyebrow';
 export * from './MonoLabel';
 export * from './OtpInput';
