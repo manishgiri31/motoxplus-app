@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
@@ -14,9 +14,11 @@ import { getErrorMessage } from '@/api/errors';
 import type { PaymentType } from '@/api/types';
 import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
-import { Button, Input } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Button } from '@/src/components/ui';
+import { colors, fonts, radii } from '@/src/theme';
 import { ONLINE_PAYMENTS_ENABLED } from '@/constants/features';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { webOrigin } from '@/config/env';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
@@ -43,7 +45,6 @@ export default function CheckoutScreen() {
   const { data: cart, isLoading: isCartLoading } = useCart();
   const createOrder = useCreateOrder();
   const createRazorpayOrder = useCreateRazorpayOrder();
-  const colors = useThemeColors();
 
   const [paymentType, setPaymentType] = useState<PaymentType>('COD');
   const [formError, setFormError] = useState<string | null>(null);
@@ -101,7 +102,7 @@ export default function CheckoutScreen() {
       HapticService.success();
 
       if (isCOD) {
-        router.replace(`/order/${order.id}`);
+        router.replace({ pathname: '/order-placed', params: { orderId: order.id, orderNumber: order.orderNumber } });
         return;
       }
 
@@ -110,11 +111,15 @@ export default function CheckoutScreen() {
       // requires a custom dev client (not available under Expo Go) — see
       // the note in api/services/paymentService.ts.
       await createRazorpayOrder.mutateAsync(order.id);
-      Alert.alert(
-        'Order placed — payment pending',
-        `Order #${order.orderNumber} is created with ${formatCurrency(totals.amountDue)} due. Complete online payment from the order details screen once the payment SDK is available in this build.`,
-        [{ text: 'View order', onPress: () => router.replace(`/order/${order.id}`) }]
-      );
+      router.replace({
+        pathname: '/order-placed',
+        params: {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          pending: '1',
+          amountDue: formatCurrency(totals.amountDue),
+        },
+      });
     } catch (err) {
       // No HapticService.error() here: this failure already passed through
       // apiClient's response interceptor, which fires the error haptic once
@@ -128,25 +133,25 @@ export default function CheckoutScreen() {
 
   if (isCartLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator color={colors.text} />
+      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
+        <ActivityIndicator color={colors.ink} />
       </SafeAreaView>
     );
   }
 
   if (items.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
-        <Text className="text-muted">Your cart is empty.</Text>
+      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
+        <Text style={styles.emptyText}>Your cart is empty.</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerClassName="p-lg gap-lg" keyboardShouldPersistTaps="handled">
-          <Text className="text-h3 font-semibold text-text">Delivery address</Text>
+    <SafeAreaView style={styles.screen} edges={['bottom']}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.sectionTitle}>Delivery address</Text>
           <Controller
             control={control}
             name="deliveryName"
@@ -168,8 +173,8 @@ export default function CheckoutScreen() {
               <Input label="Address" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} multiline numberOfLines={2} />
             )}
           />
-          <View className="flex-row gap-md">
-            <View className="flex-1">
+          <View style={styles.row}>
+            <View style={styles.flex}>
               <Controller
                 control={control}
                 name="deliveryCity"
@@ -178,7 +183,7 @@ export default function CheckoutScreen() {
                 )}
               />
             </View>
-            <View className="flex-1">
+            <View style={styles.flex}>
               <Controller
                 control={control}
                 name="deliveryState"
@@ -198,76 +203,119 @@ export default function CheckoutScreen() {
           <Controller
             control={control}
             name="notes"
-            render={({ field }) => (
-              <Input label="Order notes (optional)" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} />
-            )}
+            render={({ field }) => <Input label="Order notes (optional)" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} />}
           />
 
-          <Text className="text-h3 font-semibold text-text mt-md">Payment method</Text>
-          <View className="gap-sm">
-            {paymentOptions.map((opt) => (
-              <Pressable
-                key={opt.value}
-                onPress={() => !opt.disabled && setPaymentType(opt.value)}
-                disabled={opt.disabled}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: paymentType === opt.value, disabled: opt.disabled }}
-                accessibilityLabel={opt.label}
-                accessibilityHint={opt.hint}
-                className={`flex-row items-center justify-between p-lg rounded-md border ${
-                  opt.disabled
-                    ? 'border-border opacity-50'
-                    : paymentType === opt.value
-                      ? 'border-secondary bg-surface'
-                      : 'border-border'
-                }`}
-              >
-                <View>
-                  <Text className={`text-[14px] font-semibold ${opt.disabled ? 'text-muted' : 'text-text'}`}>{opt.label}</Text>
-                  <Text className="text-[12px] text-muted">{opt.hint}</Text>
-                </View>
-                {!opt.disabled && paymentType === opt.value && <Feather name="check-circle" size={20} color={colors.primary} />}
-              </Pressable>
-            ))}
+          <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Payment method</Text>
+          <View style={styles.paymentList}>
+            {paymentOptions.map((opt) => {
+              const selected = paymentType === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => !opt.disabled && setPaymentType(opt.value)}
+                  disabled={opt.disabled}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected, disabled: opt.disabled }}
+                  accessibilityLabel={opt.label}
+                  accessibilityHint={opt.hint}
+                  style={[styles.paymentCard, selected && styles.paymentCardSelected, opt.disabled && styles.paymentCardDisabled]}
+                >
+                  <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
+                  <View style={styles.paymentText}>
+                    <Text style={[styles.paymentLabel, opt.disabled && styles.paymentLabelDisabled]}>{opt.label}</Text>
+                    <Text style={styles.paymentHint}>{opt.hint}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <Text className="text-h3 font-semibold text-text mt-md">Order summary</Text>
-          <View className="gap-sm">
-            <View className="flex-row justify-between">
-              <Text className="text-[14px] text-muted">Subtotal</Text>
-              <Text className="text-[14px] text-text">{formatCurrency(totals.subtotal)}</Text>
+          <Pressable
+            onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/cancellation-policy`)}
+            accessibilityRole="link"
+            accessibilityLabel="Cancellation policy"
+          >
+            <Text style={styles.policyLine}>
+              Cancellation: 2% charge before dispatch · 20% after · not cancellable once delivered.{' '}
+              <Text style={styles.policyLink}>View policy</Text>
+            </Text>
+          </Pressable>
+
+          <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Order summary</Text>
+          <View style={styles.summary}>
+            <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
+            <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
+            <SummaryRow label="Delivery charges" value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)} />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totals.grandTotal)}</Text>
             </View>
-            <View className="flex-row justify-between">
-              <Text className="text-[14px] text-muted">GST</Text>
-              <Text className="text-[14px] text-text">{formatCurrency(totals.gstAmount)}</Text>
-            </View>
-            <View className="flex-row justify-between">
-              <Text className="text-[14px] text-muted">Delivery charges</Text>
-              <Text className="text-[14px] text-text">{totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}</Text>
-            </View>
-            <View className="flex-row justify-between pt-sm border-t border-border">
-              <Text className="text-[16px] font-bold text-text">Total</Text>
-              <Text className="text-[16px] font-bold text-text">{formatCurrency(totals.grandTotal)}</Text>
-            </View>
-            {paymentType === 'ADVANCE_20' && (
-              <View className="flex-row justify-between">
-                <Text className="text-[13px] text-muted">Due now (20%)</Text>
-                <Text className="text-[13px] font-semibold text-text">{formatCurrency(totals.amountDue)}</Text>
-              </View>
-            )}
+            {paymentType === 'ADVANCE_20' && <SummaryRow label="Due now (20%)" value={formatCurrency(totals.amountDue)} accent />}
           </View>
 
-          {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
+          {formError && <Text style={styles.error}>{formError}</Text>}
 
           <Button
             label={paymentType === 'COD' ? 'Place order' : 'Place order & pay'}
+            variant="brand"
+            fullWidth
             onPress={handleSubmit(onSubmit, onInvalid)}
             loading={isSubmitting || createOrder.isPending || createRazorpayOrder.isPending}
-            fullWidth
-            size="lg"
           />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+function SummaryRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={[styles.summaryLabel, accent && styles.accent]}>{label}</Text>
+      <Text style={[styles.summaryValue, accent && styles.accent]}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  flex: { flex: 1 },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  content: { padding: 16, gap: 16 },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  sectionSpacing: { marginTop: 8 },
+  row: { flexDirection: 'row', gap: 12 },
+  paymentList: { gap: 12 },
+  paymentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+  },
+  paymentCardSelected: { borderColor: colors.red, backgroundColor: colors.redSoft },
+  paymentCardDisabled: { opacity: 0.5 },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  radioSelected: { borderColor: colors.red },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.red },
+  paymentText: { flex: 1 },
+  paymentLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  paymentLabelDisabled: { color: colors.muted },
+  paymentHint: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  policyLine: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, lineHeight: 17 },
+  policyLink: { fontFamily: fonts.body.semiBold, color: colors.red },
+  summary: { gap: 8 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.ink },
+  accent: { color: colors.red, fontFamily: fonts.body.semiBold },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.line },
+  totalLabel: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  totalValue: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
+});

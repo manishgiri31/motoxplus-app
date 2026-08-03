@@ -1,29 +1,39 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, ScrollView, Share, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useOrder } from '@/api/hooks/useOrders';
 import type { OrderStatus } from '@/api/types';
-import { Badge, Button, ErrorState } from '@/components/ui';
-import { orderStatusTone } from '@/constants/orderStatus';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { Badge as LegacyBadge, ErrorState } from '@/components/ui';
+import { orderStatusVariant } from '@/constants/orderStatus';
+import { CancellationSheet } from '@/src/components/cancellation/CancellationSheet';
+import { Badge, Button, Card, MonoLabel, Toast } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
+
+const REFUND_STATUS_TONE: Record<'INITIATED' | 'COMPLETED' | 'FAILED', 'brand' | 'success' | 'danger'> = {
+  INITIATED: 'brand',
+  COMPLETED: 'success',
+  FAILED: 'danger',
+};
+
+const CANCELLABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED'];
 
 const STEPS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
 function StatusTimeline({ status }: { status: OrderStatus }) {
   if (status === 'CANCELLED') {
-    return <Badge label="Order cancelled" tone="danger" />;
+    return <Badge label="Order cancelled" variant="neutral" />;
   }
   const currentIndex = STEPS.indexOf(status);
   return (
-    <View className="flex-row items-center">
+    <View style={styles.timeline}>
       {STEPS.map((step, i) => (
-        <View key={step} className="flex-1 flex-row items-center">
-          <View className={`w-3 h-3 rounded-full ${i <= currentIndex ? 'bg-primary' : 'bg-border'}`} />
-          {i < STEPS.length - 1 && (
-            <View className={`flex-1 h-0.5 ${i < currentIndex ? 'bg-primary' : 'bg-border'}`} />
-          )}
+        <View key={step} style={styles.timelineStep}>
+          <View style={[styles.dot, i <= currentIndex && styles.dotComplete]} />
+          {i < STEPS.length - 1 && <View style={[styles.timelineLine, i < currentIndex && styles.timelineLineComplete]} />}
         </View>
       ))}
     </View>
@@ -33,126 +43,182 @@ function StatusTimeline({ status }: { status: OrderStatus }) {
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: order, isLoading, isError, error, refetch } = useOrder(id);
-  const colors = useThemeColors();
+  const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
+  const [cancelledMessage, setCancelledMessage] = useState<string | null>(null);
+
+  const handleCancelled = () => {
+    setCancelSheetOpen(false);
+    setCancelledMessage('Order cancelled — refund initiated');
+    refetch();
+  };
 
   if (isLoading || !order) {
     if (isError) {
       return (
-        <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+        <SafeAreaView style={styles.screen} edges={['bottom']}>
           <ErrorState error={error} onRetry={refetch} />
         </SafeAreaView>
       );
     }
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator color={colors.text} />
+      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
+        <ActivityIndicator color={colors.ink} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
-      <ScrollView contentContainerClassName="p-lg gap-lg">
-        <View className="flex-row items-center justify-between">
+    <SafeAreaView style={styles.screen} edges={['bottom']}>
+      <Animated.ScrollView entering={FadeIn.duration(200)} contentContainerStyle={styles.content}>
+        <View style={styles.headerRow}>
           <View>
-            <Text className="text-h3 font-bold text-text">#{order.orderNumber}</Text>
-            <Text className="text-[12px] text-muted">
-              {new Date(order.createdAt).toLocaleString('en-IN')}
-            </Text>
+            <MonoLabel color="ink" style={styles.orderNumber}>{`#${order.orderNumber}`}</MonoLabel>
+            <Text style={styles.date}>{new Date(order.createdAt).toLocaleString('en-IN')}</Text>
           </View>
-          <Badge label={order.status} tone={orderStatusTone[order.status]} />
+          <Badge label={order.status} variant={orderStatusVariant[order.status]} />
         </View>
 
         <StatusTimeline status={order.status} />
 
         {order.shipment && (
-          <Button
-            label="Track shipment"
-            variant="outline"
-            onPress={() => router.push(`/order/${order.id}/tracking`)}
-          />
+          <Button label="Track shipment" variant="ghost" onPress={() => router.push(`/order/${order.id}/tracking`)} />
         )}
 
-        <View className="gap-md">
-          <Text className="text-h3 font-semibold text-text">Items</Text>
-          {order.items.map((item) => (
-            <View key={item.id} className="flex-row justify-between border-b border-border pb-sm">
-              <View className="flex-1 pr-md">
-                <Text className="text-[14px] font-medium text-text" numberOfLines={2}>
+        {order.refund && (
+          <Card style={styles.refundCard}>
+            <Text style={styles.sectionTitle}>Refund</Text>
+            <View style={styles.refundTrackerRow}>
+              <MonoLabel color="ink">{formatCurrency(order.refund.amount)}</MonoLabel>
+              <LegacyBadge label={order.refund.status} tone={REFUND_STATUS_TONE[order.refund.status]} />
+            </View>
+          </Card>
+        )}
+
+        <Card>
+          <Text style={styles.sectionTitle}>Items</Text>
+          {order.items.map((item, i) => (
+            <View key={item.id} style={[styles.itemRow, i !== order.items.length - 1 && styles.itemRowDivider]}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName} numberOfLines={2}>
                   {item.product.name}
                 </Text>
-                <Text className="text-[12px] text-muted">
+                <MonoLabel>{item.product.partNumber}</MonoLabel>
+                <Text style={styles.itemQty}>
                   {item.quantity} × {formatCurrency(item.unitPrice)}
                 </Text>
               </View>
-              <Text className="text-[14px] font-semibold text-text">{formatCurrency(item.total)}</Text>
+              <Text style={styles.itemTotal}>{formatCurrency(item.total)}</Text>
             </View>
           ))}
-        </View>
+        </Card>
 
-        <View className="gap-sm">
-          <Text className="text-h3 font-semibold text-text">Payment summary</Text>
-          <View className="flex-row justify-between">
-            <Text className="text-[14px] text-muted">Subtotal</Text>
-            <Text className="text-[14px] text-text">{formatCurrency(order.subtotal)}</Text>
+        <Card>
+          <Text style={styles.sectionTitle}>Payment summary</Text>
+          <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal)} />
+          <SummaryRow label="GST" value={formatCurrency(order.gstAmount)} />
+          <SummaryRow label="Shipping" value={order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatCurrency(order.grandTotal)}</Text>
           </View>
-          <View className="flex-row justify-between">
-            <Text className="text-[14px] text-muted">GST</Text>
-            <Text className="text-[14px] text-text">{formatCurrency(order.gstAmount)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-[14px] text-muted">Shipping</Text>
-            <Text className="text-[14px] text-text">
-              {order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)}
-            </Text>
-          </View>
-          <View className="flex-row justify-between pt-sm border-t border-border">
-            <Text className="text-[16px] font-bold text-text">Total</Text>
-            <Text className="text-[16px] font-bold text-text">{formatCurrency(order.grandTotal)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-[13px] text-muted">Paid</Text>
-            <Text className="text-[13px] text-text">{formatCurrency(order.amountPaid)}</Text>
-          </View>
-          {order.amountDue > 0 && (
-            <View className="flex-row justify-between">
-              <Text className="text-[13px] font-semibold text-warning">Amount due</Text>
-              <Text className="text-[13px] font-semibold text-warning">{formatCurrency(order.amountDue)}</Text>
-            </View>
-          )}
-        </View>
+          <SummaryRow label="Paid" value={formatCurrency(order.amountPaid)} muted />
+          {order.amountDue > 0 && <SummaryRow label="Amount due" value={formatCurrency(order.amountDue)} accent />}
+        </Card>
 
         {order.invoice && (
-          <View className="p-lg rounded-md bg-surface gap-xs">
-            <Text className="text-[13px] font-semibold text-text">Invoice #{order.invoice.invoiceNumber}</Text>
-            <Text className="text-[12px] text-muted">
+          <Card style={styles.invoiceCard}>
+            <Text style={styles.sectionTitle}>{`Invoice #${order.invoice.invoiceNumber}`}</Text>
+            <Text style={styles.invoiceNote}>
               A downloadable PDF isn&apos;t available in the app yet — you can share these details for now.
             </Text>
             <Button
               label="Share invoice details"
-              size="sm"
-              variant="outline"
+              variant="ghost"
               onPress={() =>
                 Share.share({
                   message: `Invoice ${order.invoice!.invoiceNumber} for order #${order.orderNumber}\nTotal: ${formatCurrency(order.invoice!.grandTotal)}`,
                 })
               }
             />
-          </View>
+          </Card>
         )}
 
         {order.shippingAddress && (
-          <View className="gap-xs">
-            <Text className="text-h3 font-semibold text-text">Delivery address</Text>
-            <Text className="text-[14px] text-muted">{order.deliveryName}</Text>
-            <Text className="text-[14px] text-muted">{order.shippingAddress}</Text>
-            <Text className="text-[14px] text-muted">
+          <Card>
+            <Text style={styles.sectionTitle}>Delivery address</Text>
+            <Text style={styles.address}>{order.deliveryName}</Text>
+            <Text style={styles.address}>{order.shippingAddress}</Text>
+            <Text style={styles.address}>
               {order.deliveryCity}, {order.deliveryState} {order.deliveryPincode}
             </Text>
-            <Text className="text-[14px] text-muted">{order.deliveryPhone}</Text>
-          </View>
+            <Text style={styles.address}>{order.deliveryPhone}</Text>
+          </Card>
         )}
-      </ScrollView>
+
+        {CANCELLABLE_STATUSES.includes(order.status) && (
+          <Button label="Cancel order" variant="ghost" onPress={() => setCancelSheetOpen(true)} />
+        )}
+      </Animated.ScrollView>
+
+      <CancellationSheet
+        visible={cancelSheetOpen}
+        orderId={order.id}
+        onClose={() => setCancelSheetOpen(false)}
+        onCancelled={handleCancelled}
+      />
+
+      {cancelledMessage && <Toast message={cancelledMessage} onHide={() => setCancelledMessage(null)} />}
     </SafeAreaView>
   );
 }
+
+function SummaryRow({ label, value, muted, accent }: { label: string; value: string; muted?: boolean; accent?: boolean }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={[styles.summaryLabel, accent && styles.summaryAccent]}>{label}</Text>
+      <Text style={[styles.summaryValue, muted && styles.summaryMuted, accent && styles.summaryAccent]}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 16, gap: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  orderNumber: { fontSize: 15, marginBottom: 4 },
+  date: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  timeline: { flexDirection: 'row', alignItems: 'center' },
+  timelineStep: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.line },
+  dotComplete: { backgroundColor: colors.red },
+  timelineLine: { flex: 1, height: 2, backgroundColor: colors.line },
+  timelineLineComplete: { backgroundColor: colors.red },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink, marginBottom: 8 },
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, gap: 12 },
+  itemRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.line },
+  itemInfo: { flex: 1, gap: 2 },
+  itemName: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  itemQty: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  itemTotal: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.ink },
+  summaryMuted: { color: colors.muted },
+  summaryAccent: { color: colors.red, fontFamily: fonts.body.semiBold },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  totalLabel: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  totalValue: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  refundCard: { gap: 8 },
+  refundTrackerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  invoiceCard: { gap: 8 },
+  invoiceNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  address: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+});

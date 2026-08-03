@@ -2,22 +2,73 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { memo, useMemo } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, type BaseAnimationBuilder, type EntryExitAnimationFunction } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useCategories } from '@/api/hooks/useCategories';
 import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useProducts } from '@/api/hooks/useProducts';
-import type { Product } from '@/api/types';
+import type { Category, Product } from '@/api/types';
 import { BannerCarousel, type BannerSlide } from '@/components/BannerCarousel';
-import { Avatar, Badge, Button, ProductCard, ProductCardSkeleton, Skeleton } from '@/components/ui';
+import { Avatar, Badge, ProductCard, ProductCardSkeleton, Skeleton } from '@/components/ui';
 import { webOrigin } from '@/config/env';
 import { dealerStatusTone } from '@/constants/dealerStatus';
 import { orderStatusTone } from '@/constants/orderStatus';
 import { useAuth } from '@/auth/useAuth';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { Button, Card, MonoLabel } from '@/src/components/ui';
+import { VehiclePickerCard } from '@/src/components/vehicle/VehiclePickerCard';
+import { colors as themeColors, fonts as themeFonts } from '@/src/theme';
 import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { discountPercent, formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
+
+// Staggered fade-up entrance for the hero sections below, honoring reduce-motion
+// by dropping the translateY (FadeInDown) in favor of a plain opacity fade.
+function entrance(reduceMotion: boolean, delayMs: number): BaseAnimationBuilder | EntryExitAnimationFunction {
+  return reduceMotion ? FadeIn.duration(200).delay(delayMs) : FadeInDown.duration(220).delay(delayMs);
+}
+
+const CategoryGrid = memo(function CategoryGrid({ categories }: { categories: Category[] }) {
+  if (categories.length === 0) return null;
+  return (
+    <View style={categoryStyles.section}>
+      <Text className="text-h3 font-semibold text-text px-lg mb-md">Browse by category</Text>
+      <View style={categoryStyles.grid}>
+        {categories.slice(0, 6).map((category) => (
+          <View key={category.id} style={categoryStyles.cell}>
+            <Card onPress={() => router.push(`/category/${category.slug}`)} accessibilityLabel={category.name}>
+              <View style={categoryStyles.cardTop}>
+                <MonoLabel>{`MX-${category.slug.slice(0, 3).toUpperCase()}`}</MonoLabel>
+                <View style={categoryStyles.tick} />
+              </View>
+              <Text style={categoryStyles.name} numberOfLines={1}>
+                {category.name}
+              </Text>
+              {!!category.description && (
+                <Text style={categoryStyles.description} numberOfLines={1}>
+                  {category.description}
+                </Text>
+              )}
+            </Card>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+});
+
+const categoryStyles = StyleSheet.create({
+  section: { marginBottom: 24 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 0 },
+  cell: { width: '50%', padding: 4 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  tick: { width: 14, height: 2, borderRadius: 1, backgroundColor: themeColors.red },
+  name: { fontFamily: themeFonts.display.bold, fontSize: 15, color: themeColors.ink, marginBottom: 2 },
+  description: { fontFamily: themeFonts.body.regular, fontSize: 12.5, color: themeColors.muted },
+});
 
 // Module-level (not recreated per render) so ProductCard's memo() comparison
 // sees a stable onPress reference instead of a new closure every render.
@@ -138,7 +189,9 @@ export default function HomeScreen() {
   const { user, dealer } = useAuth();
   const summaryQuery = useDealerSummary();
   const productsQuery = useProducts({ pageSize: 20 });
+  const categoriesQuery = useCategories();
   const colors = useThemeColors();
+  const reduceMotion = useReduceMotion();
 
   const { summary } = summaryQuery;
 
@@ -176,7 +229,7 @@ export default function HomeScreen() {
   const greeting = greetingForHour(new Date().getHours());
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-theme-paper" edges={['top']}>
       <ScrollView
         contentContainerClassName="pb-3xl"
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.text} />}
@@ -216,22 +269,32 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <Pressable
-          onPress={() => router.push('/search')}
-          className="mx-lg mb-2xl h-12 rounded-md bg-surface flex-row items-center px-md gap-sm"
-          accessibilityRole="button"
-          accessibilityLabel="Search parts, brands, part numbers"
-        >
-          <Feather name="search" size={18} color={colors.muted} />
-          <Text className="text-[15px] text-muted">Search parts, brands, part numbers…</Text>
-        </Pressable>
+        <Animated.View entering={entrance(reduceMotion, 0)}>
+          <Pressable
+            onPress={() => router.push('/search')}
+            className="mx-lg mb-2xl h-12 rounded-md bg-surface flex-row items-center px-md gap-sm"
+            accessibilityRole="button"
+            accessibilityLabel="Search parts, brands, part numbers"
+          >
+            <Feather name="search" size={18} color={colors.muted} />
+            <Text className="text-[15px] text-muted">Search parts, brands, part numbers…</Text>
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View entering={entrance(reduceMotion, 80)} className="px-lg mb-2xl">
+          <VehiclePickerCard />
+        </Animated.View>
+
+        <Animated.View entering={entrance(reduceMotion, 160)}>
+          <CategoryGrid categories={categoriesQuery.data ?? []} />
+        </Animated.View>
 
         {summaryQuery.isLoading ? (
           <StatGridSkeleton />
         ) : summaryQuery.isError ? (
           <View className="mx-lg mb-2xl p-lg rounded-lg bg-danger/10 gap-sm">
             <Text className="text-[13px] font-medium text-danger">Couldn&apos;t load your account summary.</Text>
-            <Button label="Retry" size="sm" variant="outline" onPress={() => summaryQuery.refetch()} />
+            <Button label="Retry" variant="ghost" onPress={() => summaryQuery.refetch()} />
           </View>
         ) : (
           <View className="flex-row flex-wrap gap-md px-lg mb-2xl">

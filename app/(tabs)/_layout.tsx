@@ -3,19 +3,17 @@ import { Tabs } from 'expo-router';
 
 import { CartTabIcon } from '@/components/CartTabIcon';
 import { HapticTab } from '@/components/haptic-tab';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { colors } from '@/src/theme';
 
 export default function TabLayout() {
-  const colors = useThemeColors();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.red,
         tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line },
         // Each tab mounts only on first visit, and its screen tree is frozen
         // (no re-renders, paused effects) while another tab is focused —
         // avoids five tabs' worth of queries/state updates running at once.

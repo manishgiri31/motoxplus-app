@@ -1,38 +1,33 @@
 import { router } from 'expo-router';
 import { memo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrders } from '@/api/hooks/useOrders';
 import type { Order } from '@/api/types';
-import { Badge, EmptyState, ErrorState, OrderRowSkeleton } from '@/components/ui';
-import { orderStatusTone } from '@/constants/orderStatus';
+import { orderStatusVariant } from '@/constants/orderStatus';
+import { Badge, Card, MonoLabel, SkeletonListRow } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
 const OrderRow = memo(function OrderRow({ order }: { order: Order }) {
   return (
-    <Pressable
-      onPress={() => router.push(`/order/${order.id}`)}
-      className="p-lg border-b border-border gap-sm active:bg-surface"
-      accessibilityRole="button"
-      accessibilityLabel={`Order ${order.orderNumber}, ${order.status}, ${order.items.length} items, ${formatCurrency(order.grandTotal)}`}
-    >
-      <View className="flex-row justify-between items-start">
-        <View className="gap-xxs">
-          <Text className="text-[14px] font-semibold text-text">#{order.orderNumber}</Text>
-          <Text className="text-[12px] text-muted">
+    <Card onPress={() => router.push(`/order/${order.id}`)} accessibilityLabel={`Order ${order.orderNumber}`} style={styles.card}>
+      <View style={styles.topRow}>
+        <View style={styles.idCol}>
+          <MonoLabel color="ink">{`#${order.orderNumber}`}</MonoLabel>
+          <Text style={styles.date}>
             {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
           </Text>
         </View>
-        <Badge label={order.status} tone={orderStatusTone[order.status]} />
+        <Badge label={order.status} variant={orderStatusVariant[order.status]} />
       </View>
-      <View className="flex-row justify-between">
-        <Text className="text-[13px] text-muted">{order.items.length} item(s)</Text>
-        <Text className="text-[14px] font-bold text-text">{formatCurrency(order.grandTotal)}</Text>
+      <View style={styles.bottomRow}>
+        <Text style={styles.itemCount}>{order.items.length} item(s)</Text>
+        <Text style={styles.total}>{formatCurrency(order.grandTotal)}</Text>
       </View>
-    </Pressable>
+    </Card>
   );
 });
 
@@ -44,36 +39,38 @@ export default function OrdersScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-        <View className="px-lg pt-sm pb-lg">
-          <Text className="text-h2 font-bold text-text">Orders</Text>
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Orders</Text>
         </View>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <OrderRowSkeleton key={i} />
-        ))}
+        <View style={styles.listContent}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonListRow key={i} />
+          ))}
+        </View>
       </SafeAreaView>
     );
   }
 
   if (isError) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-        <ErrorState error={error} onRetry={refetch} />
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <ErrorFallback error={error} onRetry={refetch} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <Animated.View entering={FadeIn.duration(200)} className="px-lg pt-sm pb-lg">
-        <Text className="text-h2 font-bold text-text">Orders</Text>
-      </Animated.View>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Orders</Text>
+      </View>
 
       <FlatList
         data={data?.orders ?? []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <OrderRow order={item} />}
-        contentContainerClassName={(data?.orders ?? []).length === 0 ? 'flex-1' : undefined}
+        contentContainerStyle={(data?.orders ?? []).length === 0 ? styles.emptyContent : styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
@@ -81,48 +78,41 @@ export default function OrdersScreen() {
               HapticService.light();
               refetch();
             }}
+            tintColor={colors.red}
+            colors={[colors.red]}
           />
         }
         ListEmptyComponent={
-          <EmptyState
-            icon="package"
-            title="No orders yet"
-            message="Orders you place will show up here."
-            actionLabel="Browse products"
-            onAction={() => router.push('/(tabs)')}
-          />
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No orders yet</Text>
+            <Text style={styles.emptyMessage}>Orders you place will show up here.</Text>
+          </View>
         }
         ListFooterComponent={
           data && totalPages > 1 ? (
-            <View className="flex-row items-center justify-center gap-lg py-lg">
+            <View style={styles.pagination}>
               <Pressable
                 disabled={page <= 1}
                 onPress={() => setPage((p) => p - 1)}
                 hitSlop={10}
-                className="py-xs"
                 accessibilityRole="button"
                 accessibilityLabel="Previous page"
                 accessibilityState={{ disabled: page <= 1 }}
               >
-                <Text className={`text-[14px] font-semibold ${page <= 1 ? 'text-muted' : 'text-text'}`}>
-                  Previous
-                </Text>
+                <Text style={[styles.pageLink, page <= 1 && styles.pageLinkDisabled]}>Previous</Text>
               </Pressable>
-              <Text className="text-[13px] text-muted">
+              <Text style={styles.pageLabel}>
                 Page {page} of {totalPages}
               </Text>
               <Pressable
                 disabled={page >= totalPages}
                 onPress={() => setPage((p) => p + 1)}
                 hitSlop={10}
-                className="py-xs"
                 accessibilityRole="button"
                 accessibilityLabel="Next page"
                 accessibilityState={{ disabled: page >= totalPages }}
               >
-                <Text className={`text-[14px] font-semibold ${page >= totalPages ? 'text-muted' : 'text-text'}`}>
-                  Next
-                </Text>
+                <Text style={[styles.pageLink, page >= totalPages && styles.pageLinkDisabled]}>Next</Text>
               </Pressable>
             </View>
           ) : null
@@ -131,3 +121,39 @@ export default function OrdersScreen() {
     </SafeAreaView>
   );
 }
+
+function ErrorFallback({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  // Local, minimal — avoids pulling in the old ErrorState just for one screen
+  // while still surfacing a real retry action.
+  return (
+    <View style={styles.empty}>
+      <Text style={styles.emptyTitle}>Something went wrong</Text>
+      <Text style={styles.emptyMessage}>{error instanceof Error ? error.message : 'Please try again.'}</Text>
+      <Pressable onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry">
+        <Text style={styles.pageLink}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  listContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
+  card: { gap: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  idCol: { gap: 4 },
+  date: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  itemCount: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
+  total: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, paddingVertical: 16 },
+  pageLink: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  pageLinkDisabled: { color: colors.muted },
+  pageLabel: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
+  emptyContent: { flex: 1 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
+  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
+  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+});

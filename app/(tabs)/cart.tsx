@@ -1,28 +1,26 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useMemo } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { memo, useMemo, useState } from 'react';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart, useCart, useRemoveCartItem } from '@/api/hooks/useCart';
 import { useProduct } from '@/api/hooks/useProducts';
 import type { CartItem } from '@/api/types';
-import { Button, EmptyState, ErrorState, Image, ListRowSkeleton } from '@/components/ui';
-import { usePulseAnimation } from '@/hooks/use-pulse-animation';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { Image } from '@/components/ui';
+import { Button, Stepper, Toast } from '@/src/components/ui';
+import { colors, fonts, radii } from '@/src/theme';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
 
-const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
+const CartRow = memo(function CartRow({ item, onRemove }: { item: CartItem; onRemove: (item: CartItem) => void }) {
   const addToCart = useAddToCart();
-  const removeItem = useRemoveCartItem();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
-  const colors = useThemeColors();
-  const quantityPulse = usePulseAnimation(1.15);
 
   const unitPrice = item.variant?.price ?? item.product.price;
   const moq = item.product.moq;
@@ -37,12 +35,8 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
   const fallbackProductQuery = useProduct(hasImages ? undefined : item.productId);
   const images = hasImages ? item.product.productImages : fallbackProductQuery.data?.productImages;
   const primaryImage = images?.find((i) => i.isPrimary) ?? images?.[0];
-  const atMinQuantity = item.quantity - moq < moq;
 
   const changeQuantity = (nextQuantity: number) => {
-    if (nextQuantity < moq) return;
-    HapticService.medium();
-    quantityPulse.pulse();
     addToCart.mutate({
       payload: { productId: item.productId, quantity: nextQuantity, variantId: item.variantId ?? undefined },
       product: item.product,
@@ -62,76 +56,64 @@ const CartRow = memo(function CartRow({ item }: { item: CartItem }) {
       imageUrl: primaryImage?.imageUrl ?? null,
       brand: item.product.brand,
     });
-    removeItem.mutate(item.id);
+    onRemove(item);
   };
 
   return (
-    <Animated.View exiting={SlideOutRight.duration(200)} className="flex-row gap-md p-lg border-b border-border">
-      <Image
-        source={getImageSource(primaryImage?.imageUrl)}
-        className="w-16 h-16 rounded-md bg-surface"
-        cachePolicy="memory-disk"
-        recyclingKey={item.productId}
-      />
-      <View className="flex-1 gap-xs">
-        <Text className="text-[14px] font-semibold text-text" numberOfLines={2}>
-          {item.product.name}
-        </Text>
-        {item.variant && <Text className="text-[12px] text-muted">{item.variant.label}</Text>}
-        <Text className="text-[14px] font-bold text-text">{formatCurrency(unitPrice)}</Text>
+    <Swipeable
+      renderRightActions={() => (
+        <Pressable
+          onPress={() => onRemove(item)}
+          style={styles.swipeAction}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${item.product.name}`}
+        >
+          <Feather name="trash-2" size={20} color="#FFFFFF" />
+        </Pressable>
+      )}
+      overshootRight={false}
+    >
+      <Animated.View exiting={SlideOutRight.duration(200)} style={styles.row}>
+        <Image source={getImageSource(primaryImage?.imageUrl)} style={styles.image} cachePolicy="memory-disk" recyclingKey={item.productId} />
+        <View style={styles.rowContent}>
+          <Text style={styles.name} numberOfLines={2}>
+            {item.product.name}
+          </Text>
+          {item.variant && <Text style={styles.variant}>{item.variant.label}</Text>}
+          <Text style={styles.price}>{formatCurrency(unitPrice)}</Text>
 
-        <View className="flex-row items-center justify-between mt-xs">
-          <View className="flex-row items-center border border-border rounded-md">
-            <Pressable
-              onPress={() => changeQuantity(item.quantity - moq)}
-              disabled={atMinQuantity}
-              className="w-9 h-9 items-center justify-center"
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Decrease quantity"
-            >
-              <Feather name="minus" size={16} color={atMinQuantity ? colors.border : colors.text} />
-            </Pressable>
-            <Animated.Text style={quantityPulse.style} className="w-8 text-center text-[14px] font-semibold text-text">
-              {item.quantity}
-            </Animated.Text>
-            <Pressable
-              onPress={() => changeQuantity(item.quantity + moq)}
-              className="w-9 h-9 items-center justify-center"
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Increase quantity"
-            >
-              <Feather name="plus" size={16} color={colors.text} />
-            </Pressable>
+          <View style={styles.rowFooter}>
+            <Stepper value={item.quantity} moq={moq} onChange={changeQuantity} />
+            <View style={styles.rowActions}>
+              <Pressable onPress={moveToWishlist} hitSlop={13} accessibilityRole="button" accessibilityLabel="Move to wishlist">
+                <Feather name="heart" size={18} color={colors.muted} />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  HapticService.medium();
+                  onRemove(item);
+                }}
+                hitSlop={13}
+                accessibilityRole="button"
+                accessibilityLabel="Remove item"
+              >
+                <Feather name="trash-2" size={18} color={colors.red} />
+              </Pressable>
+            </View>
           </View>
-
-          <View className="flex-row gap-lg">
-            <Pressable onPress={moveToWishlist} hitSlop={13} accessibilityRole="button" accessibilityLabel="Move to wishlist">
-              <Feather name="heart" size={18} color={colors.muted} />
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                HapticService.medium();
-                removeItem.mutate(item.id);
-              }}
-              hitSlop={13}
-              accessibilityRole="button"
-              accessibilityLabel="Remove item"
-            >
-              <Feather name="trash-2" size={18} color={colors.danger} />
-            </Pressable>
-          </View>
+          {moq > 1 && <Text style={styles.moqNote}>Sold in multiples of {moq}</Text>}
         </View>
-        {moq > 1 && <Text className="text-[11px] text-muted">Sold in multiples of {moq}</Text>}
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </Swipeable>
   );
 });
 
 export default function CartScreen() {
   const { data: cart, isLoading, isError, error, refetch, isRefetching } = useCart();
   const items = cart?.items ?? [];
+  const addToCart = useAddToCart();
+  const removeItem = useRemoveCartItem();
+  const [lastRemoved, setLastRemoved] = useState<CartItem | null>(null);
 
   const onRefresh = () => {
     HapticService.light();
@@ -140,75 +122,82 @@ export default function CartScreen() {
 
   const totals = useMemo(() => calculateCartTotals(cart?.items ?? []), [cart]);
 
+  const handleRemove = (item: CartItem) => {
+    setLastRemoved(item);
+    removeItem.mutate(item.id);
+  };
+
+  const handleUndo = () => {
+    if (!lastRemoved) return;
+    HapticService.light();
+    addToCart.mutate({
+      payload: {
+        productId: lastRemoved.productId,
+        quantity: lastRemoved.quantity,
+        variantId: lastRemoved.variantId ?? undefined,
+      },
+      product: lastRemoved.product,
+      variant: lastRemoved.variant ?? undefined,
+    });
+    setLastRemoved(null);
+  };
+
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <ListRowSkeleton key={i} />
-        ))}
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <ActivityFallback />
       </SafeAreaView>
     );
   }
 
   if (isError) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-        <ErrorState error={error} onRetry={refetch} />
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Couldn&apos;t load your cart</Text>
+          <Text style={styles.emptyMessage}>{error instanceof Error ? error.message : 'Please try again.'}</Text>
+          <Button label="Retry" variant="ghost" onPress={() => refetch()} />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <Animated.View entering={FadeIn.duration(200)} className="px-lg pt-sm pb-lg">
-        <Text className="text-h2 font-bold text-text">Cart</Text>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
+        <Text style={styles.title}>Cart</Text>
       </Animated.View>
 
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CartRow item={item} />}
-        contentContainerClassName={items.length === 0 ? 'flex-1' : 'pb-lg'}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
+        renderItem={({ item }) => <CartRow item={item} onRemove={handleRemove} />}
+        contentContainerStyle={items.length === 0 ? styles.emptyContent : styles.listContent}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={colors.red} colors={[colors.red]} />}
         ListEmptyComponent={
-          <EmptyState
-            icon="shopping-cart"
-            title="Your cart is empty"
-            message="Browse the catalog and add parts to get started."
-            actionLabel="Browse products"
-            onAction={() => router.push('/(tabs)')}
-          />
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Your cart is empty</Text>
+            <Text style={styles.emptyMessage}>Browse the catalog and add parts to get started.</Text>
+            <Button label="Browse products" variant="ghost" onPress={() => router.push('/(tabs)')} />
+          </View>
         }
       />
 
       {items.length > 0 && (
-        <View className="border-t border-border px-lg pt-lg pb-sm gap-sm">
-          <View className="flex-row justify-between">
-            <Text className="text-[14px] text-muted">Subtotal</Text>
-            <Text className="text-[14px] text-text">{formatCurrency(totals.subtotal)}</Text>
+        <View style={styles.summary}>
+          <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
+          <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
+          <SummaryRow label="Shipping" value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatCurrency(totals.grandTotal)}</Text>
           </View>
-          <View className="flex-row justify-between">
-            <Text className="text-[14px] text-muted">GST</Text>
-            <Text className="text-[14px] text-text">{formatCurrency(totals.gstAmount)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-[14px] text-muted">Shipping</Text>
-            <Text className="text-[14px] text-text">
-              {totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}
-            </Text>
-          </View>
-          <View className="flex-row justify-between pt-sm border-t border-border">
-            <Text className="text-[16px] font-bold text-text">Total</Text>
-            <Text className="text-[16px] font-bold text-text">{formatCurrency(totals.grandTotal)}</Text>
-          </View>
-          <Text className="text-[11px] text-muted">
-            Final total is confirmed by the server when you place the order.
-          </Text>
+          <Text style={styles.disclaimer}>Final total is confirmed by the server when you place the order.</Text>
 
           <Button
             label="Proceed to checkout"
+            variant="brand"
             fullWidth
-            size="lg"
             onPress={() => {
               if (items.some((i) => i.product.stock <= 0)) {
                 HapticService.error();
@@ -220,6 +209,74 @@ export default function CartScreen() {
           />
         </View>
       )}
+
+      {lastRemoved && (
+        <Toast
+          message={`Removed ${lastRemoved.product.name}`}
+          action={{ label: 'Undo', onPress: handleUndo }}
+          onHide={() => setLastRemoved(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
+
+function ActivityFallback() {
+  return (
+    <View style={styles.emptyContent}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <View key={i} style={styles.skeletonRow} />
+      ))}
+    </View>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  listContent: { paddingBottom: 16 },
+  emptyContent: { flexGrow: 1 },
+  skeletonRow: { height: 96, backgroundColor: colors.line, opacity: 0.4, margin: 8, borderRadius: radii.md },
+  row: { flexDirection: 'row', gap: 12, padding: 16, backgroundColor: colors.paper, borderBottomWidth: 1, borderBottomColor: colors.line },
+  image: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.card },
+  rowContent: { flex: 1, gap: 4 },
+  name: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  variant: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  price: { fontFamily: fonts.display.bold, fontSize: 15, color: colors.ink },
+  rowFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  rowActions: { flexDirection: 'row', gap: 16 },
+  moqNote: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  swipeAction: {
+    width: 72,
+    backgroundColor: colors.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summary: { borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 8 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.ink },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  totalLabel: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  totalValue: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  disclaimer: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
+  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
+  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', marginBottom: 8 },
+});

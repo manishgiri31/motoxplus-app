@@ -284,6 +284,34 @@ export interface Order {
   shipment: Shipment | null;
   payments?: Payment[];
   createdAt: string;
+  // STUB — the real GET /api/orders/[id] doesn't return this field yet (see
+  // docs/api.md §7: no cancel endpoint exists at all as of the 2026-07-13
+  // audit). Optional so nothing breaks against the real backend today; the
+  // refund tracker in app/order/[id]/index.tsx only renders when it's present.
+  refund?: { amount: number; status: RefundStatus } | null;
+}
+
+// --- Order cancellation (STUB) ---
+// No cancellation endpoint exists on the backend (docs/api.md §7, confirmed
+// gap). These types describe the shape api/services/cancellationService.ts
+// calls against — real requests today will 404/error, surfaced honestly via
+// getErrorMessage rather than faked, until the backend ships this.
+export type CancellationStage = 'BEFORE_DISPATCH' | 'AFTER_DISPATCH';
+export type RefundStatus = 'INITIATED' | 'COMPLETED' | 'FAILED';
+
+export interface CancellationPreview {
+  orderId: string;
+  stage: CancellationStage;
+  chargePercent: number;
+  orderTotal: number;
+  amountPaid: number;
+  cancellationCharge: number;
+  refundAmount: number;
+}
+
+export interface CancelOrderResponse {
+  order: Order;
+  refund: { amount: number; status: RefundStatus };
 }
 
 export interface OrderListResponse {

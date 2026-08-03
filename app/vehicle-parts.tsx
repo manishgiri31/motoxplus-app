@@ -1,13 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { Product } from '@/api/types';
 import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts } from '@/api/hooks/useProducts';
+import type { Product } from '@/api/types';
 import { ErrorState } from '@/components/ui';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
@@ -16,24 +16,28 @@ import { colors, fonts, radii } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { sortProducts } from '@/utils/sortProducts';
 
-export default function CategoryProductsScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+// Results screen for the home-screen vehicle picker (VehiclePickerCard).
+// `vehicle`/`variant` are real, documented GET /api/products filter params
+// (docs/api.md §4) — only the taxonomy of valid values (constants/vehicleTaxonomy.ts)
+// is a placeholder, so this may return an empty/unfiltered list until the
+// backend ships a real vehicle-fitment taxonomy the picker can match against.
+export default function VehiclePartsScreen() {
+  const { vehicle, variant, label } = useLocalSearchParams<{ vehicle?: string; variant?: string; label?: string }>();
   const navigation = useNavigation();
   const categoriesQuery = useCategories();
   const selectedVehicle = useVehicleStore((s) => s.selectedVehicle);
+  const clearSelectedVehicle = useVehicleStore((s) => s.clearSelectedVehicle);
 
-  const query = useInfiniteProducts({ category: slug });
+  const query = useInfiniteProducts({ vehicle, variant });
   const fetchedProducts = useMemo(() => query.data?.pages.flatMap((p) => p.products) ?? [], [query.data]);
 
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<CatalogFilters>({ categorySlug: slug ?? null, inStockOnly: false, sort: 'default' });
+  const [filters, setFilters] = useState<CatalogFilters>({ categorySlug: null, inStockOnly: false, sort: 'default' });
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  const category = categoriesQuery.data?.find((c) => c.slug === slug);
-
   useEffect(() => {
-    navigation.setOptions({ title: category?.name ?? (slug ? slug.replace(/-/g, ' ') : 'Category') });
-  }, [navigation, slug, category]);
+    navigation.setOptions({ title: label ?? 'Compatible parts' });
+  }, [navigation, label]);
 
   const products = useMemo(() => {
     let list = fetchedProducts;
@@ -41,16 +45,19 @@ export default function CategoryProductsScreen() {
     if (q) {
       list = list.filter((p) => p.partNumber.toUpperCase().includes(q) || p.name.toUpperCase().includes(q));
     }
+    if (filters.categorySlug) {
+      list = list.filter((p) => p.category.slug === filters.categorySlug);
+    }
     if (filters.inStockOnly) {
       list = list.filter((p) => p.stock > 0);
     }
     return sortProducts(list, filters.sort);
   }, [fetchedProducts, search, filters]);
 
-  const hasActiveFilters = !!search || filters.inStockOnly || filters.sort !== 'default';
+  const hasActiveFilters = !!search || filters.inStockOnly || filters.sort !== 'default' || !!filters.categorySlug;
   const clearFilters = () => {
     setSearch('');
-    setFilters({ categorySlug: slug ?? null, inStockOnly: false, sort: 'default' });
+    setFilters({ categorySlug: null, inStockOnly: false, sort: 'default' });
   };
 
   if (query.isError) {
@@ -63,6 +70,33 @@ export default function CategoryProductsScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
+      {selectedVehicle && (
+        <View style={styles.vehiclePill}>
+          <Text style={styles.vehiclePillText} numberOfLines={1}>
+            {selectedVehicle.brandName} {selectedVehicle.modelName} · {selectedVehicle.variant}
+          </Text>
+          <Pressable
+            onPress={() => router.push('/(tabs)')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Change vehicle"
+          >
+            <Text style={styles.vehiclePillAction}>Change</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              clearSelectedVehicle();
+              router.back();
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear vehicle filter"
+          >
+            <Feather name="x" size={16} color={colors.muted} />
+          </Pressable>
+        </View>
+      )}
+
       <View style={styles.toolbar}>
         <View style={styles.searchRow}>
           <Feather name="search" size={16} color={colors.muted} />
@@ -114,9 +148,9 @@ export default function CategoryProductsScreen() {
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.red} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No products found</Text>
+              <Text style={styles.emptyTitle}>No compatible parts found</Text>
               <Text style={styles.emptyMessage}>
-                {hasActiveFilters ? 'Try adjusting your search or filters.' : 'No products in this category yet.'}
+                {hasActiveFilters ? 'Try adjusting your search or filters.' : 'Try a different model or variant.'}
               </Text>
               {hasActiveFilters && <Button label="Clear filters" variant="ghost" onPress={clearFilters} style={styles.emptyButton} />}
             </View>
@@ -126,7 +160,7 @@ export default function CategoryProductsScreen() {
 
       <CatalogFilterSheet
         visible={filterSheetOpen}
-        categories={undefined}
+        categories={categoriesQuery.data}
         value={filters}
         onApply={setFilters}
         onClose={() => setFilterSheetOpen(false)}
@@ -137,6 +171,19 @@ export default function CategoryProductsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
+  vehiclePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.dark,
+  },
+  vehiclePillText: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 12, color: '#FFFFFF' },
+  vehiclePillAction: { fontFamily: fonts.body.semiBold, fontSize: 12, color: colors.red },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   searchRow: {
     flex: 1,

@@ -16,7 +16,9 @@ import {
   type NewPasswordFormValues,
   type OtpFormValues,
 } from '@/auth/validation';
-import { Button, Input } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Button, OtpInput } from '@/src/components/ui';
+import { colors as themeColors } from '@/src/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { HapticService } from '@/utils/haptics';
 
@@ -188,10 +190,10 @@ export default function ForgotPasswordScreen() {
               {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
               <Button
                 label="Send code"
+                variant="brand"
+                fullWidth
                 onPress={requestForm.handleSubmit(submitRequest)}
                 loading={requestForm.formState.isSubmitting}
-                fullWidth
-                size="lg"
               />
             </View>
           )}
@@ -201,34 +203,27 @@ export default function ForgotPasswordScreen() {
               <Controller
                 control={otpForm.control}
                 name="otp"
-                render={({ field, fieldState }) => (
-                  <Input
-                    label="6-digit code"
-                    autoFocus
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    returnKeyType="go"
-                    onSubmitEditing={otpForm.handleSubmit(submitOtp)}
-                    value={field.value}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message}
-                  />
-                )}
+                render={({ field }) => <OtpInput value={field.value} onChange={field.onChange} autoFocus />}
               />
+              {otpForm.formState.errors.otp && (
+                <Text className="text-[13px] text-danger text-center">{otpForm.formState.errors.otp.message}</Text>
+              )}
               {resendMessage && <Text className="text-[13px] text-success">{resendMessage}</Text>}
               {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
               <Pressable onPress={resendOtp} disabled={resendCooldown > 0} hitSlop={10} accessibilityRole="button" accessibilityLabel="Resend code">
-                <Text className={`text-[13px] text-center ${resendCooldown > 0 ? 'text-muted' : 'text-primary font-medium'}`}>
+                <Text
+                  className="text-[13px] text-center font-medium"
+                  style={{ color: resendCooldown > 0 ? themeColors.muted : themeColors.red }}
+                >
                   {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
                 </Text>
               </Pressable>
               <Button
                 label="Verify code"
+                variant="brand"
+                fullWidth
                 onPress={otpForm.handleSubmit(submitOtp)}
                 loading={otpForm.formState.isSubmitting}
-                fullWidth
-                size="lg"
               />
             </View>
           )}
@@ -274,10 +269,10 @@ export default function ForgotPasswordScreen() {
               {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
               <Button
                 label="Reset password"
+                variant="brand"
+                fullWidth
                 onPress={resetForm.handleSubmit(submitReset)}
                 loading={resetForm.formState.isSubmitting}
-                fullWidth
-                size="lg"
               />
             </View>
           )}
