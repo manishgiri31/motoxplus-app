@@ -1,39 +1,41 @@
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useMemo } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAllOrders } from '@/api/hooks/useAllOrders';
-import type { Order } from '@/api/types';
-import { EmptyState, ErrorState, OrderRowSkeleton } from '@/components/ui';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { Order, PaymentStatus } from '@/api/types';
+import { Badge, Card, EmptyState, ErrorState, MonoLabel, SkeletonListRow } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
+const paymentStatusVariant: Record<PaymentStatus, { label: string; variant: 'success' | 'brand' | 'neutral' }> = {
+  PAID: { label: 'Paid', variant: 'success' },
+  PARTIAL: { label: 'Partial', variant: 'brand' },
+  PENDING: { label: 'Unpaid', variant: 'neutral' },
+};
+
 const InvoiceRow = memo(function InvoiceRow({ order }: { order: Order }) {
-  const colors = useThemeColors();
   const invoice = order.invoice!;
+  const status = paymentStatusVariant[order.paymentStatus];
 
   return (
-    <Pressable
-      onPress={() => router.push(`/order/${order.id}`)}
-      className="flex-row items-center justify-between p-lg border-b border-border active:bg-surface"
-      accessibilityRole="button"
-      accessibilityLabel={`Invoice ${invoice.invoiceNumber}, order ${order.orderNumber}, ${formatCurrency(invoice.grandTotal)}`}
-    >
-      <View className="flex-1 pr-md gap-xxs">
-        <Text className="text-[14px] font-semibold text-text">Invoice #{invoice.invoiceNumber}</Text>
-        <Text className="text-[12px] text-muted">
-          Order #{order.orderNumber} ·{' '}
-          {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-        </Text>
+    <Card onPress={() => router.push(`/order/${order.id}`)} accessibilityLabel={`Invoice ${invoice.invoiceNumber}`} style={styles.card}>
+      <View style={styles.row}>
+        <View style={styles.left}>
+          <MonoLabel color="ink" style={styles.invoiceNumber}>{`#${invoice.invoiceNumber}`}</MonoLabel>
+          <Text style={styles.orderLine}>
+            Order #{order.orderNumber} ·{' '}
+            {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </Text>
+        </View>
+        <View style={styles.right}>
+          <Text style={styles.amount}>{formatCurrency(invoice.grandTotal)}</Text>
+          <Badge label={status.label} variant={status.variant} />
+        </View>
       </View>
-      <View className="flex-row items-center gap-sm">
-        <Text className="text-[14px] font-bold text-text">{formatCurrency(invoice.grandTotal)}</Text>
-        <Feather name="chevron-right" size={18} color={colors.border} />
-      </View>
-    </Pressable>
+    </Card>
   );
 });
 
@@ -50,29 +52,38 @@ export default function InvoicesScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <OrderRowSkeleton key={i} />
-        ))}
+      <SafeAreaView style={styles.screen} edges={['bottom']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Invoices</Text>
+        </View>
+        <View style={styles.listContent}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonListRow key={i} />
+          ))}
+        </View>
       </SafeAreaView>
     );
   }
 
   if (isError) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+      <SafeAreaView style={styles.screen} edges={['bottom']}>
         <ErrorState error={error} onRetry={refetch} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+    <SafeAreaView style={styles.screen} edges={['bottom']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Invoices</Text>
+      </View>
+
       <FlatList
         data={invoices}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <InvoiceRow order={item} />}
-        contentContainerClassName={invoices.length === 0 ? 'flex-1' : undefined}
+        contentContainerStyle={invoices.length === 0 ? styles.emptyContent : styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
@@ -80,6 +91,8 @@ export default function InvoicesScreen() {
               HapticService.light();
               refetch();
             }}
+            tintColor={colors.red}
+            colors={[colors.red]}
           />
         }
         ListEmptyComponent={
@@ -92,13 +105,25 @@ export default function InvoicesScreen() {
           />
         }
         ListFooterComponent={
-          data?.truncated ? (
-            <Text className="text-[12px] text-muted text-center py-lg px-lg">
-              Showing invoices from your most recent orders.
-            </Text>
-          ) : null
+          data?.truncated ? <Text style={styles.footerNote}>Showing invoices from your most recent orders.</Text> : null
         }
       />
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  listContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
+  emptyContent: { flexGrow: 1 },
+  card: { gap: 0 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  left: { flex: 1, gap: 4 },
+  invoiceNumber: { fontSize: 14 },
+  orderLine: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  right: { alignItems: 'flex-end', gap: 6 },
+  amount: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink, textAlign: 'right' },
+  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, textAlign: 'center', paddingVertical: 16, paddingHorizontal: 16 },
+});
