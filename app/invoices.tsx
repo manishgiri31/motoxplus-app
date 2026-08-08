@@ -10,10 +10,12 @@ import { colors, fonts } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const paymentStatusVariant: Record<PaymentStatus, { label: string; variant: 'success' | 'brand' | 'neutral' }> = {
+const paymentStatusVariant: Record<PaymentStatus, { label: string; variant: 'success' | 'brand' | 'neutral' | 'info' }> = {
   PAID: { label: 'Paid', variant: 'success' },
   PARTIAL: { label: 'Partial', variant: 'brand' },
   PENDING: { label: 'Unpaid', variant: 'neutral' },
+  REFUNDED: { label: 'Refunded', variant: 'info' },
+  FAILED: { label: 'Payment failed', variant: 'brand' },
 };
 
 const InvoiceRow = memo(function InvoiceRow({ order }: { order: Order }) {
