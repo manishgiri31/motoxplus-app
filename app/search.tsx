@@ -1,16 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Category, Product, ProductSuggestion } from '@/api/types';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
-import { EmptyState, Image, ProductCard, ProductCardSkeleton, SortSheet } from '@/components/ui';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { Image } from '@/components/ui';
+import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
+import { EmptyState, SkeletonProductCard, SortSheet } from '@/src/components/ui';
+import { colors, fonts, radii } from '@/src/theme';
 import { useRecentSearchesStore } from '@/stores/recentSearchesStore';
+import { useVehicleStore } from '@/stores/vehicleStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
 import { PRODUCT_SORT_OPTIONS, sortProducts, type ProductSortOption } from '@/utils/sortProducts';
@@ -27,11 +30,6 @@ const POPULAR_SEARCHES = [
   'Air Filter',
 ];
 
-// Module-level so ProductCard's memo() sees a stable onPress reference.
-function openProduct(product: Product) {
-  router.push(`/product/${product.id}`);
-}
-
 function useDebouncedValue(value: string, delayMs: number) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -45,20 +43,16 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
   return (
     <Pressable
       onPress={() => router.push(`/product/${suggestion.id}`)}
-      className="flex-row items-center gap-md px-lg py-md border-b border-border active:bg-surface"
+      style={styles.suggestionRow}
       accessibilityRole="button"
       accessibilityLabel={`${suggestion.name}, ${suggestion.categoryName}, ${suggestion.brand}`}
     >
-      <Image
-        source={getImageSource(suggestion.imageUrl)}
-        className="w-10 h-10 rounded-md bg-surface"
-        cachePolicy="memory-disk"
-      />
-      <View className="flex-1">
-        <Text className="text-[14px] font-medium text-text" numberOfLines={1}>
+      <Image source={getImageSource(suggestion.imageUrl)} style={styles.suggestionImage} cachePolicy="memory-disk" />
+      <View style={styles.suggestionText}>
+        <Text style={styles.suggestionName} numberOfLines={1}>
           {suggestion.name}
         </Text>
-        <Text className="text-[12px] text-muted">
+        <Text style={styles.suggestionMeta}>
           {suggestion.categoryName} · {suggestion.brand}
         </Text>
       </View>
@@ -69,7 +63,7 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
-  const colors = useThemeColors();
+  const selectedVehicle = useVehicleStore((s) => s.selectedVehicle);
 
   const recentSearches = useRecentSearchesStore((s) => s.queries);
   const recordSearch = useRecentSearchesStore((s) => s.record);
@@ -95,9 +89,9 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center gap-sm px-lg py-md border-b border-border">
-        <View className="flex-1 flex-row items-center h-11 rounded-md bg-surface px-md gap-sm">
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <View style={styles.searchRow}>
           <Feather name="search" size={18} color={colors.muted} />
           <TextInput
             autoFocus
@@ -106,23 +100,18 @@ export default function SearchScreen() {
             onSubmitEditing={() => recordSearch(query)}
             placeholder="Search parts, brands, part numbers…"
             placeholderTextColor={colors.muted}
-            className="flex-1 text-[15px] text-text"
+            style={styles.searchInput}
             returnKeyType="search"
             accessibilityLabel="Search parts, brands, part numbers"
           />
           {query.length > 0 && (
-            <Pressable
-              onPress={() => setQuery('')}
-              hitSlop={14}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
+            <Pressable onPress={() => setQuery('')} hitSlop={14} accessibilityRole="button" accessibilityLabel="Clear search">
               <Feather name="x" size={16} color={colors.muted} />
             </Pressable>
           )}
         </View>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Cancel">
-          <Text className="text-[15px] font-medium text-text">Cancel</Text>
+          <Text style={styles.cancelLabel}>Cancel</Text>
         </Pressable>
       </View>
 
@@ -143,7 +132,7 @@ export default function SearchScreen() {
           data={suggestionsQuery.data.suggestions}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <SuggestionRow suggestion={item} />}
-          contentContainerClassName={suggestionsQuery.data.suggestions.length === 0 ? 'flex-1' : undefined}
+          contentContainerStyle={suggestionsQuery.data.suggestions.length === 0 ? styles.emptyContent : undefined}
           refreshControl={
             <RefreshControl
               refreshing={suggestionsQuery.isRefetching}
@@ -151,6 +140,8 @@ export default function SearchScreen() {
                 HapticService.light();
                 suggestionsQuery.refetch();
               }}
+              tintColor={colors.red}
+              colors={[colors.red]}
             />
           }
           ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing found for "${query}"`} />}
@@ -158,18 +149,18 @@ export default function SearchScreen() {
       ) : (
         <>
           {results.length > 0 && (
-            <View className="flex-row justify-end px-lg py-sm border-b border-border">
+            <View style={styles.sortRow}>
               <Pressable
                 onPress={() => {
                   HapticService.light();
                   setSortSheetOpen(true);
                 }}
-                className="flex-row items-center gap-xs"
+                style={styles.sortButton}
                 accessibilityRole="button"
                 accessibilityLabel={`Sort by, currently ${sortLabel}`}
               >
                 <Feather name="sliders" size={14} color={colors.muted} />
-                <Text className="text-[13px] font-medium text-text">Sort: {sortLabel}</Text>
+                <Text style={styles.sortLabel}>Sort: {sortLabel}</Text>
               </Pressable>
             </View>
           )}
@@ -177,11 +168,11 @@ export default function SearchScreen() {
             data={results}
             keyExtractor={(item) => item.id}
             numColumns={2}
-            columnWrapperClassName="px-lg gap-md"
-            contentContainerClassName={`gap-md py-lg ${results.length === 0 ? 'flex-1' : ''}`}
+            columnWrapperStyle={styles.resultsRow}
+            contentContainerStyle={[styles.resultsContent, results.length === 0 && styles.emptyContent]}
             renderItem={({ item }: { item: Product }) => (
-              <View className="flex-1">
-                <ProductCard product={item} onPress={openProduct} />
+              <View style={styles.resultCell}>
+                <CatalogProductCard product={item} vehicle={selectedVehicle} />
               </View>
             )}
             removeClippedSubviews
@@ -199,15 +190,17 @@ export default function SearchScreen() {
                   HapticService.light();
                   resultsQuery.refetch();
                 }}
+                tintColor={colors.red}
+                colors={[colors.red]}
               />
             }
-            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator className="py-lg" color={colors.text} /> : null}
+            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.red} /> : null}
             ListEmptyComponent={
               resultsQuery.isLoading ? (
-                <View className="flex-row flex-wrap gap-md px-lg py-lg">
+                <View style={styles.loadingGrid}>
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <View key={i} className="w-[47%]">
-                      <ProductCardSkeleton />
+                    <View key={i} style={styles.resultCell}>
+                      <SkeletonProductCard />
                     </View>
                   ))}
                 </View>
@@ -224,13 +217,48 @@ export default function SearchScreen() {
           />
         </>
       )}
-      <SortSheet
-        visible={sortSheetOpen}
-        value={sort}
-        options={PRODUCT_SORT_OPTIONS}
-        onSelect={setSort}
-        onClose={() => setSortSheetOpen(false)}
-      />
+      <SortSheet visible={sortSheetOpen} value={sort} options={PRODUCT_SORT_OPTIONS} onSelect={setSort} onClose={() => setSortSheetOpen(false)} />
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  searchRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    backgroundColor: colors.card,
+  },
+  searchInput: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 13, color: colors.ink },
+  cancelLabel: { fontFamily: fonts.body.semiBold, fontSize: 15, color: colors.ink },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
+  suggestionImage: { width: 40, height: 40, borderRadius: radii.sm, backgroundColor: colors.card },
+  suggestionText: { flex: 1 },
+  suggestionName: { fontFamily: fonts.body.medium, fontSize: 14, color: colors.ink },
+  suggestionMeta: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  sortRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  sortButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sortLabel: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.ink },
+  resultsRow: { paddingHorizontal: 8, gap: 0 },
+  resultsContent: { paddingHorizontal: 8, paddingVertical: 16 },
+  resultCell: { flex: 1, paddingHorizontal: 8, paddingBottom: 16 },
+  loadingGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, paddingTop: 16 },
+  footer: { paddingVertical: 16 },
+  emptyContent: { flexGrow: 1 },
+});

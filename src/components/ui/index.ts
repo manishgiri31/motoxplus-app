@@ -8,5 +8,6 @@ export * from './Eyebrow';
 export * from './MonoLabel';
 export * from './OtpInput';
 export * from './Skeleton';
+export * from './SortSheet';
 export * from './Stepper';
 export * from './Toast';
