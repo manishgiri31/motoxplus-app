@@ -1,13 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DEALER_APPLICATION_URL } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
-import { Button } from '@/components/ui';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { Button, Eyebrow } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 
 // Reached two ways, both driven by AuthProvider's `accessDenied` flag
 // (auth/AuthProvider.tsx): a login attempt by a non-dealer/unapproved
@@ -18,7 +18,6 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 // to hint at exact account state to someone who may not be its owner.
 export default function AccessDeniedScreen() {
   const { clearAccessDenied } = useAuth();
-  const colors = useThemeColors();
 
   const backToSignIn = () => {
     clearAccessDenied();
@@ -26,39 +25,48 @@ export default function AccessDeniedScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <View className="flex-1 items-center justify-center px-2xl gap-xl">
-        <Text className="text-[13px] font-semibold uppercase tracking-[3px] text-primary">
-          MotoXPlus Dealer
-        </Text>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <View style={styles.content}>
+        <Eyebrow>MotoXPlus Dealer</Eyebrow>
 
-        <View className="w-16 h-16 rounded-full bg-primary/10 items-center justify-center">
-          <Feather name="shield" size={28} color={colors.primary} />
+        <View style={styles.iconCircle}>
+          <Feather name="shield" size={28} color={colors.red} />
         </View>
 
-        <View className="gap-sm">
-          <Text accessibilityRole="header" className="text-[22px] font-extrabold text-text text-center">
+        <View style={styles.textBlock}>
+          <Text accessibilityRole="header" style={styles.title}>
             Dealer Access Required
           </Text>
-          <Text className="text-[15px] text-muted text-center leading-[22px]">
-            This app is available only for approved MotoXPlus dealers.
-          </Text>
-          <Text className="text-[14px] text-muted text-center leading-[20px] mt-xs">
+          <Text style={styles.message}>This app is available only for approved MotoXPlus dealers.</Text>
+          <Text style={styles.detail}>
             {"If you've already applied, please wait until your application is approved.\n"}
             {"If you haven't applied yet, you can submit a dealer application on our website."}
           </Text>
         </View>
 
-        <View className="w-full gap-sm">
-          <Button
-            label="Apply on Website"
-            onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}
-            fullWidth
-            size="lg"
-          />
-          <Button label="Back to sign in" variant="ghost" onPress={backToSignIn} fullWidth />
+        <View style={styles.actions}>
+          <Button label="Apply on Website" variant="brand" fullWidth onPress={() => Linking.openURL(DEALER_APPLICATION_URL)} />
+          <Button label="Back to sign in" variant="ghost" fullWidth onPress={backToSignIn} />
         </View>
       </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 20 },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.redSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textBlock: { gap: 8 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 22, color: colors.ink, textAlign: 'center' },
+  message: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.muted, textAlign: 'center', lineHeight: 22 },
+  detail: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 4 },
+  actions: { width: '100%', gap: 12, marginTop: 8 },
+});
