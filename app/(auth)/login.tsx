@@ -3,14 +3,16 @@ import * as Linking from 'expo-linking';
 import { Link, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { DEALER_APPLICATION_URL, DealerAccessDeniedError } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
-import { Button, Input } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Button, Eyebrow } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 import { logger } from '@/utils/logger';
 import { runConnectivityDiagnostics } from '@/utils/networkDiagnostics';
 
@@ -75,23 +77,16 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerClassName="flex-1 justify-center px-2xl gap-2xl" keyboardShouldPersistTaps="handled">
-          <View className="gap-xs">
-            <Text className="text-[13px] font-semibold uppercase tracking-[3px] text-primary">
-              MotoXPlus Dealer
-            </Text>
-            <Text className="text-[40px] leading-[44px] font-extrabold text-text -tracking-wide">
-              Welcome Back
-            </Text>
-            <Text className="text-[16px] text-muted mt-xs">Sign in to manage your business</Text>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Eyebrow>MotoXPlus Dealer</Eyebrow>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to manage your business</Text>
           </View>
 
-          <View className="gap-lg">
+          <View style={styles.form}>
             <Controller
               control={control}
               name="identifier"
@@ -131,40 +126,48 @@ export default function LoginScreen() {
               )}
             />
 
-            {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
+            {formError && <Text style={styles.error}>{formError}</Text>}
 
-            <Link href="/(auth)/forgot-password" className="self-end">
-              <Text className="text-[13px] font-semibold text-text">Forgot password?</Text>
+            <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
+              <Text style={styles.forgotLabel}>Forgot password?</Text>
             </Link>
 
-            <Button
-              label="Sign in"
-              onPress={handleSubmit(onSubmit)}
-              loading={isSubmitting}
-              fullWidth
-              size="lg"
-            />
+            <Button label="Sign in" variant="brand" fullWidth onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
           </View>
 
-          <View className="items-center gap-2xs">
-            <Text className="text-[14px] text-muted">Need a dealer account?</Text>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Need a dealer account?</Text>
             <Pressable
               onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}
               hitSlop={10}
-              className="py-xs"
+              style={styles.applyLink}
               accessibilityRole="link"
               accessibilityLabel="Apply on MotoXPlus Website"
             >
-              <Text className="text-[14px] font-semibold text-primary">
-                Apply on MotoXPlus Website
-              </Text>
+              <Text style={styles.applyLabel}>Apply on MotoXPlus Website</Text>
             </Pressable>
-            <Text className="text-[12px] text-muted text-center">
-              Dealer applications are completed on the MotoXPlus website.
-            </Text>
+            <Text style={styles.footerNote}>Dealer applications are completed on the MotoXPlus website.</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  flex: { flex: 1 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
+  header: { gap: 6 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 34, lineHeight: 40, color: colors.ink },
+  subtitle: { fontFamily: fonts.body.regular, fontSize: 16, color: colors.muted, marginTop: 4 },
+  form: { gap: 16 },
+  error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
+  forgotLink: { alignSelf: 'flex-end' },
+  forgotLabel: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
+  footer: { alignItems: 'center', gap: 4 },
+  footerText: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  applyLink: { paddingVertical: 4 },
+  applyLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.red },
+  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, textAlign: 'center' },
+});
