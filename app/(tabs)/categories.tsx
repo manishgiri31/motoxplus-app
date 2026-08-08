@@ -1,75 +1,50 @@
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/api/hooks/useCategories';
 import type { Category } from '@/api/types';
-import { CategoryCardSkeleton, EmptyState, ErrorState, Image } from '@/components/ui';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { CategoryCard } from '@/src/components/catalog/CategoryCard';
+import { EmptyState, ErrorState, SkeletonProductCard } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
-import { getImageSource } from '@/utils/image';
 
 export default function CategoriesScreen() {
   const { data: categories, isLoading, isError, error, refetch, isRefetching } = useCategories();
-  const colors = useThemeColors();
-
-  const renderItem = ({ item }: { item: Category }) => (
-    <Pressable
-      onPress={() => router.push(`/category/${item.slug}`)}
-      className="flex-1 m-xs bg-card border border-border rounded-lg p-lg gap-sm active:opacity-70"
-      accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${item._count.products} products`}
-    >
-      {item.image ? (
-        <Image source={getImageSource(item.image)} className="w-12 h-12 rounded-full bg-surface" cachePolicy="memory-disk" />
-      ) : (
-        <View className="w-12 h-12 rounded-full bg-surface items-center justify-center">
-          <Feather name="grid" size={20} color={colors.text} />
-        </View>
-      )}
-      <Text className="text-[15px] font-semibold text-text" numberOfLines={2}>
-        {item.name}
-      </Text>
-      <Text className="text-[12px] text-muted">{item._count.products} products</Text>
-    </Pressable>
-  );
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <Animated.View entering={FadeIn.duration(200)} className="px-lg pt-sm pb-lg">
-        <Text className="text-h2 font-bold text-text">Categories</Text>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
+        <Text style={styles.title}>Categories</Text>
       </Animated.View>
 
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isLoading ? (
-        <ScrollView contentContainerClassName="p-sm">
-          <View className="flex-row flex-wrap">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <View key={i} className="w-1/2">
-                <CategoryCardSkeleton />
-              </View>
-            ))}
-          </View>
-        </ScrollView>
+        <View style={styles.grid}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={styles.cell}>
+              <SkeletonProductCard />
+            </View>
+          ))}
+        </View>
       ) : (
         <FlatList
           data={categories ?? []}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          contentContainerClassName={`px-sm pb-2xl ${(categories ?? []).length === 0 ? 'flex-1' : ''}`}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching && !isLoading}
-              onRefresh={() => {
-                HapticService.light();
-                refetch();
-              }}
-            />
-          }
-          renderItem={renderItem}
+          contentContainerStyle={[styles.listContent, (categories ?? []).length === 0 && styles.emptyContent]}
+          onRefresh={() => {
+            HapticService.light();
+            refetch();
+          }}
+          refreshing={isRefetching && !isLoading}
+          renderItem={({ item }: { item: Category }) => (
+            <View style={styles.cell}>
+              <CategoryCard category={item} />
+            </View>
+          )}
           ListEmptyComponent={
             !isLoading ? (
               <EmptyState
@@ -86,3 +61,13 @@ export default function CategoriesScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8 },
+  listContent: { paddingHorizontal: 8, paddingBottom: 24 },
+  emptyContent: { flexGrow: 1 },
+  cell: { width: '50%', padding: 8 },
+});

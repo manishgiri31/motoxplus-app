@@ -18,9 +18,9 @@ import { orderStatusTone } from '@/constants/orderStatus';
 import { useAuth } from '@/auth/useAuth';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { Button, Card, MonoLabel } from '@/src/components/ui';
+import { CategoryCard } from '@/src/components/catalog/CategoryCard';
+import { Button } from '@/src/components/ui';
 import { VehiclePickerCard } from '@/src/components/vehicle/VehiclePickerCard';
-import { colors as themeColors, fonts as themeFonts } from '@/src/theme';
 import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { discountPercent, formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
@@ -39,20 +39,7 @@ const CategoryGrid = memo(function CategoryGrid({ categories }: { categories: Ca
       <View style={categoryStyles.grid}>
         {categories.slice(0, 6).map((category) => (
           <View key={category.id} style={categoryStyles.cell}>
-            <Card onPress={() => router.push(`/category/${category.slug}`)} accessibilityLabel={category.name}>
-              <View style={categoryStyles.cardTop}>
-                <MonoLabel>{`MX-${category.slug.slice(0, 3).toUpperCase()}`}</MonoLabel>
-                <View style={categoryStyles.tick} />
-              </View>
-              <Text style={categoryStyles.name} numberOfLines={1}>
-                {category.name}
-              </Text>
-              {!!category.description && (
-                <Text style={categoryStyles.description} numberOfLines={1}>
-                  {category.description}
-                </Text>
-              )}
-            </Card>
+            <CategoryCard category={category} />
           </View>
         ))}
       </View>
@@ -64,10 +51,6 @@ const categoryStyles = StyleSheet.create({
   section: { marginBottom: 24 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 0 },
   cell: { width: '50%', padding: 4 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  tick: { width: 14, height: 2, borderRadius: 1, backgroundColor: themeColors.red },
-  name: { fontFamily: themeFonts.display.bold, fontSize: 15, color: themeColors.ink, marginBottom: 2 },
-  description: { fontFamily: themeFonts.body.regular, fontSize: 12.5, color: themeColors.muted },
 });
 
 // Module-level (not recreated per render) so ProductCard's memo() comparison
