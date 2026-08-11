@@ -9,3 +9,9 @@
 // otherwise a dealer can create an order with amountDue > 0 that can never
 // be paid from the app.
 export const ONLINE_PAYMENTS_ENABLED = false;
+
+// Direct UPI / bank transfer is a manual proof-of-payment flow (QR + UTR +
+// screenshot, verified by staff) — it needs no native payment SDK, so it can
+// stay on independently of ONLINE_PAYMENTS_ENABLED/Razorpay. This is
+// currently the only way to pay a non-COD order from the app.
+export const UPI_PAYMENTS_ENABLED = true;

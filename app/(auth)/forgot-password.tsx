@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -30,6 +31,8 @@ const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function ForgotPasswordScreen() {
   const colors = useThemeColors();
+  // The otp/reset steps carry a password-reset OTP and a new password.
+  ScreenCapture.usePreventScreenCapture('forgot-password');
   const [step, setStep] = useState<Step>('request');
   const [userId, setUserId] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);

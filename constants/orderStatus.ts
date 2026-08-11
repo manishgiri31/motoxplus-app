@@ -5,9 +5,11 @@ import type { BadgeVariant } from '@/src/components/ui';
 export const orderStatusTone: Record<OrderStatus, BadgeTone> = {
   PENDING: 'warning',
   CONFIRMED: 'brand',
+  PROCESSING: 'brand',
   SHIPPED: 'brand',
   DELIVERED: 'success',
   CANCELLED: 'danger',
+  RETURNED: 'danger',
 };
 
 // For the redesigned Badge (src/components/ui), which only has
@@ -16,7 +18,9 @@ export const orderStatusTone: Record<OrderStatus, BadgeTone> = {
 export const orderStatusVariant: Record<OrderStatus, BadgeVariant> = {
   PENDING: 'brand',
   CONFIRMED: 'brand',
+  PROCESSING: 'brand',
   SHIPPED: 'info',
   DELIVERED: 'success',
   CANCELLED: 'neutral',
+  RETURNED: 'neutral',
 };

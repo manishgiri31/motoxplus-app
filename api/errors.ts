@@ -30,3 +30,18 @@ export function getErrorMessage(error: unknown, fallback = FALLBACK_MESSAGE): st
   if (error instanceof Error) return error.message;
   return fallback;
 }
+
+// Exact copy of ACCOUNT_NOT_VERIFIED_MESSAGE in motoxplus-web's
+// lib/auth/verified-account.ts — matched by content (not endpoint) so a 403
+// from /cart, /orders, /payments/create-order, /payments/verify, or
+// /payments/upi/submit is recognized the same way no matter which one failed.
+export const ACCOUNT_NOT_VERIFIED_MESSAGE =
+  'Your account is not verified or approved yet. Please complete verification and wait for admin approval before continuing.';
+
+export function isAccountNotVerifiedError(error: unknown): boolean {
+  return (
+    isAxiosError<ApiErrorBody>(error) &&
+    error.response?.status === 403 &&
+    error.response.data?.error === ACCOUNT_NOT_VERIFIED_MESSAGE
+  );
+}

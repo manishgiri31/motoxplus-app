@@ -5,27 +5,33 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useOrder } from '@/api/hooks/useOrders';
-import type { OrderStatus } from '@/api/types';
-import { Badge as LegacyBadge, ErrorState } from '@/components/ui';
+import type { CancelOrderResponse, OrderStatus } from '@/api/types';
+import { Badge as LegacyBadge } from '@/components/ui';
 import { orderStatusVariant } from '@/constants/orderStatus';
 import { CancellationSheet } from '@/src/components/cancellation/CancellationSheet';
-import { Badge, Button, Card, MonoLabel, Toast } from '@/src/components/ui';
+import { Badge, Button, Card, ErrorState, MonoLabel, Toast } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 
-const REFUND_STATUS_TONE: Record<'INITIATED' | 'COMPLETED' | 'FAILED', 'brand' | 'success' | 'danger'> = {
+const REFUND_STATUS_TONE: Record<'INITIATED' | 'PROCESSED' | 'FAILED' | 'NOT_APPLICABLE', 'brand' | 'success' | 'danger'> = {
   INITIATED: 'brand',
-  COMPLETED: 'success',
+  PROCESSED: 'success',
   FAILED: 'danger',
+  NOT_APPLICABLE: 'brand',
 };
 
-const CANCELLABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED'];
+// PROCESSING is still pre-shipment (see lib/orders/cancellation.ts on the
+// backend) — cancellable at the same 2% pre-ship rate as PENDING/CONFIRMED.
+const CANCELLABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'];
 
-const STEPS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
+const STEPS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
 function StatusTimeline({ status }: { status: OrderStatus }) {
   if (status === 'CANCELLED') {
     return <Badge label="Order cancelled" variant="neutral" />;
+  }
+  if (status === 'RETURNED') {
+    return <Badge label="Order returned" variant="neutral" />;
   }
   const currentIndex = STEPS.indexOf(status);
   return (
@@ -45,10 +51,16 @@ export default function OrderDetailScreen() {
   const { data: order, isLoading, isError, error, refetch } = useOrder(id);
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
   const [cancelledMessage, setCancelledMessage] = useState<string | null>(null);
+  const [cancellation, setCancellation] = useState<CancelOrderResponse | null>(null);
 
-  const handleCancelled = () => {
+  const handleCancelled = (result: CancelOrderResponse) => {
     setCancelSheetOpen(false);
-    setCancelledMessage('Order cancelled — refund initiated');
+    setCancellation(result);
+    setCancelledMessage(
+      result.refundAmount > 0
+        ? `Order cancelled — ${formatCurrency(result.refundAmount)} refund initiated`
+        : 'Order cancelled'
+    );
     refetch();
   };
 
@@ -80,17 +92,34 @@ export default function OrderDetailScreen() {
 
         <StatusTimeline status={order.status} />
 
+        {order.paymentType !== 'COD' && order.amountDue > 0 && order.status !== 'CANCELLED' && (
+          <Button
+            label={`Complete payment — ${formatCurrency(order.amountDue)}`}
+            variant="brand"
+            onPress={() => router.push(`/order/${order.id}/pay-upi`)}
+          />
+        )}
+
         {order.shipment && (
           <Button label="Track shipment" variant="ghost" onPress={() => router.push(`/order/${order.id}/tracking`)} />
         )}
 
-        {order.refund && (
+        {cancellation && cancellation.refundStatus && (
           <Card style={styles.refundCard}>
             <Text style={styles.sectionTitle}>Refund</Text>
             <View style={styles.refundTrackerRow}>
-              <MonoLabel color="ink">{formatCurrency(order.refund.amount)}</MonoLabel>
-              <LegacyBadge label={order.refund.status} tone={REFUND_STATUS_TONE[order.refund.status]} />
+              <MonoLabel color="ink">{formatCurrency(cancellation.refundAmount)}</MonoLabel>
+              <LegacyBadge
+                label={cancellation.refundStatus.replace('_', ' ')}
+                tone={REFUND_STATUS_TONE[cancellation.refundStatus]}
+              />
             </View>
+            {cancellation.refundStatus === 'FAILED' && (
+              <Text style={styles.invoiceNote}>
+                The automatic refund couldn&apos;t be processed — our accounts team has been notified and will follow
+                up.
+              </Text>
+            )}
           </Card>
         )}
 

@@ -1,9 +1,12 @@
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert } from 'react-native';
 
 import { authService, type LoginPayload } from '@/api/services/authService';
 import type { AuthUser, Dealer } from '@/api/types';
 import { canAccessDealerApp, DealerAccessDeniedError } from './access';
-import { onAuthFailure } from './authEvents';
+import { onAuthFailure, onVerificationRequired } from './authEvents';
 import { secureStorage } from './secureStorage';
 
 interface AuthContextValue {
@@ -32,16 +35,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessDenied, setAccessDenied] = useState(false);
   const clearAccessDenied = useCallback(() => setAccessDenied(false), []);
 
+  const queryClient = useQueryClient();
+
   const clearSession = useCallback(async () => {
     await secureStorage.clearTokens();
     setUser(null);
     setDealer(null);
-  }, []);
+    // Otherwise a second dealer signing in on the same device is served the
+    // first dealer's cached cart/orders/invoices/address until each query
+    // happens to refetch — this data is dealer-specific, not device-specific.
+    queryClient.clear();
+  }, [queryClient]);
 
   useEffect(() => {
     onAuthFailure(() => {
       setUser(null);
       setDealer(null);
+      queryClient.clear();
+    });
+  }, [queryClient]);
+
+  // api/client.ts fires this whenever a cart/order/payment POST 403s with
+  // "account not verified" — read the latest user via a ref rather than
+  // re-registering the listener on every user change (onVerificationRequired
+  // only keeps a single most-recent listener).
+  const userRef = useRef<AuthUser | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    onVerificationRequired(() => {
+      const current = userRef.current;
+      const target = current && !current.emailVerified ? '/verify-email' : '/verify-mobile';
+      Alert.alert(
+        'Verify your account',
+        'Your email and mobile number must be verified before you can add to cart or place an order.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Verify now', onPress: () => router.push(target) },
+        ]
+      );
     });
   }, []);
 

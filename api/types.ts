@@ -31,10 +31,7 @@ export interface AuthUser {
   name: string | null;
   email: string;
   role: UserRole;
-  // Only returned by POST /mobile/auth/login — GET /mobile/auth/me omits it.
-  // Don't default/fabricate this field; treat "unknown" as "don't show a
-  // verification banner" rather than guessing true or false.
-  emailVerified?: boolean;
+  emailVerified: boolean;
   mobileVerified: boolean;
   isActive: boolean;
 }
@@ -205,8 +202,11 @@ export interface Cart {
 }
 
 export type PaymentType = 'ADVANCE_20' | 'FULL_100' | 'COD';
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID';
+// Mirrors prisma OrderStatus exactly. PROCESSING sits between CONFIRMED and
+// SHIPPED (still cancellable, pre-shipment); RETURNED is a terminal
+// post-delivery state distinct from CANCELLED.
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';
+export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'REFUNDED' | 'FAILED';
 
 export interface OrderItem {
   id: string;
@@ -284,34 +284,76 @@ export interface Order {
   shipment: Shipment | null;
   payments?: Payment[];
   createdAt: string;
-  // STUB — the real GET /api/orders/[id] doesn't return this field yet (see
-  // docs/api.md §7: no cancel endpoint exists at all as of the 2026-07-13
-  // audit). Optional so nothing breaks against the real backend today; the
-  // refund tracker in app/order/[id]/index.tsx only renders when it's present.
-  refund?: { amount: number; status: RefundStatus } | null;
+  // Present on GET /api/orders and /api/orders/[id] — true once stock has
+  // been decremented for this order (COD immediately; prepaid on payment
+  // confirmation). Cancellation restocks and flips this back to false.
+  stockReserved: boolean;
 }
 
-// --- Order cancellation (STUB) ---
-// No cancellation endpoint exists on the backend (docs/api.md §7, confirmed
-// gap). These types describe the shape api/services/cancellationService.ts
-// calls against — real requests today will 404/error, surfaced honestly via
-// getErrorMessage rather than faked, until the backend ships this.
-export type CancellationStage = 'BEFORE_DISPATCH' | 'AFTER_DISPATCH';
-export type RefundStatus = 'INITIATED' | 'COMPLETED' | 'FAILED';
+// --- Order cancellation ---
+// Mirrors src/app/api/orders/[id]/cancel + cancellation-preview in
+// motoxplus-web exactly. The server is the sole source of truth for these
+// numbers — the client never (re)computes a fee, it only displays what the
+// preview/cancel endpoints return.
+export type CancellationStage = 'PRE_SHIP' | 'POST_SHIP';
+export type RefundStatus = 'NOT_APPLICABLE' | 'INITIATED' | 'PROCESSED' | 'FAILED';
+export type CancelReasonCode =
+  | 'CHANGED_MIND'
+  | 'ORDERED_BY_MISTAKE'
+  | 'FOUND_BETTER_PRICE'
+  | 'DELIVERY_TOO_SLOW'
+  | 'OTHER';
 
-export interface CancellationPreview {
-  orderId: string;
-  stage: CancellationStage;
-  chargePercent: number;
-  orderTotal: number;
-  amountPaid: number;
-  cancellationCharge: number;
-  refundAmount: number;
+// GET .../cancellation-preview always returns 200 — ineligibility is signalled
+// in the body via `allowed: false`, not an error status.
+export type CancellationPreview =
+  | {
+      allowed: true;
+      stage: CancellationStage;
+      chargePercent: number;
+      chargeAmount: number;
+      grandTotal: number;
+      amountPaid: number;
+      refundAmount: number;
+      waived: boolean;
+    }
+  | {
+      allowed: false;
+      grandTotal: number;
+      amountPaid: number;
+      reason: string;
+    };
+
+export interface CancelOrderPayload {
+  reason?: string;
+  reasonCode?: CancelReasonCode;
+  // Stage shown in the confirmation UI (from the preview call). Sent back so
+  // the server can reject with 409 if the order moved stage in between,
+  // rather than silently charging a fee the dealer never saw.
+  expectedStage?: CancellationStage;
 }
 
 export interface CancelOrderResponse {
-  order: Order;
-  refund: { amount: number; status: RefundStatus };
+  success: true;
+  stage: CancellationStage;
+  chargePercent: number;
+  chargeAmount: number;
+  refundAmount: number;
+  refundStatus?: RefundStatus;
+  waived: boolean;
+}
+
+// 409 body when the order's status changed between preview and confirm.
+export interface CancellationStaleResponse {
+  error: string;
+  preview: CancellationPreview | null;
+}
+
+// 422 body when the order simply isn't cancellable (already cancelled,
+// delivered, returned, or a shipped COD order).
+export interface CancellationBlockedResponse {
+  allowed: false;
+  reason: string;
 }
 
 export interface OrderListResponse {
@@ -388,6 +430,13 @@ export interface DealerAccount {
   pincode: string | null;
 }
 
+// DELETE /api/dealer/account re-authenticates with the current password
+// rather than trusting a long-lived session alone (see backend comment on
+// that route) — a bare Bearer token is not enough to destroy the account.
+export interface DeleteAccountPayload {
+  password: string;
+}
+
 export interface ShippingServiceabilityResponse {
   serviceable: boolean;
   [key: string]: unknown;
@@ -404,4 +453,107 @@ export interface ApiErrorBody {
   error: string;
   code?: string;
   details?: unknown;
+}
+
+// --- Direct UPI / bank transfer payment ---
+// The only online payment path that actually works from the app today —
+// Razorpay is disabled server-side (NEXT_PUBLIC_RAZORPAY_ENABLED=false) and
+// react-native-razorpay isn't installed (see constants/features.ts). This is
+// a manual proof-of-payment flow: the dealer pays via any UPI app or bank
+// transfer using the details shown, then submits the UTR + a screenshot for
+// staff to verify.
+export type UpiPaymentMethod = 'UPI' | 'BANK_TRANSFER';
+export type UpiSubmissionStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+
+export interface PaymentSubmission {
+  id: string;
+  orderId: string;
+  paymentMethod: UpiPaymentMethod;
+  utrNumber: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
+  screenshotUrl: string;
+  amount: number;
+  status: UpiSubmissionStatus;
+  rejectionReason: string | null;
+  submittedAt: string;
+}
+
+export interface UpiPaymentSettings {
+  upiId: string;
+  upiName: string;
+  bankAccountNumber: string;
+  bankIfsc: string;
+  bankAccountName: string;
+  upiEnabled: boolean;
+}
+
+export interface UpiOrderDetailsResponse {
+  // This endpoint embeds the dealer's most recent payment submission on the
+  // order itself, unlike GET /orders and /orders/[id] which never do.
+  order: Order & { paymentSubmissions: PaymentSubmission[] };
+  paymentSettings: UpiPaymentSettings;
+}
+
+export interface UploadPaymentScreenshotResponse {
+  url: string;
+  key: string;
+}
+
+export interface SubmitUpiPaymentPayload {
+  orderId: string;
+  paymentMethod: UpiPaymentMethod;
+  utrNumber: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
+  screenshotUrl: string;
+  screenshotKey: string;
+}
+
+export interface SubmitUpiPaymentResponse {
+  submission: PaymentSubmission;
+  message: string;
+}
+
+// --- Active sessions ("sign out of all devices" already exists — this adds
+// per-session visibility/revocation) ---
+export interface UserSessionInfo {
+  id: string;
+  deviceInfo: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  lastUsedAt: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface SessionsResponse {
+  sessions: UserSessionInfo[];
+  currentSessionId: string;
+}
+
+// --- Email verification / change ---
+// Backend now hard-requires emailVerified (alongside mobileVerified and
+// dealer.status === ACTIVE) before POST /cart, POST /orders, or any payment
+// endpoint will succeed — see getVerifiedDealer in motoxplus-web. This isn't
+// optional account hygiene; an unverified dealer cannot order at all.
+export interface SendEmailVerificationPayload {
+  userId?: string;
+  email?: string;
+}
+
+export interface VerifyEmailPayload {
+  userId: string;
+  otp: string;
+}
+
+export interface ChangeEmailPayload {
+  newEmail: string;
+}
+
+export interface ChangeEmailResponse {
+  message: string;
+  userId: string;
 }

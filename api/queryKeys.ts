@@ -17,11 +17,15 @@ export const queryKeys = {
     detail: (id: string) => ['orders', 'detail', id] as const,
     tracking: (id: string) => ['orders', 'tracking', id] as const,
     all: () => ['orders', 'all'] as const,
+    cancellationPreview: (id: string) => ['orders', id, 'cancellation-preview'] as const,
   },
   dealer: {
     account: () => ['dealer', 'account'] as const,
   },
   shipping: {
     serviceability: (pincode: string) => ['shipping', 'serviceability', pincode] as const,
+  },
+  upi: {
+    orderDetails: (orderId: string) => ['payments', 'upi', orderId] as const,
   },
 };

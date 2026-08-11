@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOrderTracking } from '@/api/hooks/useOrders';
 import { EmptyState, ErrorState } from '@/components/ui';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { isHttpsUrl } from '@/utils/url';
 
 export default function OrderTrackingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,7 +59,7 @@ export default function OrderTrackingScreen() {
           <Text className="text-[11px] text-muted">Last updated {new Date(data.lastUpdate).toLocaleString('en-IN')}</Text>
         </View>
 
-        {data.trackingUrl && (
+        {isHttpsUrl(data.trackingUrl) && (
           <Pressable
             onPress={() => WebBrowser.openBrowserAsync(data.trackingUrl)}
             className="flex-row items-center gap-sm py-xs"

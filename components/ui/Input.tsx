@@ -35,6 +35,7 @@ export const Input = forwardRef<TextInput, InputProps>(
             ref={ref}
             placeholderTextColor={colors.muted}
             className="flex-1 text-[15px] text-text py-0"
+            maxLength={500}
             onFocus={(e) => {
               setIsFocused(true);
               onFocus?.(e);

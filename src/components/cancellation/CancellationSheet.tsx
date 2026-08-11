@@ -7,43 +7,52 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCancellationPreview, useCancelOrder } from '@/api/hooks/useCancellation';
 import { getErrorMessage } from '@/api/errors';
+import type { CancelOrderResponse, CancelReasonCode } from '@/api/types';
 import { webOrigin } from '@/config/env';
 import { Button, MonoLabel } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const REASONS = ['Ordered by mistake', 'Found a better price', 'Delivery taking too long', 'Other'];
+const REASONS: { label: string; code: CancelReasonCode }[] = [
+  { label: 'Changed my mind', code: 'CHANGED_MIND' },
+  { label: 'Ordered by mistake', code: 'ORDERED_BY_MISTAKE' },
+  { label: 'Found a better price', code: 'FOUND_BETTER_PRICE' },
+  { label: 'Delivery taking too long', code: 'DELIVERY_TOO_SLOW' },
+  { label: 'Other', code: 'OTHER' },
+];
 
 export interface CancellationSheetProps {
   visible: boolean;
   orderId: string;
   onClose: () => void;
-  onCancelled: () => void;
+  onCancelled: (result: CancelOrderResponse) => void;
 }
 
-// Fetches a real (currently unimplemented) cancellation-preview endpoint and
-// posts a real (currently unimplemented) cancel endpoint — see
-// api/services/cancellationService.ts. Every number shown here comes from
-// that response; nothing is recomputed client-side.
+// Fetches the real cancellation-preview endpoint and posts the real cancel
+// endpoint — see api/services/cancellationService.ts. Every number shown
+// here comes from that response; nothing is recomputed client-side.
 export function CancellationSheet({ visible, orderId, onClose, onCancelled }: CancellationSheetProps) {
   const insets = useSafeAreaInsets();
   const preview = useCancellationPreview(orderId, visible);
   const cancelOrder = useCancelOrder(orderId);
-  const [reason, setReason] = useState<string | null>(null);
+  const [reasonCode, setReasonCode] = useState<CancelReasonCode | null>(null);
   const [staleNotice, setStaleNotice] = useState<string | null>(null);
 
+  const data = preview.data;
+  const allowed = data?.allowed === true;
+
   const handleCancel = () => {
-    if (!preview.data) return;
+    if (!allowed || !data) return;
     HapticService.medium();
     cancelOrder.mutate(
-      { reason: reason ?? undefined },
+      { reasonCode: reasonCode ?? undefined, expectedStage: data.stage },
       {
-        onSuccess: () => onCancelled(),
+        onSuccess: (result) => onCancelled(result),
         onError: (err) => {
-          // A real backend would 409 here if the order's dispatch stage
-          // changed between preview and confirm — refetch so the sheet shows
-          // current numbers and require a fresh tap rather than reusing stale ones.
+          // The order's dispatch stage changed between preview and confirm —
+          // refetch so the sheet shows current numbers and requires a fresh
+          // tap rather than reusing stale ones.
           if (isAxiosError(err) && err.response?.status === 409) {
             setStaleNotice('Order status changed — charge updated. Please review and confirm again.');
             preview.refetch();
@@ -83,19 +92,26 @@ export function CancellationSheet({ visible, orderId, onClose, onCancelled }: Ca
             </View>
           )}
 
-          {preview.data && (
+          {data && !allowed && (
+            <View style={styles.blocked}>
+              <Text style={styles.blockedText}>{data.reason}</Text>
+              <Button label="Contact support" variant="ghost" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)} />
+            </View>
+          )}
+
+          {data && allowed && (
             <>
               <View style={styles.breakdown}>
-                <BreakdownRow label="Order total" value={formatCurrency(preview.data.orderTotal)} />
-                <BreakdownRow label="Amount paid" value={formatCurrency(preview.data.amountPaid)} />
+                <BreakdownRow label="Order total" value={formatCurrency(data.grandTotal)} />
+                <BreakdownRow label="Amount paid" value={formatCurrency(data.amountPaid)} />
                 <BreakdownRow
-                  label={`Cancellation charge (${preview.data.chargePercent}%)`}
-                  value={formatCurrency(preview.data.cancellationCharge)}
-                  accent
+                  label={`Cancellation charge (${data.chargePercent}%)`}
+                  value={data.waived ? 'Waived' : formatCurrency(data.chargeAmount)}
+                  accent={!data.waived}
                 />
                 <View style={styles.refundRow}>
                   <Text style={styles.refundLabel}>Refund amount</Text>
-                  <Text style={styles.refundValue}>{formatCurrency(preview.data.refundAmount)}</Text>
+                  <Text style={styles.refundValue}>{formatCurrency(data.refundAmount)}</Text>
                 </View>
               </View>
 
@@ -105,13 +121,13 @@ export function CancellationSheet({ visible, orderId, onClose, onCancelled }: Ca
               <View style={styles.reasonList}>
                 {REASONS.map((r) => (
                   <Pressable
-                    key={r}
-                    onPress={() => setReason(r)}
-                    style={[styles.reasonChip, reason === r && styles.reasonChipActive]}
+                    key={r.code}
+                    onPress={() => setReasonCode(r.code)}
+                    style={[styles.reasonChip, reasonCode === r.code && styles.reasonChipActive]}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: reason === r }}
+                    accessibilityState={{ selected: reasonCode === r.code }}
                   >
-                    <Text style={[styles.reasonLabel, reason === r && styles.reasonLabelActive]}>{r}</Text>
+                    <Text style={[styles.reasonLabel, reasonCode === r.code && styles.reasonLabelActive]}>{r.label}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -121,7 +137,11 @@ export function CancellationSheet({ visible, orderId, onClose, onCancelled }: Ca
               )}
 
               <Button
-                label={`Cancel & accept ${formatCurrency(preview.data.cancellationCharge)} charge`}
+                label={
+                  data.waived || data.chargeAmount === 0
+                    ? 'Cancel order'
+                    : `Cancel & accept ${formatCurrency(data.chargeAmount)} charge`
+                }
                 variant="brand"
                 fullWidth
                 loading={cancelOrder.isPending}

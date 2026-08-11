@@ -1,7 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -35,10 +34,6 @@ function MenuRow({ icon, label, onPress, destructive }: MenuRowProps) {
 export default function AccountScreen() {
   const { user, dealer, logout, logoutAllDevices } = useAuth();
   const { data: dealerAccount } = useDealerAccount();
-  // Local-only: there's no in-app verify flow yet (pending DLT ID), so this
-  // is a stopgap that just stops nagging for the rest of the session instead
-  // of showing a warning the dealer has no way to act on.
-  const [mobileNagDismissed, setMobileNagDismissed] = useState(false);
 
   const confirmLogout = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -73,19 +68,39 @@ export default function AccountScreen() {
               <Badge label={dealer.status} tone={dealerStatusTone[dealer.status]} />
             </View>
           )}
-          {user && !user.mobileVerified && !mobileNagDismissed && (
-            <View style={styles.nagRow}>
-              <Text style={styles.nagText}>Your mobile number isn&apos;t verified yet — verify it to unlock full account features.</Text>
-              <Pressable onPress={() => setMobileNagDismissed(true)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss">
-                <Feather name="x" size={16} color={colors.muted} />
-              </Pressable>
-            </View>
+          {user && !user.emailVerified && (
+            <Pressable
+              onPress={() => router.push('/verify-email')}
+              style={styles.nagRow}
+              accessibilityRole="button"
+              accessibilityLabel="Verify email"
+            >
+              <Text style={styles.nagText}>
+                Your email isn&apos;t verified — verify it now, ordering is blocked until you do.
+              </Text>
+              <Feather name="chevron-right" size={16} color={colors.red} />
+            </Pressable>
+          )}
+          {user && !user.mobileVerified && (
+            <Pressable
+              onPress={() => router.push('/verify-mobile')}
+              style={styles.nagRow}
+              accessibilityRole="button"
+              accessibilityLabel="Verify mobile number"
+            >
+              <Text style={styles.nagText}>
+                Your mobile number isn&apos;t verified — verify it now, ordering is blocked until you do.
+              </Text>
+              <Feather name="chevron-right" size={16} color={colors.red} />
+            </Pressable>
           )}
         </Card>
 
         <View style={styles.menuGroup}>
           <MenuRow icon="heart" label="Wishlist" onPress={() => router.push('/wishlist')} />
           <MenuRow icon="bell" label="Notifications" onPress={() => router.push('/notifications')} />
+          <MenuRow icon="mail" label="Change email" onPress={() => router.push('/change-email')} />
+          <MenuRow icon="monitor" label="Active sessions" onPress={() => router.push('/sessions')} />
           <MenuRow icon="settings" label="Settings" onPress={() => router.push('/settings')} />
         </View>
 

@@ -38,6 +38,10 @@ export function OtpInput({ length = 6, value, onChange, autoFocus }: OtpInputPro
         keyboardType="number-pad"
         maxLength={length}
         autoFocus={autoFocus}
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
+        importantForAutofill="yes"
+        autoCorrect={false}
         style={styles.hiddenInput}
         accessibilityLabel="One-time passcode"
       />

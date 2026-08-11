@@ -44,6 +44,26 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   const [activeDot, setActiveDot] = useState(0);
   const virtualData = useMemo(() => Array.from({ length: count * LOOP_MULTIPLIER }), [count]);
 
+  // currentIndex only ever grows on auto-advance, and can also be walked to
+  // either edge by enough manual swipes — either way, calling scrollToIndex
+  // with an index outside virtualData eventually throws an uncaught
+  // invariant violation (reachable in any session left open ~25min+, see
+  // BUGS-APP.md finding #2). Once the live position gets within this many
+  // slides of either end of the synthetic array, silently re-center (no
+  // animation) to the equivalent position in the middle band before it can
+  // go out of bounds.
+  const RECENTER_MARGIN = count * 10;
+
+  const recenterIfNeeded = (index: number) => {
+    if (index > RECENTER_MARGIN && index < virtualData.length - RECENTER_MARGIN) {
+      return index;
+    }
+    const recentered = startIndex + (((index % count) + count) % count);
+    currentIndex.current = recentered;
+    listRef.current?.scrollToIndex({ index: recentered, animated: false });
+    return recentered;
+  };
+
   const stopAutoScroll = () => {
     if (timerRef.current) clearInterval(timerRef.current);
   };
@@ -52,7 +72,8 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
     stopAutoScroll();
     if (count <= 1) return;
     timerRef.current = setInterval(() => {
-      const next = currentIndex.current + 1;
+      const safeIndex = recenterIfNeeded(currentIndex.current);
+      const next = safeIndex + 1;
       currentIndex.current = next;
       listRef.current?.scrollToIndex({ index: next, animated: true });
     }, AUTO_SCROLL_INTERVAL_MS);
@@ -62,6 +83,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
     const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     currentIndex.current = index;
     setActiveDot(((index % count) + count) % count);
+    recenterIfNeeded(index);
     // Re-arm on every settle, whether the scroll was a manual swipe or one
     // of our own auto-advances, so the interval always restarts a fresh 5s
     // window from "the last time the carousel actually moved."

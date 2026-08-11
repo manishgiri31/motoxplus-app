@@ -1,9 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import '../global.css';
@@ -31,6 +33,19 @@ function RootNavigator() {
     }
   }, [ready]);
 
+  useEffect(() => {
+    // iOS-only: blurs the app's content in the app switcher / background
+    // snapshot (credit limits, order totals, dealer pricing are visible on
+    // most screens). Android's equivalent is FLAG_SECURE, which also blocks
+    // in-app screenshots entirely — applied per-screen instead (see
+    // ScreenCapture.usePreventScreenCapture on OTP/payment screens) rather
+    // than app-wide, since dealers legitimately screenshot the catalog to
+    // share with customers.
+    if (Platform.OS === 'ios') {
+      ScreenCapture.enableAppSwitcherProtectionAsync().catch(() => {});
+    }
+  }, []);
+
   if (!ready) {
     // Native splash screen is still visible at this point.
     return null;
@@ -53,6 +68,11 @@ function RootNavigator() {
           <Stack.Screen name="invoices" options={{ title: 'Invoices' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          <Stack.Screen name="verify-email" options={{ title: 'Verify email', presentation: 'modal' }} />
+          <Stack.Screen name="verify-mobile" options={{ title: 'Verify mobile', presentation: 'modal' }} />
+          <Stack.Screen name="change-email" options={{ title: 'Change email', presentation: 'modal' }} />
+          <Stack.Screen name="sessions" options={{ title: 'Active sessions' }} />
+          <Stack.Screen name="order/[id]/pay-upi" options={{ title: 'Complete payment' }} />
         </Stack.Protected>
 
         <Stack.Protected guard={!isAuthenticated}>

@@ -95,39 +95,58 @@ function redactBody(data: unknown): unknown {
  * pass it straight through.
  */
 function logNetworkError(error: AxiosError, context?: string) {
-  // Ground truth, unprocessed, first — if anything below ever misbehaves,
-  // this line already has the real object on record.
-  console.error('RAW AXIOS ERROR', error);
-  console.error('RAW ERROR TOJSON', error.toJSON?.());
+  if (__DEV__) {
+    // Ground truth, unprocessed, first — if anything below ever misbehaves,
+    // this line already has the real object on record.
+    console.error('RAW AXIOS ERROR', error);
+    console.error('RAW ERROR TOJSON', error.toJSON?.());
 
+    console.error('[HTTP NETWORK ERROR]', {
+      context,
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      isAxiosError: error.isAxiosError,
+
+      config: {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        fullURL: resolveFullURL(error.config),
+        method: error.config?.method,
+        timeout: error.config?.timeout,
+        headers: safeHeaders(error.config?.headers),
+        data: redactBody(error.config?.data),
+      },
+
+      request: error.request,
+
+      response: error.response && {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: safeHeaders(error.response.headers),
+        data: error.response.data,
+      },
+
+      toJSON: typeof error.toJSON === 'function' ? error.toJSON() : undefined,
+    });
+    return;
+  }
+
+  // Production, no crash reporter wired up yet (see docs/release-checklist.md)
+  // so this still needs to reach device logs for support triage — but never
+  // headers, request/response bodies, or the raw AxiosError/toJSON() dump.
+  // Those can carry a bearer token (error.request's XHR headers, error.config
+  // via toJSON()), a login password, an OTP, or dealer PII in response.data —
+  // exactly the shape of thing that shouldn't survive into a production
+  // logcat/Console.app capture or a support bug report.
   console.error('[HTTP NETWORK ERROR]', {
     context,
-    name: error.name,
     message: error.message,
     code: error.code,
-    stack: error.stack,
-    isAxiosError: error.isAxiosError,
-
-    config: {
-      url: error.config?.url,
-      baseURL: error.config?.baseURL,
-      fullURL: resolveFullURL(error.config),
-      method: error.config?.method,
-      timeout: error.config?.timeout,
-      headers: safeHeaders(error.config?.headers),
-      data: redactBody(error.config?.data),
-    },
-
-    request: error.request,
-
-    response: error.response && {
-      status: error.response.status,
-      statusText: error.response.statusText,
-      headers: safeHeaders(error.response.headers),
-      data: error.response.data,
-    },
-
-    toJSON: typeof error.toJSON === 'function' ? error.toJSON() : undefined,
+    url: error.config?.url,
+    method: error.config?.method,
+    status: error.response?.status,
   });
 }
 

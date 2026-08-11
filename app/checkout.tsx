@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
 import { useCart } from '@/api/hooks/useCart';
 import { useCreateOrder } from '@/api/hooks/useOrders';
-import { useCreateRazorpayOrder } from '@/api/hooks/usePayments';
 import { getErrorMessage } from '@/api/errors';
 import type { PaymentType } from '@/api/types';
 import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
@@ -17,7 +16,7 @@ import { useAuth } from '@/auth/useAuth';
 import { Input } from '@/components/ui';
 import { Button } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
-import { ONLINE_PAYMENTS_ENABLED } from '@/constants/features';
+import { UPI_PAYMENTS_ENABLED } from '@/constants/features';
 import { webOrigin } from '@/config/env';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
@@ -28,14 +27,14 @@ const paymentOptions: { label: string; value: PaymentType; hint: string; disable
   {
     label: 'Pay 20% advance',
     value: 'ADVANCE_20',
-    hint: ONLINE_PAYMENTS_ENABLED ? 'Online — balance due on delivery' : 'Coming soon',
-    disabled: !ONLINE_PAYMENTS_ENABLED,
+    hint: UPI_PAYMENTS_ENABLED ? 'Via UPI or bank transfer — balance due on delivery' : 'Coming soon',
+    disabled: !UPI_PAYMENTS_ENABLED,
   },
   {
     label: 'Pay in full',
     value: 'FULL_100',
-    hint: ONLINE_PAYMENTS_ENABLED ? 'Online — pay the full amount now' : 'Coming soon',
-    disabled: !ONLINE_PAYMENTS_ENABLED,
+    hint: UPI_PAYMENTS_ENABLED ? 'Via UPI or bank transfer — pay the full amount now' : 'Coming soon',
+    disabled: !UPI_PAYMENTS_ENABLED,
   },
 ];
 
@@ -44,7 +43,6 @@ export default function CheckoutScreen() {
   const { data: dealerAccount } = useDealerAccount();
   const { data: cart, isLoading: isCartLoading } = useCart();
   const createOrder = useCreateOrder();
-  const createRazorpayOrder = useCreateRazorpayOrder();
 
   const [paymentType, setPaymentType] = useState<PaymentType>('COD');
   const [formError, setFormError] = useState<string | null>(null);
@@ -95,10 +93,6 @@ export default function CheckoutScreen() {
     setFormError(null);
     try {
       const { order, isCOD } = await createOrder.mutateAsync({ ...values, paymentType });
-      // Order created — this is the "Order placed" moment for both the COD
-      // and online-payment paths below; real payment capture isn't wired up
-      // in this build (see the comment further down), so there's no separate
-      // "payment success" event to fire yet.
       HapticService.success();
 
       if (isCOD) {
@@ -106,20 +100,10 @@ export default function CheckoutScreen() {
         return;
       }
 
-      // Online payment: the Razorpay order is created for real against the
-      // backend, but capturing payment needs the native Razorpay SDK, which
-      // requires a custom dev client (not available under Expo Go) — see
-      // the note in api/services/paymentService.ts.
-      await createRazorpayOrder.mutateAsync(order.id);
-      router.replace({
-        pathname: '/order-placed',
-        params: {
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          pending: '1',
-          amountDue: formatCurrency(totals.amountDue),
-        },
-      });
+      // Razorpay is disabled server-side and the native SDK isn't installed
+      // (see api/services/paymentService.ts) — direct UPI/bank transfer is
+      // the only way to actually pay a non-COD order from the app today.
+      router.replace(`/order/${order.id}/pay-upi`);
     } catch (err) {
       // No HapticService.error() here: this failure already passed through
       // apiClient's response interceptor, which fires the error haptic once
@@ -261,7 +245,7 @@ export default function CheckoutScreen() {
             variant="brand"
             fullWidth
             onPress={handleSubmit(onSubmit, onInvalid)}
-            loading={isSubmitting || createOrder.isPending || createRazorpayOrder.isPending}
+            loading={isSubmitting || createOrder.isPending}
           />
         </ScrollView>
       </KeyboardAvoidingView>

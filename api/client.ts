@@ -1,10 +1,12 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-import { emitAuthFailure } from '@/auth/authEvents';
+import { emitAuthFailure, emitVerificationRequired } from '@/auth/authEvents';
 import { secureStorage } from '@/auth/secureStorage';
 import { env } from '@/config/env';
 import { HapticService } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
+import { isAccountNotVerifiedError } from './errors';
+import { refreshResponseSchema } from './schemas';
 import type { RefreshResponse } from './types';
 
 type RetryableConfig = InternalAxiosRequestConfig & {
@@ -71,9 +73,12 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!tokens?.refreshToken) return null;
 
   try {
-    const { data } = await refreshClient.post<RefreshResponse>('/mobile/auth/refresh', {
+    const { data: rawData } = await refreshClient.post<RefreshResponse>('/mobile/auth/refresh', {
       refreshToken: tokens.refreshToken,
     });
+    // A malformed 200 here would otherwise write `undefined`/garbage into
+    // secure storage as the new bearer token — parse before persisting.
+    const data = refreshResponseSchema.parse(rawData);
     await secureStorage.setTokens(data);
     return data.accessToken;
   } catch {
@@ -87,35 +92,44 @@ apiClient.interceptors.response.use(
     const config = error.config as RetryableConfig | undefined;
     if (!config) return Promise.reject(error);
 
-    // TEMP DEBUG — added while diagnosing a 401 issue, remove once resolved.
-    if (error.response?.status === 401) {
-      console.warn('[TEMP DEBUG 401]', {
-        url: error.config?.url,
-        hadAuthorizationHeader: !!config.headers?.get?.('Authorization'),
-        responseData: error.response?.data,
-      });
-    }
-    // END TEMP DEBUG
+    if (error.response?.status === 401 && !isLoginRequest(config)) {
+      // 15-minute access tokens expire mid-session constantly — refresh once
+      // and replay the original request rather than surfacing a 401 to the screen.
+      if (!config._authRetry) {
+        config._authRetry = true;
 
-    // 15-minute access tokens expire mid-session constantly — refresh once and
-    // replay the original request rather than surfacing a 401 to the screen.
-    if (error.response?.status === 401 && !config._authRetry && !isLoginRequest(config)) {
-      config._authRetry = true;
+        refreshPromise ??= refreshAccessToken().finally(() => {
+          refreshPromise = null;
+        });
+        const newAccessToken = await refreshPromise;
 
-      refreshPromise ??= refreshAccessToken().finally(() => {
-        refreshPromise = null;
-      });
-      const newAccessToken = await refreshPromise;
+        if (!newAccessToken) {
+          await secureStorage.clearTokens();
+          emitAuthFailure();
+          HapticService.error();
+          return Promise.reject(error);
+        }
 
-      if (!newAccessToken) {
-        await secureStorage.clearTokens();
-        emitAuthFailure();
-        HapticService.error();
-        return Promise.reject(error);
+        config.headers.set('Authorization', `Bearer ${newAccessToken}`);
+        return apiClient(config);
       }
 
-      config.headers.set('Authorization', `Bearer ${newAccessToken}`);
-      return apiClient(config);
+      // Already replayed once with a freshly refreshed token and still got a
+      // 401 (e.g. the account was disabled/suspended server-side mid-session,
+      // or the session was revoked from another device) — without this, the
+      // client stayed "logged in" forever with tokens the server will never
+      // accept again, silently 401ing on every subsequent request.
+      await secureStorage.clearTokens();
+      emitAuthFailure();
+      HapticService.error();
+      return Promise.reject(error);
+    }
+
+    // The dealer is authenticated but getVerifiedDealer rejected the request
+    // (email/mobile not verified, or not yet admin-approved) — surface a
+    // "verify your account" prompt app-wide instead of a bare error string.
+    if (isAccountNotVerifiedError(error)) {
+      emitVerificationRequired();
     }
 
     // Transient network/5xx retry, GET only — POST/PATCH/DELETE are not

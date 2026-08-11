@@ -7,18 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, MonoLabel } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 
-// Minimal order-confirmation screen — replaces the previous Alert-based
-// confirmation. No native Razorpay SDK is wired up in this build (see
-// api/services/paymentService.ts), so `pending` just carries the same
-// "complete payment later" messaging the Alert used to show; the underlying
-// order-creation/Razorpay-order-creation calls in app/checkout.tsx are unchanged.
+// COD-only confirmation screen — non-COD orders skip this and route straight
+// from checkout to /order/[id]/pay-upi (Razorpay is disabled server-side and
+// its native SDK isn't installed, see api/services/paymentService.ts).
 export default function OrderPlacedScreen() {
-  const { orderId, orderNumber, pending, amountDue } = useLocalSearchParams<{
-    orderId: string;
-    orderNumber: string;
-    pending?: string;
-    amountDue?: string;
-  }>();
+  const { orderId, orderNumber } = useLocalSearchParams<{ orderId: string; orderNumber: string }>();
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -28,11 +21,6 @@ export default function OrderPlacedScreen() {
         </Animated.View>
         <Text style={styles.title}>Order placed</Text>
         <MonoLabel color="ink" style={styles.orderId}>{`#${orderNumber}`}</MonoLabel>
-        {pending === '1' && !!amountDue && (
-          <Text style={styles.note}>
-            {`Payment of ${amountDue} is pending — complete it from the order details screen once online payment is available in this build.`}
-          </Text>
-        )}
         <Button
           label="View order"
           variant="solid"
@@ -59,6 +47,5 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
   orderId: { fontSize: 15, marginTop: 4 },
-  note: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8 },
   button: { marginTop: 24, width: '100%' },
 });

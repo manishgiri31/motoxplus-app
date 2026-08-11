@@ -2,7 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Category } from '@/api/types';
-import { colors, fonts, radii } from '@/src/theme';
+import { Chip } from '@/src/components/ui';
+import { colors, fonts } from '@/src/theme';
 
 export interface SearchSuggestionsProps {
   recentSearches: string[];
@@ -11,14 +12,6 @@ export interface SearchSuggestionsProps {
   popularSearches: string[];
   suggestedCategories: Category[];
   onSelectCategory: (category: Category) => void;
-}
-
-function SuggestionChip({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.chip} accessibilityRole="button" accessibilityLabel={label} hitSlop={6}>
-      <Text style={styles.chipLabel}>{label}</Text>
-    </Pressable>
-  );
 }
 
 export function SearchSuggestions({
@@ -51,7 +44,7 @@ export function SearchSuggestions({
           </View>
           <View style={styles.chipRow}>
             {recentSearches.map((q) => (
-              <SuggestionChip key={q} label={q} onPress={() => onSelectSearch(q)} />
+              <Chip key={q} label={q} onPress={() => onSelectSearch(q)} />
             ))}
           </View>
         </View>
@@ -61,7 +54,7 @@ export function SearchSuggestions({
         <Text style={styles.sectionTitle}>Popular Searches</Text>
         <View style={styles.chipRow}>
           {popularSearches.map((q) => (
-            <SuggestionChip key={q} label={q} onPress={() => onSelectSearch(q)} />
+            <Chip key={q} label={q} onPress={() => onSelectSearch(q)} />
           ))}
         </View>
       </View>
@@ -71,7 +64,7 @@ export function SearchSuggestions({
           <Text style={styles.sectionTitle}>Suggested Categories</Text>
           <View style={styles.chipRow}>
             {suggestedCategories.map((category) => (
-              <SuggestionChip key={category.id} label={category.name} onPress={() => onSelectCategory(category)} />
+              <Chip key={category.id} label={category.name} onPress={() => onSelectCategory(category)} />
             ))}
           </View>
         </View>
@@ -101,15 +94,4 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
   clearLink: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.red },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipLabel: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.ink },
 });
