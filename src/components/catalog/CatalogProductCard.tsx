@@ -18,13 +18,19 @@ import { colors, fonts } from '@/src/theme';
 export interface CatalogProductCardProps {
   product: Product;
   vehicle?: SelectedVehicle | null;
+  // When true, skip the client-side compatibility heuristic and always show
+  // the "fits" badge — for screens whose product list is already
+  // server-filtered by GET /api/products' real vehicle/variant params
+  // (vehicle-parts.tsx), every result is guaranteed compatible already. The
+  // heuristic remains the only signal on unfiltered lists (Search/Category).
+  guaranteedFit?: boolean;
 }
 
-export function CatalogProductCard({ product, vehicle = null }: CatalogProductCardProps) {
+export function CatalogProductCard({ product, vehicle = null, guaranteedFit = false }: CatalogProductCardProps) {
   const { user, dealer } = useAuth();
   const isDealerApproved = canAccessDealerApp(user, dealer);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
-  const fits = isCompatibleWithVehicle(product, vehicle);
+  const fits = guaranteedFit || isCompatibleWithVehicle(product, vehicle);
 
   return (
     <Card onPress={() => router.push(`/product/${product.id}`)} accessibilityLabel={product.name} style={styles.card}>

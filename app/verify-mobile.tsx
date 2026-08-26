@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
@@ -13,8 +13,7 @@ import { mobileNumberSchema, otpSchema, type MobileNumberFormValues, type OtpFor
 import { useAuth } from '@/auth/useAuth';
 import { Input } from '@/components/ui';
 import { Button, OtpInput } from '@/src/components/ui';
-import { colors as themeColors } from '@/src/theme';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { colors, fonts } from '@/src/theme';
 import { normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
@@ -25,7 +24,6 @@ type Step = 'mobile' | 'otp';
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function VerifyMobileScreen() {
-  const colors = useThemeColors();
   const { dealer, refreshUser } = useAuth();
   ScreenCapture.usePreventScreenCapture('verify-mobile');
   const [step, setStep] = useState<Step>('mobile');
@@ -100,21 +98,21 @@ export default function VerifyMobileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable
           onPress={goBack}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          className="self-start ml-lg mt-sm p-xs"
+          style={styles.backButton}
         >
-          <Feather name="arrow-left" size={22} color={colors.text} />
+          <Feather name="arrow-left" size={22} color={colors.ink} />
         </Pressable>
-        <ScrollView contentContainerClassName="flex-1 justify-center px-2xl gap-2xl" keyboardShouldPersistTaps="handled">
-          <View className="gap-xs">
-            <Text className="text-h1 font-bold text-text">Verify your mobile number</Text>
-            <Text className="text-body text-muted">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Text style={styles.title}>Verify your mobile number</Text>
+            <Text style={styles.subtitle}>
               {step === 'mobile'
                 ? 'Confirm your mobile number to receive a verification code.'
                 : `Enter the 6-digit code we sent to ${mobile}.`}
@@ -122,7 +120,7 @@ export default function VerifyMobileScreen() {
           </View>
 
           {step === 'mobile' && (
-            <View className="gap-lg">
+            <View style={styles.form}>
               <Controller
                 control={mobileForm.control}
                 name="mobile"
@@ -141,7 +139,7 @@ export default function VerifyMobileScreen() {
                   />
                 )}
               />
-              {formError && <Text className="text-[13px] text-danger">{formError}</Text>}
+              {formError && <Text style={styles.error}>{formError}</Text>}
               <Button
                 label="Send code"
                 variant="brand"
@@ -153,22 +151,19 @@ export default function VerifyMobileScreen() {
           )}
 
           {step === 'otp' && (
-            <View className="gap-lg">
+            <View style={styles.form}>
               <Controller
                 control={otpForm.control}
                 name="otp"
                 render={({ field }) => <OtpInput value={field.value} onChange={field.onChange} autoFocus />}
               />
               {otpForm.formState.errors.otp && (
-                <Text className="text-[13px] text-danger text-center">{otpForm.formState.errors.otp.message}</Text>
+                <Text style={styles.errorCentered}>{otpForm.formState.errors.otp.message}</Text>
               )}
-              {resendMessage && <Text className="text-[13px] text-success text-center">{resendMessage}</Text>}
-              {formError && <Text className="text-[13px] text-danger text-center">{formError}</Text>}
+              {resendMessage && <Text style={styles.successCentered}>{resendMessage}</Text>}
+              {formError && <Text style={styles.errorCentered}>{formError}</Text>}
               <Pressable onPress={resendOtp} disabled={resendCooldown > 0} hitSlop={10} accessibilityRole="button" accessibilityLabel="Resend code">
-                <Text
-                  className="text-[13px] text-center font-medium"
-                  style={{ color: resendCooldown > 0 ? themeColors.muted : themeColors.red }}
-                >
+                <Text style={[styles.resendText, { color: resendCooldown > 0 ? colors.muted : colors.red }]}>
                   {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
                 </Text>
               </Pressable>
@@ -186,3 +181,18 @@ export default function VerifyMobileScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  flex: { flex: 1 },
+  backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
+  header: { gap: 6 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 30, lineHeight: 36, color: colors.ink },
+  subtitle: { fontFamily: fonts.body.regular, fontSize: 16, color: colors.muted, marginTop: 4 },
+  form: { gap: 16 },
+  error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
+  errorCentered: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red, textAlign: 'center' },
+  successCentered: { fontFamily: fonts.body.regular, fontSize: 13, color: '#1C8A4C', textAlign: 'center' },
+  resendText: { fontFamily: fonts.body.medium, fontSize: 13, textAlign: 'center' },
+});

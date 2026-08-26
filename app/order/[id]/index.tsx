@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { ActivityIndicator, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useOrder } from '@/api/hooks/useOrders';
 import type { CancelOrderResponse, OrderStatus } from '@/api/types';
 import { Badge as LegacyBadge } from '@/components/ui';
+import { webOrigin } from '@/config/env';
 import { orderStatusVariant } from '@/constants/orderStatus';
 import { CancellationSheet } from '@/src/components/cancellation/CancellationSheet';
 import { Badge, Button, Card, ErrorState, MonoLabel, Toast } from '@/src/components/ui';
@@ -22,7 +24,11 @@ const REFUND_STATUS_TONE: Record<'INITIATED' | 'PROCESSED' | 'FAILED' | 'NOT_APP
 
 // PROCESSING is still pre-shipment (see lib/orders/cancellation.ts on the
 // backend) — cancellable at the same 2% pre-ship rate as PENDING/CONFIRMED.
-const CANCELLABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'];
+// SHIPPED is deliberately excluded: the backend added a stopgap that hard-
+// blocks dealer-initiated cancellation of SHIPPED orders regardless of fee
+// (no Delhivery-side shipment cancellation exists yet to back it), so
+// offering the button here would always dead-end at the confirmation sheet.
+const CANCELLABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING'];
 
 const STEPS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
@@ -187,6 +193,19 @@ export default function OrderDetailScreen() {
         {CANCELLABLE_STATUSES.includes(order.status) && (
           <Button label="Cancel order" variant="ghost" onPress={() => setCancelSheetOpen(true)} />
         )}
+
+        {order.status === 'SHIPPED' && (
+          <View style={styles.shippedNotice}>
+            <Text style={styles.shippedNoticeText}>
+              This order has shipped, so it can no longer be cancelled from the app.
+            </Text>
+            <Button
+              label="Contact support"
+              variant="ghost"
+              onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)}
+            />
+          </View>
+        )}
       </Animated.ScrollView>
 
       <CancellationSheet
@@ -250,4 +269,6 @@ const styles = StyleSheet.create({
   invoiceCard: { gap: 8 },
   invoiceNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
   address: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  shippedNotice: { gap: 8, alignItems: 'flex-start' },
+  shippedNoticeText: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
 });

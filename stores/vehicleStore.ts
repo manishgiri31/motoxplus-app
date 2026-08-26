@@ -7,7 +7,11 @@ export interface SelectedVehicle {
   brandName: string;
   modelId: string;
   modelName: string;
+  // Slugs, not ids — GET /api/products' `vehicle`/`variant` filters match
+  // against Vehicle.slug / VehicleVariant.slug (see GET /api/vehicles).
+  modelSlug: string;
   variant: string;
+  variantSlug: string;
 }
 
 interface VehicleState {

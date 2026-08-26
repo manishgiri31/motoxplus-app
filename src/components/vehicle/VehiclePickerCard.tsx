@@ -1,9 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { VEHICLE_TAXONOMY } from '@/constants/vehicleTaxonomy';
+import { useVehicleTaxonomy } from '@/api/hooks/useVehicles';
+import type { VehicleTaxonomyVariant } from '@/api/types';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { HapticService } from '@/utils/haptics';
 
@@ -18,28 +19,45 @@ type Step = 'brand' | 'model' | 'variant' | null;
 const MUTED_ON_DARK = '#9A9DA3';
 const MUTED_ON_DARK_LABEL = '#7C7F85';
 
+function formatVariantLabel(variant: VehicleTaxonomyVariant): string {
+  const yearPart = variant.yearFrom
+    ? variant.yearTo && variant.yearTo !== variant.yearFrom
+      ? `${variant.yearFrom}–${variant.yearTo}`
+      : `${variant.yearFrom}`
+    : null;
+  return [yearPart, variant.generationName, variant.name].filter(Boolean).join(' · ') || variant.name;
+}
+
 export function VehiclePickerCard() {
   const setSelectedVehicle = useVehicleStore((s) => s.setSelectedVehicle);
   const stored = useVehicleStore((s) => s.selectedVehicle);
+  const taxonomy = useVehicleTaxonomy();
 
   const [brandId, setBrandId] = useState<string | null>(stored?.brandId ?? null);
   const [modelId, setModelId] = useState<string | null>(stored?.modelId ?? null);
-  const [variant, setVariant] = useState<string | null>(stored?.variant ?? null);
+  const [variantId, setVariantId] = useState<string | null>(null);
   const [openStep, setOpenStep] = useState<Step>(null);
 
-  const brand = useMemo(() => VEHICLE_TAXONOMY.find((b) => b.id === brandId) ?? null, [brandId]);
+  const brands = useMemo(() => taxonomy.data?.brands ?? [], [taxonomy.data]);
+  const brand = useMemo(() => brands.find((b) => b.id === brandId) ?? null, [brands, brandId]);
   const model = useMemo(() => brand?.models.find((m) => m.id === modelId) ?? null, [brand, modelId]);
+  const variant = useMemo(() => model?.variants.find((v) => v.id === variantId) ?? null, [model, variantId]);
 
-  const brandOptions: VehiclePickerOption[] = useMemo(
-    () => VEHICLE_TAXONOMY.map((b) => ({ id: b.id, label: b.name })),
-    []
-  );
+  // Re-select the previously-chosen variant by slug once its model loads —
+  // ids are stable but SelectedVehicle only persists the variant's slug.
+  useEffect(() => {
+    if (variantId || !stored || !model) return;
+    const match = model.variants.find((v) => v.slug === stored.variantSlug);
+    if (match) setVariantId(match.id);
+  }, [model, stored, variantId]);
+
+  const brandOptions: VehiclePickerOption[] = useMemo(() => brands.map((b) => ({ id: b.id, label: b.name })), [brands]);
   const modelOptions: VehiclePickerOption[] = useMemo(
     () => (brand?.models ?? []).map((m) => ({ id: m.id, label: m.name })),
     [brand]
   );
   const variantOptions: VehiclePickerOption[] = useMemo(
-    () => (model?.variants ?? []).map((v) => ({ id: v, label: v })),
+    () => (model?.variants ?? []).map((v) => ({ id: v.id, label: formatVariantLabel(v) })),
     [model]
   );
 
@@ -48,12 +66,38 @@ export function VehiclePickerCard() {
   const handleSubmit = () => {
     if (!brand || !model || !variant) return;
     HapticService.light();
-    setSelectedVehicle({ brandId: brand.id, brandName: brand.name, modelId: model.id, modelName: model.name, variant });
+    const variantLabel = formatVariantLabel(variant);
+    setSelectedVehicle({
+      brandId: brand.id,
+      brandName: brand.name,
+      modelId: model.id,
+      modelName: model.name,
+      modelSlug: model.slug,
+      variant: variantLabel,
+      variantSlug: variant.slug,
+    });
     router.push({
       pathname: '/vehicle-parts',
-      params: { vehicle: model.id, variant, label: `${brand.name} ${model.name} · ${variant}` },
+      params: { vehicle: model.slug, variant: variant.slug, label: `${brand.name} ${model.name} · ${variantLabel}` },
     });
   };
+
+  if (taxonomy.isLoading) {
+    return (
+      <View style={[styles.card, styles.centered]}>
+        <ActivityIndicator color="#FFFFFF" />
+      </View>
+    );
+  }
+
+  if (taxonomy.isError) {
+    return (
+      <View style={[styles.card, styles.centered]}>
+        <Text style={styles.errorText}>Couldn&apos;t load the vehicle list.</Text>
+        <Button label="Retry" variant="brand" onPress={() => taxonomy.refetch()} style={styles.retryButton} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.card}>
@@ -64,7 +108,13 @@ export function VehiclePickerCard() {
 
       <SelectorRow title="Brand" value={brand?.name} onPress={() => setOpenStep('brand')} />
       <SelectorRow title="Model" value={model?.name} disabled={!brand} onPress={() => setOpenStep('model')} />
-      <SelectorRow title="Year · Variant" value={variant ?? undefined} disabled={!model} onPress={() => setOpenStep('variant')} last />
+      <SelectorRow
+        title="Year · Variant"
+        value={variant ? formatVariantLabel(variant) : undefined}
+        disabled={!model}
+        onPress={() => setOpenStep('variant')}
+        last
+      />
 
       <Button
         label="Show compatible parts"
@@ -82,7 +132,7 @@ export function VehiclePickerCard() {
         onSelect={(o) => {
           setBrandId(o.id);
           setModelId(null);
-          setVariant(null);
+          setVariantId(null);
           setOpenStep(null);
         }}
         onClose={() => setOpenStep(null)}
@@ -93,7 +143,7 @@ export function VehiclePickerCard() {
         options={modelOptions}
         onSelect={(o) => {
           setModelId(o.id);
-          setVariant(null);
+          setVariantId(null);
           setOpenStep(null);
         }}
         onClose={() => setOpenStep(null)}
@@ -103,7 +153,7 @@ export function VehiclePickerCard() {
         title="Year · Variant"
         options={variantOptions}
         onSelect={(o) => {
-          setVariant(o.id);
+          setVariantId(o.id);
           setOpenStep(null);
         }}
         onClose={() => setOpenStep(null)}
@@ -148,6 +198,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: 20,
   },
+  centered: { minHeight: 160, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorText: { fontFamily: fonts.body.regular, fontSize: 13, color: MUTED_ON_DARK, textAlign: 'center' },
+  retryButton: { minWidth: 120 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.red },
   label: {

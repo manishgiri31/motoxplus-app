@@ -11,16 +11,16 @@ import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useProducts } from '@/api/hooks/useProducts';
 import type { Category, Product } from '@/api/types';
 import { BannerCarousel, type BannerSlide } from '@/components/BannerCarousel';
-import { Avatar, Badge, ProductCard, ProductCardSkeleton, Skeleton } from '@/components/ui';
 import { webOrigin } from '@/config/env';
-import { dealerStatusTone } from '@/constants/dealerStatus';
-import { orderStatusTone } from '@/constants/orderStatus';
+import { dealerStatusVariant } from '@/constants/dealerStatus';
+import { orderStatusVariant } from '@/constants/orderStatus';
 import { useAuth } from '@/auth/useAuth';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { useThemeColors } from '@/hooks/use-theme-colors';
 import { CategoryCard } from '@/src/components/catalog/CategoryCard';
-import { Button } from '@/src/components/ui';
+import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
+import { Badge, Button, Skeleton, SkeletonProductCard } from '@/src/components/ui';
 import { VehiclePickerCard } from '@/src/components/vehicle/VehiclePickerCard';
+import { colors, fonts, radii } from '@/src/theme';
 import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { discountPercent, formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
@@ -31,11 +31,25 @@ function entrance(reduceMotion: boolean, delayMs: number): BaseAnimationBuilder 
   return reduceMotion ? FadeIn.duration(200).delay(delayMs) : FadeInDown.duration(220).delay(delayMs);
 }
 
+function Avatar({ name, size = 48 }: { name: string; size?: number }) {
+  const initial = name.trim().charAt(0).toUpperCase() || '?';
+  return (
+    <View style={[avatarStyles.base, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Text style={[avatarStyles.label, { fontSize: size * 0.35 }]}>{initial}</Text>
+    </View>
+  );
+}
+
+const avatarStyles = StyleSheet.create({
+  base: { backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center' },
+  label: { fontFamily: fonts.display.bold, color: '#FFFFFF' },
+});
+
 const CategoryGrid = memo(function CategoryGrid({ categories }: { categories: Category[] }) {
   if (categories.length === 0) return null;
   return (
     <View style={categoryStyles.section}>
-      <Text className="text-h3 font-semibold text-text px-lg mb-md">Browse by category</Text>
+      <Text style={categoryStyles.sectionTitle}>Browse by category</Text>
       <View style={categoryStyles.grid}>
         {categories.slice(0, 6).map((category) => (
           <View key={category.id} style={categoryStyles.cell}>
@@ -49,15 +63,10 @@ const CategoryGrid = memo(function CategoryGrid({ categories }: { categories: Ca
 
 const categoryStyles = StyleSheet.create({
   section: { marginBottom: 24 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 0 },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink, paddingHorizontal: 16, marginBottom: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12 },
   cell: { width: '50%', padding: 4 },
 });
-
-// Module-level (not recreated per render) so ProductCard's memo() comparison
-// sees a stable onPress reference instead of a new closure every render.
-function openProduct(product: Product) {
-  router.push(`/product/${product.id}`);
-}
 
 // No banner API exists on the backend — these are static, client-side
 // promo slides. Module-level so BannerCarousel's props stay referentially
@@ -89,12 +98,12 @@ function greetingForHour(hour: number): string {
 const ProductRail = memo(function ProductRail({ title, products }: { title: string; products: Product[] }) {
   if (products.length === 0) return null;
   return (
-    <View className="gap-md mb-2xl">
-      <Text className="text-h3 font-semibold text-text px-lg">{title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-lg gap-md">
+    <View style={railStyles.section}>
+      <Text style={railStyles.title}>{title}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={railStyles.scrollContent}>
         {products.map((product) => (
-          <View key={product.id} className="w-40">
-            <ProductCard product={product} onPress={openProduct} />
+          <View key={product.id} style={railStyles.cell}>
+            <CatalogProductCard product={product} />
           </View>
         ))}
       </ScrollView>
@@ -104,18 +113,25 @@ const ProductRail = memo(function ProductRail({ title, products }: { title: stri
 
 function ProductRailSkeleton({ title }: { title: string }) {
   return (
-    <View className="gap-md mb-2xl">
-      <Text className="text-h3 font-semibold text-text px-lg">{title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-lg gap-md">
+    <View style={railStyles.section}>
+      <Text style={railStyles.title}>{title}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={railStyles.scrollContent}>
         {Array.from({ length: 4 }).map((_, i) => (
-          <View key={i} className="w-40">
-            <ProductCardSkeleton />
+          <View key={i} style={railStyles.cell}>
+            <SkeletonProductCard />
           </View>
         ))}
       </ScrollView>
     </View>
   );
 }
+
+const railStyles = StyleSheet.create({
+  section: { gap: 12, marginBottom: 24 },
+  title: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink, paddingHorizontal: 16 },
+  scrollContent: { paddingHorizontal: 16, gap: 12 },
+  cell: { width: 160 },
+});
 
 interface StatCardProps {
   icon: React.ComponentProps<typeof Feather>['name'];
@@ -126,7 +142,6 @@ interface StatCardProps {
 }
 
 function StatCard({ icon, label, value, warn = false, onPress }: StatCardProps) {
-  const colors = useThemeColors();
   return (
     <Pressable
       onPress={
@@ -137,17 +152,17 @@ function StatCard({ icon, label, value, warn = false, onPress }: StatCardProps) 
         })
       }
       disabled={!onPress}
-      className="w-[47%] bg-card border border-border rounded-lg p-lg gap-sm active:opacity-80"
+      style={statStyles.card}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${label}: ${value}`}
     >
-      <View className="w-9 h-9 rounded-full bg-surface items-center justify-center">
-        <Feather name={icon} size={16} color={warn ? colors.warning : colors.primary} />
+      <View style={statStyles.iconCircle}>
+        <Feather name={icon} size={16} color={warn ? colors.red : colors.ink} />
       </View>
-      <Text className={`text-[19px] font-bold ${warn ? 'text-warning' : 'text-text'}`} numberOfLines={1}>
+      <Text style={[statStyles.value, warn && statStyles.valueWarn]} numberOfLines={1}>
         {value}
       </Text>
-      <Text className="text-[12px] text-muted" numberOfLines={1}>
+      <Text style={statStyles.label} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -156,9 +171,9 @@ function StatCard({ icon, label, value, warn = false, onPress }: StatCardProps) 
 
 function StatGridSkeleton() {
   return (
-    <View className="flex-row flex-wrap gap-md px-lg mb-2xl">
+    <View style={statStyles.grid}>
       {Array.from({ length: 4 }).map((_, i) => (
-        <View key={i} className="w-[47%] bg-card border border-border rounded-lg p-lg gap-sm">
+        <View key={i} style={statStyles.card}>
           <Skeleton width={36} height={36} radius={18} />
           <Skeleton height={20} width="60%" />
           <Skeleton height={12} width="80%" />
@@ -168,12 +183,35 @@ function StatGridSkeleton() {
   );
 }
 
+const statStyles = StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
+  card: {
+    width: '47%',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    padding: 16,
+    gap: 8,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  value: { fontFamily: fonts.display.bold, fontSize: 19, color: colors.ink },
+  valueWarn: { color: colors.red },
+  label: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+});
+
 export default function HomeScreen() {
   const { user, dealer } = useAuth();
   const summaryQuery = useDealerSummary();
   const productsQuery = useProducts({ pageSize: 20 });
   const categoriesQuery = useCategories();
-  const colors = useThemeColors();
   const reduceMotion = useReduceMotion();
 
   const { summary } = summaryQuery;
@@ -212,21 +250,21 @@ export default function HomeScreen() {
   const greeting = greetingForHour(new Date().getHours());
 
   return (
-    <SafeAreaView className="flex-1 bg-theme-paper" edges={['top']}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <ScrollView
-        contentContainerClassName="pb-3xl"
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.text} />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
       >
-        <View className="flex-row items-center justify-between px-lg pt-sm pb-lg">
-          <View className="flex-row items-center gap-md flex-1 pr-md">
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
             <Avatar name={displayName} size={48} />
-            <View className="flex-1">
-              <Text className="text-[12px] font-medium text-muted">{greeting}</Text>
-              <Text className="text-h2 font-bold text-text" numberOfLines={1}>
+            <View style={styles.headerText}>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.name} numberOfLines={1}>
                 {displayName}
               </Text>
               {dealer?.companyName && (
-                <Text className="text-[12px] text-muted" numberOfLines={1}>
+                <Text style={styles.company} numberOfLines={1}>
                   {dealer.companyName}
                 </Text>
               )}
@@ -238,16 +276,16 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Notifications"
           >
-            <Feather name="bell" size={22} color={colors.text} />
+            <Feather name="bell" size={22} color={colors.ink} />
           </Pressable>
         </View>
 
         {dealer && (
-          <View className="flex-row items-center justify-between mx-lg mb-lg p-md rounded-md bg-surface">
-            <Badge label={dealer.status} tone={dealerStatusTone[dealer.status]} />
-            <View className="items-end">
-              <Text className="text-[11px] text-muted">Credit limit</Text>
-              <Text className="text-[13px] font-semibold text-text">{formatCurrency(dealer.creditLimit)}</Text>
+          <View style={styles.dealerRow}>
+            <Badge label={dealer.status} variant={dealerStatusVariant[dealer.status]} />
+            <View style={styles.creditBlock}>
+              <Text style={styles.creditLabel}>Credit limit</Text>
+              <Text style={styles.creditValue}>{formatCurrency(dealer.creditLimit)}</Text>
             </View>
           </View>
         )}
@@ -255,16 +293,16 @@ export default function HomeScreen() {
         <Animated.View entering={entrance(reduceMotion, 0)}>
           <Pressable
             onPress={() => router.push('/search')}
-            className="mx-lg mb-2xl h-12 rounded-md bg-surface flex-row items-center px-md gap-sm"
+            style={styles.searchBar}
             accessibilityRole="button"
             accessibilityLabel="Search parts, brands, part numbers"
           >
             <Feather name="search" size={18} color={colors.muted} />
-            <Text className="text-[15px] text-muted">Search parts, brands, part numbers…</Text>
+            <Text style={styles.searchPlaceholder}>Search parts, brands, part numbers…</Text>
           </Pressable>
         </Animated.View>
 
-        <Animated.View entering={entrance(reduceMotion, 80)} className="px-lg mb-2xl">
+        <Animated.View entering={entrance(reduceMotion, 80)} style={styles.vehicleCardWrap}>
           <VehiclePickerCard />
         </Animated.View>
 
@@ -275,12 +313,12 @@ export default function HomeScreen() {
         {summaryQuery.isLoading ? (
           <StatGridSkeleton />
         ) : summaryQuery.isError ? (
-          <View className="mx-lg mb-2xl p-lg rounded-lg bg-danger/10 gap-sm">
-            <Text className="text-[13px] font-medium text-danger">Couldn&apos;t load your account summary.</Text>
+          <View style={styles.summaryError}>
+            <Text style={styles.summaryErrorText}>Couldn&apos;t load your account summary.</Text>
             <Button label="Retry" variant="ghost" onPress={() => summaryQuery.refetch()} />
           </View>
         ) : (
-          <View className="flex-row flex-wrap gap-md px-lg mb-2xl">
+          <View style={statStyles.grid}>
             <StatCard
               icon="credit-card"
               label="Outstanding Balance"
@@ -310,7 +348,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View className="flex-row px-lg mb-2xl gap-sm">
+        <View style={styles.quickActions}>
           {quickActions.map((action) => (
             <Pressable
               key={action.label}
@@ -318,14 +356,14 @@ export default function HomeScreen() {
                 HapticService.light();
                 action.onPress();
               }}
-              className="flex-1 items-center gap-xs py-md rounded-md bg-surface active:opacity-80"
+              style={styles.quickAction}
               accessibilityRole="button"
               accessibilityLabel={action.label}
             >
-              <View className="w-11 h-11 rounded-full bg-card items-center justify-center">
-                <Feather name={action.icon} size={18} color={colors.primary} />
+              <View style={styles.quickActionIcon}>
+                <Feather name={action.icon} size={18} color={colors.red} />
               </View>
-              <Text className="text-[11px] font-medium text-text text-center" numberOfLines={1}>
+              <Text style={styles.quickActionLabel} numberOfLines={1}>
                 {action.label}
               </Text>
             </Pressable>
@@ -337,32 +375,32 @@ export default function HomeScreen() {
         {productsQuery.isLoading ? <ProductRailSkeleton title="Today's Offers" /> : <ProductRail title="Today's Offers" products={offers} />}
 
         {summaryQuery.isSuccess && summary.recentOrders.length > 0 && (
-          <View className="gap-md mb-2xl">
-            <View className="flex-row items-center justify-between px-lg">
-              <Text className="text-h3 font-semibold text-text">Recent Activity</Text>
+          <View style={styles.listSection}>
+            <View style={styles.listSectionHeader}>
+              <Text style={styles.listSectionTitle}>Recent Activity</Text>
               <Pressable onPress={goToOrders} hitSlop={8} accessibilityRole="button" accessibilityLabel="View all orders">
-                <Text className="text-[13px] font-semibold text-primary">View all</Text>
+                <Text style={styles.viewAll}>View all</Text>
               </Pressable>
             </View>
-            <View className="px-lg gap-sm">
+            <View style={styles.listSectionBody}>
               {summary.recentOrders.slice(0, 4).map((order) => (
                 <Pressable
                   key={order.id}
                   onPress={() => router.push(`/order/${order.id}`)}
-                  className="flex-row items-center justify-between p-md rounded-md bg-card border border-border active:bg-surface"
+                  style={styles.orderRow}
                   accessibilityRole="button"
                   accessibilityLabel={`Order ${order.orderNumber}, ${order.status}, ${formatCurrency(order.grandTotal)}`}
                 >
-                  <View className="gap-xxs flex-1 pr-md">
-                    <Text className="text-[13px] font-semibold text-text">#{order.orderNumber}</Text>
-                    <Text className="text-[11px] text-muted">
+                  <View style={styles.orderRowLeft}>
+                    <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
+                    <Text style={styles.orderMeta}>
                       {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} ·{' '}
                       {order.items.length} item(s)
                     </Text>
                   </View>
-                  <View className="items-end gap-xxs">
-                    <Text className="text-[13px] font-bold text-text">{formatCurrency(order.grandTotal)}</Text>
-                    <Badge label={order.status} tone={orderStatusTone[order.status]} />
+                  <View style={styles.orderRowRight}>
+                    <Text style={styles.orderTotal}>{formatCurrency(order.grandTotal)}</Text>
+                    <Badge label={order.status} variant={orderStatusVariant[order.status]} />
                   </View>
                 </Pressable>
               ))}
@@ -373,24 +411,24 @@ export default function HomeScreen() {
         <ProductRail title="Recently Ordered" products={summary.recentlyOrderedProducts} />
 
         {summary.lowStockProducts.length > 0 && (
-          <View className="gap-md mb-2xl">
-            <View className="flex-row items-center gap-sm px-lg">
-              <Feather name="alert-triangle" size={16} color={colors.warning} />
-              <Text className="text-h3 font-semibold text-text">Low Stock Alerts</Text>
+          <View style={styles.listSection}>
+            <View style={styles.lowStockHeader}>
+              <Feather name="alert-triangle" size={16} color={colors.red} />
+              <Text style={styles.listSectionTitle}>Low Stock Alerts</Text>
             </View>
-            <View className="px-lg gap-sm">
+            <View style={styles.listSectionBody}>
               {summary.lowStockProducts.map((product) => (
                 <Pressable
                   key={product.id}
                   onPress={() => router.push(`/product/${product.id}`)}
-                  className="flex-row items-center justify-between p-md rounded-md bg-warning/10 active:opacity-80"
+                  style={styles.lowStockRow}
                   accessibilityRole="button"
                   accessibilityLabel={`${product.name}, only ${product.stock} left`}
                 >
-                  <Text className="text-[13px] font-medium text-text flex-1 pr-md" numberOfLines={1}>
+                  <Text style={styles.lowStockName} numberOfLines={1}>
                     {product.name}
                   </Text>
-                  <Text className="text-[12px] font-semibold text-warning">Only {product.stock} left</Text>
+                  <Text style={styles.lowStockCount}>Only {product.stock} left</Text>
                 </Pressable>
               ))}
             </View>
@@ -406,3 +444,104 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.paper },
+  content: { paddingBottom: 32 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 12 },
+  headerText: { flex: 1 },
+  greeting: { fontFamily: fonts.body.medium, fontSize: 12, color: colors.muted },
+  name: { fontFamily: fonts.display.bold, fontSize: 22, color: colors.ink },
+  company: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  dealerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  creditBlock: { alignItems: 'flex-end' },
+  creditLabel: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  creditValue: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
+  searchBar: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    height: 48,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  searchPlaceholder: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.muted },
+  vehicleCardWrap: { paddingHorizontal: 16, marginBottom: 24 },
+  summaryError: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: radii.lg,
+    backgroundColor: colors.redSoft,
+    gap: 8,
+  },
+  summaryErrorText: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.red },
+  quickActions: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 24, gap: 8 },
+  quickAction: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionLabel: { fontFamily: fonts.body.medium, fontSize: 11, color: colors.ink, textAlign: 'center' },
+  listSection: { gap: 12, marginBottom: 24 },
+  listSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  listSectionTitle: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink },
+  viewAll: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.red },
+  listSectionBody: { paddingHorizontal: 16, gap: 8 },
+  orderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  orderRowLeft: { flex: 1, paddingRight: 12, gap: 2 },
+  orderNumber: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
+  orderMeta: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  orderRowRight: { alignItems: 'flex-end', gap: 2 },
+  orderTotal: { fontFamily: fonts.display.bold, fontSize: 13, color: colors.ink },
+  lowStockHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
+  lowStockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.redSoft,
+  },
+  lowStockName: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.ink, flex: 1, paddingRight: 12 },
+  lowStockCount: { fontFamily: fonts.body.semiBold, fontSize: 12, color: colors.red },
+});

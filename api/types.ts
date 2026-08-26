@@ -557,3 +557,40 @@ export interface ChangeEmailResponse {
   message: string;
   userId: string;
 }
+
+// GET /api/vehicles — the real vehicle-fitment taxonomy (manufacturer -> model
+// -> variant) backing the mobile app's vehicle picker. Reads the same
+// VehicleManufacturer/Vehicle/VehicleVariant tables that GET /api/products'
+// `vehicle`/`variant` filters match against — `vehicle` expects the model's
+// slug, `variant` expects the variant's slug (scoped to that model), not ids.
+export interface VehicleTaxonomyVariant {
+  id: string;
+  slug: string;
+  name: string;
+  generationName: string | null;
+  yearFrom: number | null;
+  yearTo: number | null;
+  engineCc: number | null;
+}
+
+export interface VehicleTaxonomyModel {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  heroImage: string | null;
+  variants: VehicleTaxonomyVariant[];
+}
+
+export interface VehicleTaxonomyBrand {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  models: VehicleTaxonomyModel[];
+}
+
+export interface VehicleTaxonomyResponse {
+  brands: VehicleTaxonomyBrand[];
+  updatedAt: string;
+}

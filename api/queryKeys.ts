@@ -28,4 +28,7 @@ export const queryKeys = {
   upi: {
     orderDetails: (orderId: string) => ['payments', 'upi', orderId] as const,
   },
+  vehicles: {
+    taxonomy: () => ['vehicles', 'taxonomy'] as const,
+  },
 };

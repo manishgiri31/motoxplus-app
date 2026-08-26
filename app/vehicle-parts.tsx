@@ -16,10 +16,9 @@ import { useVehicleStore } from '@/stores/vehicleStore';
 import { sortProducts } from '@/utils/sortProducts';
 
 // Results screen for the home-screen vehicle picker (VehiclePickerCard).
-// `vehicle`/`variant` are real, documented GET /api/products filter params
-// (docs/api.md §4) — only the taxonomy of valid values (constants/vehicleTaxonomy.ts)
-// is a placeholder, so this may return an empty/unfiltered list until the
-// backend ships a real vehicle-fitment taxonomy the picker can match against.
+// `vehicle`/`variant` are the model/variant slugs from GET /api/vehicles,
+// matched server-side against the real ProductCompatibility fitment table —
+// every result here is already guaranteed compatible.
 export default function VehiclePartsScreen() {
   const { vehicle, variant, label } = useLocalSearchParams<{ vehicle?: string; variant?: string; label?: string }>();
   const navigation = useNavigation();
@@ -135,7 +134,7 @@ export default function VehiclePartsScreen() {
           contentContainerStyle={styles.listContent}
           renderItem={({ item }: { item: Product }) => (
             <View style={styles.cell}>
-              <CatalogProductCard product={item} vehicle={selectedVehicle} />
+              <CatalogProductCard product={item} vehicle={selectedVehicle} guaranteedFit />
             </View>
           )}
           onEndReachedThreshold={0.4}

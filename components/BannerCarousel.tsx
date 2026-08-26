@@ -2,11 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
+  StyleSheet,
   Text,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+
+import { colors, fonts, radii } from '@/src/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AUTO_SCROLL_INTERVAL_MS = 5000;
@@ -25,11 +28,9 @@ export interface BannerSlide {
 function BannerCard({ slide }: { slide: BannerSlide }) {
   return (
     <View style={{ width: SCREEN_WIDTH }}>
-      <View className="mx-lg rounded-lg bg-secondary px-xl py-2xl">
-        <Text className="text-[13px] font-semibold uppercase tracking-wide text-primary mb-xs">
-          {slide.eyebrow}
-        </Text>
-        <Text className="text-h2 font-bold text-secondary-foreground mb-xs">{slide.title}</Text>
+      <View style={styles.card}>
+        <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
+        <Text style={styles.title}>{slide.title}</Text>
       </View>
     </View>
   );
@@ -94,14 +95,14 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
 
   if (count === 1) {
     return (
-      <View className="mb-2xl">
+      <View style={styles.singleWrap}>
         <BannerCard slide={slides[0]} />
       </View>
     );
   }
 
   return (
-    <View className="mb-2xl gap-sm">
+    <View style={styles.wrap}>
       <FlatList
         ref={listRef}
         data={virtualData}
@@ -116,14 +117,35 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
         onMomentumScrollEnd={onMomentumScrollEnd}
         onLayout={startAutoScroll}
       />
-      <View className="flex-row items-center justify-center gap-xs">
+      <View style={styles.dots}>
         {slides.map((slide, i) => (
-          <View
-            key={slide.id}
-            className={`h-1.5 rounded-full ${i === activeDot ? 'w-4 bg-secondary' : 'w-1.5 bg-border'}`}
-          />
+          <View key={slide.id} style={[styles.dot, i === activeDot && styles.dotActive]} />
         ))}
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    marginHorizontal: 16,
+    borderRadius: radii.lg,
+    backgroundColor: colors.dark,
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  eyebrow: {
+    fontFamily: fonts.mono.medium,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.red,
+    marginBottom: 6,
+  },
+  title: { fontFamily: fonts.display.bold, fontSize: 22, lineHeight: 28, color: '#FFFFFF' },
+  singleWrap: { marginBottom: 24 },
+  wrap: { marginBottom: 24, gap: 8 },
+  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line },
+  dotActive: { width: 16, backgroundColor: colors.red },
+});
