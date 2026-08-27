@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 
+import { LOW_STOCK_THRESHOLD } from '@/constants/stock';
+
 import type { Order, Product } from '../types';
 import { useAllOrders } from './useAllOrders';
 
-const LOW_STOCK_THRESHOLD = 10;
 const RECENT_ORDERS_LIMIT = 5;
 
 function dedupeProducts(products: Product[]): Product[] {

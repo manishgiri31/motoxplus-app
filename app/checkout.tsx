@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
 import { useCart } from '@/api/hooks/useCart';
+import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useCreateOrder } from '@/api/hooks/useOrders';
 import { getErrorMessage } from '@/api/errors';
 import type { PaymentType } from '@/api/types';
@@ -42,6 +43,7 @@ export default function CheckoutScreen() {
   const { dealer } = useAuth();
   const { data: dealerAccount } = useDealerAccount();
   const { data: cart, isLoading: isCartLoading } = useCart();
+  const { summary: dealerSummary } = useDealerSummary();
   const createOrder = useCreateOrder();
 
   const [paymentType, setPaymentType] = useState<PaymentType>('COD');
@@ -54,6 +56,15 @@ export default function CheckoutScreen() {
     const amountDue = paymentType === 'ADVANCE_20' ? base.grandTotal * 0.2 : base.grandTotal;
     return { ...base, amountDue };
   }, [cart, paymentType]);
+
+  // Advisory only — the backend is the authority on credit and will reject
+  // the order server-side if it actually enforces the limit. This just
+  // surfaces it before the tap instead of as a surprise error after.
+  const projectedOutstanding = dealerSummary.outstandingBalance + totals.amountDue;
+  const creditWarning =
+    dealer && dealer.creditLimit > 0 && projectedOutstanding > dealer.creditLimit
+      ? `This order takes your outstanding balance to ${formatCurrency(projectedOutstanding)}, over your ${formatCurrency(dealer.creditLimit)} credit limit.`
+      : null;
 
   const {
     control,
@@ -238,6 +249,12 @@ export default function CheckoutScreen() {
             {paymentType === 'ADVANCE_20' && <SummaryRow label="Due now (20%)" value={formatCurrency(totals.amountDue)} accent />}
           </View>
 
+          {creditWarning && (
+            <View style={styles.creditWarning}>
+              <Text style={styles.creditWarningText}>{creditWarning}</Text>
+            </View>
+          )}
+
           {formError && <Text style={styles.error}>{formError}</Text>}
 
           <Button
@@ -301,5 +318,7 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.line },
   totalLabel: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
   totalValue: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  creditWarning: { padding: 12, borderRadius: radii.md, backgroundColor: colors.redSoft },
+  creditWarningText: { fontFamily: fonts.body.medium, fontSize: 12.5, color: colors.red },
   error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
 });

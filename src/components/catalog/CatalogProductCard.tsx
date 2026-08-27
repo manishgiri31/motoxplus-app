@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
 import type { Product } from '@/api/types';
 import { Image } from '@/components/ui';
+import { LOW_STOCK_THRESHOLD } from '@/constants/stock';
 import type { SelectedVehicle } from '@/stores/vehicleStore';
 import { getImageSource } from '@/utils/image';
 import { isCompatibleWithVehicle } from '@/utils/vehicleCompatibility';
@@ -31,6 +32,8 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
   const isDealerApproved = canAccessDealerApp(user, dealer);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
   const fits = guaranteedFit || isCompatibleWithVehicle(product, vehicle);
+  const outOfStock = product.stock <= 0;
+  const lowStock = !outOfStock && product.stock <= LOW_STOCK_THRESHOLD;
 
   return (
     <Card onPress={() => router.push(`/product/${product.id}`)} accessibilityLabel={product.name} style={styles.card}>
@@ -41,11 +44,19 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
             <Badge label={`Fits your ${vehicle.modelName} ✓`} variant="success" />
           </View>
         )}
+        {(outOfStock || lowStock) && (
+          <View style={styles.stockBadge}>
+            <Badge label={outOfStock ? 'Out of stock' : `Only ${product.stock} left`} variant="brand" />
+          </View>
+        )}
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {product.name}
       </Text>
-      <MonoLabel>{product.partNumber}</MonoLabel>
+      <View style={styles.metaRow}>
+        <MonoLabel>{product.partNumber}</MonoLabel>
+        {product.moq > 1 && <Text style={styles.moq}>MOQ {product.moq}</Text>}
+      </View>
       <View style={styles.priceRow}>
         <BlurredPrice price={product.price} isDealerApproved={isDealerApproved} />
       </View>
@@ -65,6 +76,9 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', height: '100%' },
   fitsBadge: { position: 'absolute', left: 6, top: 6 },
+  stockBadge: { position: 'absolute', right: 6, top: 6 },
   name: { fontFamily: fonts.body.semiBold, fontSize: 14, lineHeight: 18, color: colors.ink },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  moq: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
   priceRow: { marginTop: 4 },
 });

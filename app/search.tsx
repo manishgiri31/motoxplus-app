@@ -9,14 +9,15 @@ import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Category, Product, ProductSuggestion } from '@/api/types';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
 import { Image } from '@/components/ui';
+import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
-import { EmptyState, SkeletonProductCard, SortSheet } from '@/src/components/ui';
+import { EmptyState, SkeletonProductCard } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useRecentSearchesStore } from '@/stores/recentSearchesStore';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
-import { PRODUCT_SORT_OPTIONS, sortProducts, type ProductSortOption } from '@/utils/sortProducts';
+import { PRODUCT_SORT_OPTIONS, sortProducts } from '@/utils/sortProducts';
 
 // No "popular searches" analytics endpoint on the backend — this is a
 // static, curated list of common catalog terms for a motorcycle-parts
@@ -77,11 +78,24 @@ export default function SearchScreen() {
   const suggestionsQuery = useProductSearch(debouncedQuery);
   const resultsQuery = useInfiniteProducts({ search: debouncedQuery.trim().length >= 2 ? debouncedQuery : undefined });
 
-  const [sort, setSort] = useState<ProductSortOption>('default');
-  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [filters, setFilters] = useState<CatalogFilters>({ categorySlug: null, inStockOnly: false, sort: 'default' });
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const fetchedResults = useMemo(() => resultsQuery.data?.pages.flatMap((p) => p.products) ?? [], [resultsQuery.data]);
-  const results = useMemo(() => sortProducts(fetchedResults, sort), [fetchedResults, sort]);
-  const sortLabel = PRODUCT_SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'Featured';
+  const results = useMemo(() => {
+    let list = fetchedResults;
+    if (filters.categorySlug) {
+      list = list.filter((p) => p.category.slug === filters.categorySlug);
+    }
+    if (filters.inStockOnly) {
+      list = list.filter((p) => p.stock > 0);
+    }
+    return sortProducts(list, filters.sort);
+  }, [fetchedResults, filters]);
+  const sortLabel = PRODUCT_SORT_OPTIONS.find((o) => o.value === filters.sort)?.label ?? 'Featured';
+  const filterCategoryLabel = filters.categorySlug
+    ? (categoriesQuery.data?.find((c) => c.slug === filters.categorySlug)?.name ?? null)
+    : null;
+  const hasActiveFilters = !!filters.categorySlug || filters.inStockOnly || filters.sort !== 'default';
   const showSuggestions = debouncedQuery.trim().length >= 2 && debouncedQuery.trim().length < 4;
 
   const selectCategory = (category: Category) => {
@@ -148,19 +162,23 @@ export default function SearchScreen() {
         />
       ) : (
         <>
-          {results.length > 0 && (
+          {(results.length > 0 || hasActiveFilters) && (
             <View style={styles.sortRow}>
               <Pressable
                 onPress={() => {
                   HapticService.light();
-                  setSortSheetOpen(true);
+                  setFilterSheetOpen(true);
                 }}
                 style={styles.sortButton}
                 accessibilityRole="button"
-                accessibilityLabel={`Sort by, currently ${sortLabel}`}
+                accessibilityLabel={`Filter and sort, currently ${filterCategoryLabel ? `${filterCategoryLabel}, ` : ''}${filters.inStockOnly ? 'in stock only, ' : ''}sorted by ${sortLabel}`}
               >
                 <Feather name="sliders" size={14} color={colors.muted} />
-                <Text style={styles.sortLabel}>Sort: {sortLabel}</Text>
+                <Text style={styles.sortLabel}>
+                  {filterCategoryLabel ? `${filterCategoryLabel} · ` : ''}
+                  {filters.inStockOnly ? 'In stock · ' : ''}
+                  {sortLabel}
+                </Text>
               </Pressable>
             </View>
           )}
@@ -208,16 +226,30 @@ export default function SearchScreen() {
                 <EmptyState
                   icon="search"
                   title="No results"
-                  message={`Nothing found for "${query}". Try a different name, brand, or part number.`}
-                  actionLabel="Clear search"
-                  onAction={() => setQuery('')}
+                  message={
+                    hasActiveFilters
+                      ? `Nothing found for "${query}" with these filters applied.`
+                      : `Nothing found for "${query}". Try a different name, brand, or part number.`
+                  }
+                  actionLabel={hasActiveFilters ? 'Clear filters' : 'Clear search'}
+                  onAction={
+                    hasActiveFilters
+                      ? () => setFilters({ categorySlug: null, inStockOnly: false, sort: 'default' })
+                      : () => setQuery('')
+                  }
                 />
               )
             }
           />
         </>
       )}
-      <SortSheet visible={sortSheetOpen} value={sort} options={PRODUCT_SORT_OPTIONS} onSelect={setSort} onClose={() => setSortSheetOpen(false)} />
+      <CatalogFilterSheet
+        visible={filterSheetOpen}
+        categories={categoriesQuery.data}
+        value={filters}
+        onApply={setFilters}
+        onClose={() => setFilterSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }

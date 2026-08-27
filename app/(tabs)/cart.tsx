@@ -7,13 +7,15 @@ import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAddToCart, useCart, useRemoveCartItem } from '@/api/hooks/useCart';
+import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useProduct } from '@/api/hooks/useProducts';
 import type { CartItem } from '@/api/types';
+import { useAuth } from '@/auth/useAuth';
 import { Image } from '@/components/ui';
 import { Button, Stepper, Toast } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useWishlistStore } from '@/stores/wishlistStore';
-import { calculateCartTotals } from '@/utils/cartTotals';
+import { calculateCartTotals, FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
@@ -109,7 +111,9 @@ const CartRow = memo(function CartRow({ item, onRemove }: { item: CartItem; onRe
 });
 
 export default function CartScreen() {
+  const { dealer } = useAuth();
   const { data: cart, isLoading, isError, error, refetch, isRefetching } = useCart();
+  const { summary: dealerSummary } = useDealerSummary();
   const items = cart?.items ?? [];
   const addToCart = useAddToCart();
   const removeItem = useRemoveCartItem();
@@ -121,6 +125,10 @@ export default function CartScreen() {
   };
 
   const totals = useMemo(() => calculateCartTotals(cart?.items ?? []), [cart]);
+  const taxedTotal = totals.subtotal + totals.gstAmount;
+  const qualifiesForFreeDelivery = taxedTotal >= FREE_DELIVERY_THRESHOLD;
+  const remainingForFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - taxedTotal);
+  const freeDeliveryProgress = Math.min(100, (taxedTotal / FREE_DELIVERY_THRESHOLD) * 100);
 
   const handleRemove = (item: CartItem) => {
     setLastRemoved(item);
@@ -184,6 +192,26 @@ export default function CartScreen() {
       />
 
       {items.length > 0 && (
+        <View style={styles.freeDeliveryCard}>
+          {qualifiesForFreeDelivery ? (
+            <View style={styles.freeDeliveryRow}>
+              <Feather name="check-circle" size={14} color={colors.red} />
+              <Text style={styles.freeDeliveryText}>You&apos;ve unlocked free delivery</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.freeDeliveryText}>
+                Add {formatCurrency(remainingForFreeDelivery)} more for free delivery
+              </Text>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${freeDeliveryProgress}%` }]} />
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {items.length > 0 && (
         <View style={styles.summary}>
           <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
           <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
@@ -192,6 +220,12 @@ export default function CartScreen() {
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>{formatCurrency(totals.grandTotal)}</Text>
           </View>
+          {dealer && dealer.creditLimit > 0 && (
+            <SummaryRow
+              label="Available credit"
+              value={formatCurrency(Math.max(0, dealer.creditLimit - dealerSummary.outstandingBalance))}
+            />
+          )}
           <Text style={styles.disclaimer}>Final total is confirmed by the server when you place the order.</Text>
 
           <Button
@@ -262,6 +296,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  freeDeliveryCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: 8,
+  },
+  freeDeliveryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  freeDeliveryText: { fontFamily: fonts.body.medium, fontSize: 12.5, color: colors.ink },
+  progressTrack: { height: 6, borderRadius: radii.pill, backgroundColor: colors.line, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radii.pill, backgroundColor: colors.red },
   summary: { borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 8 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
