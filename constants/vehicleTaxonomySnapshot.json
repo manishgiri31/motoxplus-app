@@ -1,0 +1,114 @@
+{
+  "brands": [
+    {
+      "id": "hero",
+      "name": "Hero",
+      "slug": "hero",
+      "logoUrl": null,
+      "models": [
+        {
+          "id": "splendor-plus",
+          "name": "Splendor Plus",
+          "slug": "splendor-plus",
+          "category": "MOTORCYCLE",
+          "heroImage": null,
+          "variants": [
+            { "id": "drum-kick-bs4", "slug": "drum-kick-bs4", "name": "Drum, Kick Start (BS4)", "generationName": "Gen 1 (Kick/Self, BS4)", "yearFrom": 2016, "yearTo": 2020, "engineCc": 97.2 },
+            { "id": "drum-self-bs4", "slug": "drum-self-bs4", "name": "Drum, Self Start (BS4)", "generationName": "Gen 1 (Kick/Self, BS4)", "yearFrom": 2016, "yearTo": 2020, "engineCc": 97.2 },
+            { "id": "drum-self-bs6", "slug": "drum-self-bs6", "name": "Drum, Self Start (BS6)", "generationName": "Gen 2 (BS6)", "yearFrom": 2020, "yearTo": null, "engineCc": 97.2 },
+            { "id": "disc-self-bs6", "slug": "disc-self-bs6", "name": "Disc, Self Start (BS6)", "generationName": "Gen 2 (BS6)", "yearFrom": 2020, "yearTo": null, "engineCc": 97.2 }
+          ]
+        },
+        { "id": "splendor-ismart", "name": "Splendor iSmart", "slug": "splendor-ismart", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "super-splendor", "name": "Super Splendor", "slug": "super-splendor", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "hf-deluxe", "name": "HF Deluxe", "slug": "hf-deluxe", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "passion-pro", "name": "Passion Pro", "slug": "passion-pro", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "passion-plus", "name": "Passion Plus", "slug": "passion-plus", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "passion-xpro", "name": "Passion Xpro", "slug": "passion-xpro", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "glamour", "name": "Glamour", "slug": "glamour", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "cbz-xtreme", "name": "CBZ Xtreme", "slug": "cbz-xtreme", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "karizma", "name": "Karizma", "slug": "karizma", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "hunk", "name": "Hunk", "slug": "hunk", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "maestro-edge", "name": "Maestro Edge", "slug": "maestro-edge", "category": "SCOOTER", "heroImage": null, "variants": [] }
+      ]
+    },
+    {
+      "id": "honda",
+      "name": "Honda",
+      "slug": "honda",
+      "logoUrl": null,
+      "models": [
+        { "id": "cb-shine", "name": "CB Shine", "slug": "cb-shine", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "cb-unicorn", "name": "CB Unicorn", "slug": "cb-unicorn", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        {
+          "id": "activa-6g",
+          "name": "Activa 6G",
+          "slug": "activa-6g",
+          "category": "SCOOTER",
+          "heroImage": null,
+          "variants": [
+            { "id": "standard-bs6", "slug": "standard-bs6", "name": "Standard (BS6)", "generationName": null, "yearFrom": 2020, "yearTo": null, "engineCc": 109.51 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tvs",
+      "name": "TVS",
+      "slug": "tvs",
+      "logoUrl": null,
+      "models": [
+        { "id": "apache-rtr-160", "name": "Apache RTR 160", "slug": "apache-rtr-160", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "jupiter", "name": "Jupiter", "slug": "jupiter", "category": "SCOOTER", "heroImage": null, "variants": [] }
+      ]
+    },
+    {
+      "id": "bajaj",
+      "name": "Bajaj",
+      "slug": "bajaj",
+      "logoUrl": null,
+      "models": [
+        {
+          "id": "pulsar-150",
+          "name": "Pulsar 150",
+          "slug": "pulsar-150",
+          "category": "MOTORCYCLE",
+          "heroImage": null,
+          "variants": [
+            { "id": "single-disc-bs6", "slug": "single-disc-bs6", "name": "Single Disc (BS6)", "generationName": null, "yearFrom": 2020, "yearTo": null, "engineCc": 149.5 }
+          ]
+        },
+        { "id": "pulsar-220f", "name": "Pulsar 220F", "slug": "pulsar-220f", "category": "MOTORCYCLE", "heroImage": null, "variants": [] }
+      ]
+    },
+    {
+      "id": "yamaha",
+      "name": "Yamaha",
+      "slug": "yamaha",
+      "logoUrl": null,
+      "models": [
+        { "id": "fz", "name": "FZ", "slug": "fz", "category": "MOTORCYCLE", "heroImage": null, "variants": [] },
+        { "id": "r15", "name": "R15", "slug": "r15", "category": "MOTORCYCLE", "heroImage": null, "variants": [] }
+      ]
+    },
+    {
+      "id": "royal-enfield",
+      "name": "Royal Enfield",
+      "slug": "royal-enfield",
+      "logoUrl": null,
+      "models": [
+        { "id": "classic-350", "name": "Classic 350", "slug": "classic-350", "category": "MOTORCYCLE", "heroImage": null, "variants": [] }
+      ]
+    },
+    {
+      "id": "suzuki",
+      "name": "Suzuki",
+      "slug": "suzuki",
+      "logoUrl": null,
+      "models": [
+        { "id": "access-125", "name": "Access 125", "slug": "access-125", "category": "SCOOTER", "heroImage": null, "variants": [] }
+      ]
+    }
+  ],
+  "updatedAt": "2026-08-01T00:00:00.000Z"
+}
