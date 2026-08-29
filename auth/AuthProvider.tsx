@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 
 import { authService, type LoginPayload } from '@/api/services/authService';
 import type { AuthUser, Dealer } from '@/api/types';
+import { registerPushToken, unregisterPushToken } from '@/hooks/use-push-notifications';
 import { canAccessDealerApp, DealerAccessDeniedError } from './access';
 import { onAuthFailure, onVerificationRequired } from './authEvents';
 import { secureStorage } from './secureStorage';
@@ -37,8 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const queryClient = useQueryClient();
 
+  // Tracked outside state because there's no way to ask the OS "what push
+  // token did we last register" — it only ever exists in memory from the
+  // moment registerPushToken() resolves, so unregistering at logout has to
+  // read it from here rather than re-deriving it.
+  const pushTokenRef = useRef<string | null>(null);
+
   const clearSession = useCallback(async () => {
     await secureStorage.clearTokens();
+    unregisterPushToken(pushTokenRef.current);
+    pushTokenRef.current = null;
     setUser(null);
     setDealer(null);
     // Otherwise a second dealer signing in on the same device is served the
@@ -49,6 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     onAuthFailure(() => {
+      // api/client.ts already cleared secure storage before firing this —
+      // just drop the in-memory push token registration to match.
+      unregisterPushToken(pushTokenRef.current);
+      pushTokenRef.current = null;
       setUser(null);
       setDealer(null);
       queryClient.clear();
@@ -113,6 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setUser(meUser);
         setDealer(meDealer);
+        // Fire-and-forget: refreshes the registered token on every cold
+        // start (Expo push tokens can occasionally rotate on reinstall) —
+        // never awaited, so a slow/denied permission prompt can't delay
+        // showing the app past the splash screen.
+        registerPushToken().then((token) => {
+          pushTokenRef.current = token;
+        });
       } catch {
         // Token invalid/expired or the request failed outright — an
         // ordinary "session no longer valid" case, not an access-denied
@@ -135,6 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await secureStorage.setTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     setUser(res.user);
     setDealer(res.dealer);
+    // Fire-and-forget, same reasoning as the cold-start path above — a
+    // permission prompt must never block the login screen from proceeding.
+    registerPushToken().then((token) => {
+      pushTokenRef.current = token;
+    });
   }, []);
 
   const logout = useCallback(async () => {

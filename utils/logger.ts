@@ -32,13 +32,16 @@ function safeHeaders(headers: unknown): Record<string, unknown> {
   return out;
 }
 
+// Mirror axios's own baseURL + url joining (`combineURLs`): a leading-slash
+// `url` is a path segment appended to baseURL, NOT a host-absolute path.
+// `new URL('/mobile/auth/me', 'https://motoxplus.com/api')` would wrongly
+// resolve to `https://motoxplus.com/mobile/auth/me` (dropping `/api`) and
+// send anyone reading this log chasing a routing bug that doesn't exist.
 function resolveFullURL(config?: { url?: string; baseURL?: string }): string | undefined {
   if (!config?.url) return undefined;
-  try {
-    return config.baseURL ? new URL(config.url, config.baseURL).toString() : config.url;
-  } catch {
-    return config.baseURL ? `${config.baseURL}${config.url}` : config.url;
-  }
+  const { url, baseURL } = config;
+  if (!baseURL || /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url)) return url;
+  return `${baseURL.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`;
 }
 
 function logRequest(config: InternalAxiosRequestConfig) {

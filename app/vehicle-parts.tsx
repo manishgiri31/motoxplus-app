@@ -121,7 +121,7 @@ export default function VehiclePartsScreen() {
       {query.isLoading ? (
         <View style={styles.grid}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <View key={i} style={styles.cell}>
+            <View key={i} style={styles.skeletonCell}>
               <SkeletonProductCard />
             </View>
           ))}
@@ -205,8 +205,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 16 },
-  cell: { flex: 1, maxWidth: '50%', paddingHorizontal: 8, paddingBottom: 16 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8 },
+  // FlashList's numColumns already sizes each item to half the list width —
+  // the cell only adds the inter-column gutter. A maxWidth here would clamp
+  // the card to a quarter of the screen and make its content overflow.
+  cell: { flex: 1, paddingHorizontal: 8, paddingBottom: 16 },
+  // The loading skeleton is a plain flex-wrap grid (no FlashList), so it does
+  // need an explicit half-width per item.
+  skeletonCell: { width: '50%', paddingHorizontal: 8, paddingBottom: 16 },
   listContent: { paddingHorizontal: 8, paddingBottom: 16 },
   footer: { paddingVertical: 16 },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 64, gap: 8 },

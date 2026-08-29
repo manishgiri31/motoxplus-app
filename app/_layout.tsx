@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { router, Stack, type Href } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +14,7 @@ import '../global.css';
 import { useAuth } from '@/auth/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { configureNotifications, getNotificationUrl } from '@/hooks/use-push-notifications';
 import { AppProviders } from '@/providers/AppProviders';
 import { fontsToLoad } from '@/src/theme';
 // Side-effect import — starts the persisted theme preference's rehydration
@@ -44,6 +46,24 @@ function RootNavigator() {
     if (Platform.OS === 'ios') {
       ScreenCapture.enableAppSwitcherProtectionAsync().catch(() => {});
     }
+  }, []);
+
+  useEffect(() => {
+    // Foreground display behavior + the Android "orders" channel — has to
+    // run before any notification could arrive, so it's set up unconditionally
+    // here rather than after login (registerPushToken, in AuthProvider, is
+    // the part gated on being logged in).
+    configureNotifications();
+
+    // Tapping a push (background or killed-state) always has to at least
+    // attempt this navigation — if the dealer isn't authenticated,
+    // Stack.Protected above redirects to login instead of the order, which
+    // is an acceptable degrade rather than something to special-case here.
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const url = getNotificationUrl(response.notification.request.content.data);
+      if (url) router.push(url as never);
+    });
+    return () => subscription.remove();
   }, []);
 
   if (!ready) {

@@ -594,3 +594,24 @@ export interface VehicleTaxonomyResponse {
   brands: VehicleTaxonomyBrand[];
   updatedAt: string;
 }
+
+// --- Push notifications ---
+// Mirrors prisma/schema.prisma `DevicePlatform` in motoxplus-web. The app
+// registers its Expo push token after login (POST /api/mobile/push-token) and
+// removes it on logout (DELETE /api/mobile/push-token). There is no history
+// endpoint — pushes are delivered live, not persisted server-side, so
+// app/notifications.tsx stays an honest empty state.
+export type DevicePlatform = 'IOS' | 'ANDROID';
+
+export interface RegisterPushTokenPayload {
+  token: string;
+  platform: DevicePlatform;
+}
+
+// Data payload attached to every order notification, used for tap-to-navigate.
+export interface OrderNotificationData {
+  orderId: string;
+  orderNumber: string;
+  event: 'ORDER_CONFIRMED' | 'ORDER_SHIPPED' | 'ORDER_DELIVERED' | 'ORDER_CANCELLED';
+  url: string;
+}

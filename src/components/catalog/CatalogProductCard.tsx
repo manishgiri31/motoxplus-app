@@ -54,8 +54,14 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
         {product.name}
       </Text>
       <View style={styles.metaRow}>
-        <MonoLabel>{product.partNumber}</MonoLabel>
-        {product.moq > 1 && <Text style={styles.moq}>MOQ {product.moq}</Text>}
+        <MonoLabel style={styles.metaPart} numberOfLines={1}>
+          {product.partNumber}
+        </MonoLabel>
+        {product.moq > 1 && (
+          <Text style={styles.moq} numberOfLines={1}>
+            MOQ {product.moq}
+          </Text>
+        )}
       </View>
       <View style={styles.priceRow}>
         <BlurredPrice price={product.price} isDealerApproved={isDealerApproved} />
@@ -79,6 +85,7 @@ const styles = StyleSheet.create({
   stockBadge: { position: 'absolute', right: 6, top: 6 },
   name: { fontFamily: fonts.body.semiBold, fontSize: 14, lineHeight: 18, color: colors.ink },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  moq: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  metaPart: { flexShrink: 1 },
+  moq: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted, flexShrink: 0 },
   priceRow: { marginTop: 4 },
 });
