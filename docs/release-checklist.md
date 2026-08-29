@@ -7,11 +7,13 @@ actually exists in this repo right now.
 
 - [x] **Splash screen** — configured in `app.json` (`expo-splash-screen` plugin) and wired in
       `app/_layout.tsx`: stays visible until auth session hydration finishes, then hides.
-- [x] **App icons** — a flat-color "M+" monogram (simplified from motoxplus-web's existing angular
-      logo, dropping its glow/gradient — doesn't survive scaling to launcher-icon size) covering
-      `icon.png`, the Android adaptive icon layers (incl. the Android 13+ monochrome/themed layer),
-      and `splash-icon.png`. Generated via `scripts/generate-icon.js` (sharp) so it's regenerable.
-      `favicon.png` (web) was intentionally left as the old placeholder — out of scope of that pass.
+- [x] **App icons** — the real brand mark (`assets/images/icon.png`, placed directly, not
+      generated) drives every other icon asset. `scripts/generate-icon.js` (sharp) derives the
+      Android adaptive icon layers (foreground = the mark on transparent, background = flat paper
+      `#FBFAF8`, plus the Android 13+ monochrome/themed layer — the mark's alpha shape recolored to
+      solid ink) and `splash-icon.png` from that one source, so re-running the script after any
+      future icon.png update keeps every derived asset in sync. `favicon.png` (web) was
+      intentionally left as the old placeholder — out of scope of that pass.
 - [x] **Deep linking** — `app.json` already declares `"scheme": "motoxplusapp"`, and Expo Router
       auto-generates a linking config from the file-based routes with zero extra code. A link like
       `motoxplusapp://product/<id>` will open the product detail screen once the app is installed.
