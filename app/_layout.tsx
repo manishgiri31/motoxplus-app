@@ -61,7 +61,7 @@ function RootNavigator() {
     // is an acceptable degrade rather than something to special-case here.
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const url = getNotificationUrl(response.notification.request.content.data);
-      if (url) router.push(url as never);
+      if (url) router.push(url as Href);
     });
     return () => subscription.remove();
   }, []);
