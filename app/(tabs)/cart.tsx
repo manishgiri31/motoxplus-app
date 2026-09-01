@@ -11,7 +11,8 @@ import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useProduct } from '@/api/hooks/useProducts';
 import type { CartItem } from '@/api/types';
 import { useAuth } from '@/auth/useAuth';
-import { Image } from '@/components/ui';
+import { Image, Input } from '@/components/ui';
+import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
 import { Button, Stepper, Toast } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -118,6 +119,7 @@ export default function CartScreen() {
   const addToCart = useAddToCart();
   const removeItem = useRemoveCartItem();
   const [lastRemoved, setLastRemoved] = useState<CartItem | null>(null);
+  const [deliveryPincode, setDeliveryPincode] = useState('');
 
   const onRefresh = () => {
     HapticService.light();
@@ -226,6 +228,18 @@ export default function CartScreen() {
               value={formatCurrency(Math.max(0, dealer.creditLimit - dealerSummary.outstandingBalance))}
             />
           )}
+
+          <View style={styles.pincodeBlock}>
+            <Input
+              label="Check delivery pincode"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={deliveryPincode}
+              onChangeText={(t) => setDeliveryPincode(t.replace(/\D/g, '').slice(0, 6))}
+            />
+            <PincodeServiceability pincode={deliveryPincode} />
+          </View>
+
           <Text style={styles.disclaimer}>Final total is confirmed by the server when you place the order.</Text>
 
           <Button
@@ -324,6 +338,7 @@ const styles = StyleSheet.create({
   totalLabel: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
   totalValue: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
   disclaimer: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  pincodeBlock: { gap: 8, paddingTop: 4 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
   emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
   emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', marginBottom: 8 },

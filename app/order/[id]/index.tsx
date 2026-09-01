@@ -98,11 +98,14 @@ export default function OrderDetailScreen() {
 
         <StatusTimeline status={order.status} />
 
-        {order.paymentType !== 'COD' && order.amountDue > 0 && order.status !== 'CANCELLED' && (
+        {/* Only while the initial payment is still outstanding. Once an
+            ADVANCE_20 order is CONFIRMED, its remaining balance is collected
+            on delivery, not online — see app/order/[id]/pay.tsx. */}
+        {order.paymentType !== 'COD' && order.status === 'PENDING' && order.amountDue > 0 && (
           <Button
             label={`Complete payment — ${formatCurrency(order.amountDue)}`}
             variant="brand"
-            onPress={() => router.push(`/order/${order.id}/pay-upi`)}
+            onPress={() => router.push(`/order/${order.id}/pay`)}
           />
         )}
 

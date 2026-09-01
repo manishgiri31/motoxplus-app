@@ -437,9 +437,20 @@ export interface DeleteAccountPayload {
   password: string;
 }
 
+// Pass-through of motoxplus-web's lib/delhivery/serviceability.ts
+// `ServiceabilityResult` — GET /api/shipping/serviceability always returns 200,
+// with ineligibility signalled in the body (`serviceable: false` + `error`),
+// never an error status. `estimatedDeliveryDays` is a fixed backend placeholder
+// (3) — Delhivery's real response carries no delivery-days field; `state` is
+// always null (only a state_code comes back, which the backend won't guess a
+// full name from).
 export interface ShippingServiceabilityResponse {
   serviceable: boolean;
-  [key: string]: unknown;
+  estimatedDeliveryDays: number | null;
+  availableServices: string[];
+  city: string | null;
+  state: string | null;
+  error?: string;
 }
 
 export interface ShippingEstimatePayload {
@@ -453,68 +464,6 @@ export interface ApiErrorBody {
   error: string;
   code?: string;
   details?: unknown;
-}
-
-// --- Direct UPI / bank transfer payment ---
-// The only online payment path that actually works from the app today —
-// Razorpay is disabled server-side (NEXT_PUBLIC_RAZORPAY_ENABLED=false) and
-// react-native-razorpay isn't installed (see constants/features.ts). This is
-// a manual proof-of-payment flow: the dealer pays via any UPI app or bank
-// transfer using the details shown, then submits the UTR + a screenshot for
-// staff to verify.
-export type UpiPaymentMethod = 'UPI' | 'BANK_TRANSFER';
-export type UpiSubmissionStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
-
-export interface PaymentSubmission {
-  id: string;
-  orderId: string;
-  paymentMethod: UpiPaymentMethod;
-  utrNumber: string;
-  payerName: string;
-  payerEmail: string;
-  payerPhone: string;
-  screenshotUrl: string;
-  amount: number;
-  status: UpiSubmissionStatus;
-  rejectionReason: string | null;
-  submittedAt: string;
-}
-
-export interface UpiPaymentSettings {
-  upiId: string;
-  upiName: string;
-  bankAccountNumber: string;
-  bankIfsc: string;
-  bankAccountName: string;
-  upiEnabled: boolean;
-}
-
-export interface UpiOrderDetailsResponse {
-  // This endpoint embeds the dealer's most recent payment submission on the
-  // order itself, unlike GET /orders and /orders/[id] which never do.
-  order: Order & { paymentSubmissions: PaymentSubmission[] };
-  paymentSettings: UpiPaymentSettings;
-}
-
-export interface UploadPaymentScreenshotResponse {
-  url: string;
-  key: string;
-}
-
-export interface SubmitUpiPaymentPayload {
-  orderId: string;
-  paymentMethod: UpiPaymentMethod;
-  utrNumber: string;
-  payerName: string;
-  payerEmail: string;
-  payerPhone: string;
-  screenshotUrl: string;
-  screenshotKey: string;
-}
-
-export interface SubmitUpiPaymentResponse {
-  submission: PaymentSubmission;
-  message: string;
 }
 
 // --- Active sessions ("sign out of all devices" already exists — this adds

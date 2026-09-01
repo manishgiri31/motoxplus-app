@@ -21,4 +21,6 @@ export const HapticService = {
   success: () => fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
   /** Payment Failed, API Errors, Validation Errors. */
   error: () => fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)),
+  /** Soft interruption that isn't a failure — e.g. payment cancelled by the user. */
+  warning: () => fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
 };

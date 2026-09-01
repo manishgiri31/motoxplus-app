@@ -3,15 +3,11 @@
 // Flip and ship a new build once the blocker clears — there's no remote
 // config source in this app to read these from at runtime.
 
-// `react-native-razorpay` isn't installed yet (site verification with
-// Razorpay is still pending), so there is no native UI to actually capture
-// an online payment. Keep this off until the SDK is wired up end-to-end;
-// otherwise a dealer can create an order with amountDue > 0 that can never
-// be paid from the app.
-export const ONLINE_PAYMENTS_ENABLED = false;
-
-// Direct UPI / bank transfer is a manual proof-of-payment flow (QR + UTR +
-// screenshot, verified by staff) — it needs no native payment SDK, so it can
-// stay on independently of ONLINE_PAYMENTS_ENABLED/Razorpay. This is
-// currently the only way to pay a non-COD order from the app.
-export const UPI_PAYMENTS_ENABLED = true;
+// Razorpay native checkout (`react-native-razorpay`, New Architecture build).
+// The backend enables it via NEXT_PUBLIC_RAZORPAY_ENABLED=true and both
+// `POST /payments/create-order` and `POST /payments/verify` accept the mobile
+// Bearer JWT, so prepaid (FULL_100 / ADVANCE_20) orders are paid in-app via
+// the native SDK — see app/order/[id]/pay.tsx. Turn this off only if Razorpay
+// is disabled server-side again; the create-order endpoint then 400s with
+// RAZORPAY_DISABLED and checkout should not offer the prepaid options.
+export const ONLINE_PAYMENTS_ENABLED = true;

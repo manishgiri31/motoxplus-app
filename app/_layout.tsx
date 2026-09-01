@@ -92,7 +92,7 @@ function RootNavigator() {
           <Stack.Screen name="verify-mobile" options={{ title: 'Verify mobile', presentation: 'modal' }} />
           <Stack.Screen name="change-email" options={{ title: 'Change email', presentation: 'modal' }} />
           <Stack.Screen name="sessions" options={{ title: 'Active sessions' }} />
-          <Stack.Screen name="order/[id]/pay-upi" options={{ title: 'Complete payment' }} />
+          <Stack.Screen name="order/[id]/pay" options={{ title: 'Complete payment' }} />
         </Stack.Protected>
 
         <Stack.Protected guard={!isAuthenticated}>

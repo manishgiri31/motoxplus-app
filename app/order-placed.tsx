@@ -7,9 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, MonoLabel } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 
-// COD-only confirmation screen — non-COD orders skip this and route straight
-// from checkout to /order/[id]/pay-upi (Razorpay is disabled server-side and
-// its native SDK isn't installed, see api/services/paymentService.ts).
+// COD-only confirmation screen. Prepaid orders skip it entirely: checkout
+// routes them to /order/[id]/pay (native Razorpay checkout) and, once the
+// payment is verified server-side, straight on to /order/[id].
 export default function OrderPlacedScreen() {
   const { orderId, orderNumber } = useLocalSearchParams<{ orderId: string; orderNumber: string }>();
 

@@ -55,16 +55,3 @@ export type EmailFormValues = z.infer<typeof emailSchema>;
 
 export const mobileNumberSchema = z.object({ mobile: mobileField });
 export type MobileNumberFormValues = z.infer<typeof mobileNumberSchema>;
-
-// Direct UPI / bank transfer proof-of-payment form (see app/order/[id]/pay-upi.tsx).
-export const upiPaymentProofSchema = z.object({
-  utrNumber: z
-    .string()
-    .trim()
-    .min(10, 'UTR/reference number must be at least 10 characters')
-    .max(40, 'UTR/reference number is too long'),
-  payerName: z.string().trim().min(2, 'Name is required').max(100, 'Name is too long'),
-  payerEmail: emailField,
-  payerPhone: mobileField,
-});
-export type UpiPaymentProofFormValues = z.infer<typeof upiPaymentProofSchema>;

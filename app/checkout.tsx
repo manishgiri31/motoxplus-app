@@ -11,13 +11,14 @@ import { useCart } from '@/api/hooks/useCart';
 import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useCreateOrder } from '@/api/hooks/useOrders';
 import { getErrorMessage } from '@/api/errors';
-import type { PaymentType } from '@/api/types';
+import type { PaymentType, ShippingServiceabilityResponse } from '@/api/types';
 import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
 import { Input } from '@/components/ui';
 import { Button } from '@/src/components/ui';
+import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
 import { colors, fonts, radii } from '@/src/theme';
-import { UPI_PAYMENTS_ENABLED } from '@/constants/features';
+import { ONLINE_PAYMENTS_ENABLED } from '@/constants/features';
 import { webOrigin } from '@/config/env';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
@@ -26,16 +27,16 @@ import { HapticService } from '@/utils/haptics';
 const paymentOptions: { label: string; value: PaymentType; hint: string; disabled?: boolean }[] = [
   { label: 'Cash on Delivery', value: 'COD', hint: 'Pay when your order arrives' },
   {
-    label: 'Pay 20% advance',
-    value: 'ADVANCE_20',
-    hint: UPI_PAYMENTS_ENABLED ? 'Via UPI or bank transfer — balance due on delivery' : 'Coming soon',
-    disabled: !UPI_PAYMENTS_ENABLED,
-  },
-  {
     label: 'Pay in full',
     value: 'FULL_100',
-    hint: UPI_PAYMENTS_ENABLED ? 'Via UPI or bank transfer — pay the full amount now' : 'Coming soon',
-    disabled: !UPI_PAYMENTS_ENABLED,
+    hint: ONLINE_PAYMENTS_ENABLED ? 'Card, UPI or netbanking via Razorpay' : 'Coming soon',
+    disabled: !ONLINE_PAYMENTS_ENABLED,
+  },
+  {
+    label: 'Pay 20% advance',
+    value: 'ADVANCE_20',
+    hint: ONLINE_PAYMENTS_ENABLED ? 'Pay 20% now via Razorpay — balance due on delivery' : 'Coming soon',
+    disabled: !ONLINE_PAYMENTS_ENABLED,
   },
 ];
 
@@ -46,8 +47,9 @@ export default function CheckoutScreen() {
   const { summary: dealerSummary } = useDealerSummary();
   const createOrder = useCreateOrder();
 
-  const [paymentType, setPaymentType] = useState<PaymentType>('COD');
+  const [paymentType, setPaymentType] = useState<PaymentType>(ONLINE_PAYMENTS_ENABLED ? 'FULL_100' : 'COD');
   const [formError, setFormError] = useState<string | null>(null);
+  const [serviceability, setServiceability] = useState<ShippingServiceabilityResponse | null>(null);
 
   const items = cart?.items ?? [];
 
@@ -70,6 +72,9 @@ export default function CheckoutScreen() {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
+    getValues,
     formState: { isSubmitting },
   } = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
@@ -100,6 +105,18 @@ export default function CheckoutScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerAccount?.ownerName, dealer?.id]);
 
+  const watchedPincode = watch('deliveryPincode');
+
+  const handleServiceabilityResult = (result: ShippingServiceabilityResponse | null) => {
+    setServiceability(result);
+    // Auto-fill City from the pincode lookup when the dealer hasn't typed one
+    // (the Delhivery response has no full state name, only a code — so State
+    // stays manual). Mirrors the web checkout's PincodeChecker behavior.
+    if (result?.city && !getValues('deliveryCity')?.trim()) {
+      setValue('deliveryCity', result.city, { shouldValidate: true });
+    }
+  };
+
   const onSubmit = async (values: CheckoutFormValues) => {
     setFormError(null);
     try {
@@ -111,10 +128,10 @@ export default function CheckoutScreen() {
         return;
       }
 
-      // Razorpay is disabled server-side and the native SDK isn't installed
-      // (see api/services/paymentService.ts) — direct UPI/bank transfer is
-      // the only way to actually pay a non-COD order from the app today.
-      router.replace(`/order/${order.id}/pay-upi`);
+      // Prepaid (FULL_100 / ADVANCE_20): order is PENDING until paid. Hand off
+      // to the native Razorpay checkout screen (create Razorpay order → SDK →
+      // server-side verify). See app/order/[id]/pay.tsx.
+      router.replace(`/order/${order.id}/pay`);
     } catch (err) {
       // No HapticService.error() here: this failure already passed through
       // apiClient's response interceptor, which fires the error haptic once
@@ -195,6 +212,7 @@ export default function CheckoutScreen() {
               <Input label="Pincode" keyboardType="number-pad" maxLength={6} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
             )}
           />
+          <PincodeServiceability pincode={watchedPincode} onResult={handleServiceabilityResult} />
           <Controller
             control={control}
             name="notes"
@@ -252,6 +270,15 @@ export default function CheckoutScreen() {
           {creditWarning && (
             <View style={styles.creditWarning}>
               <Text style={styles.creditWarningText}>{creditWarning}</Text>
+            </View>
+          )}
+
+          {serviceability && !serviceability.serviceable && watchedPincode?.trim().length === 6 && (
+            <View style={styles.creditWarning}>
+              <Text style={styles.creditWarningText}>
+                Pincode {watchedPincode} may be outside standard courier coverage. Your order will still be placed and
+                our team will arrange delivery.
+              </Text>
             </View>
           )}
 
