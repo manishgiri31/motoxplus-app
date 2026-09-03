@@ -5,6 +5,8 @@ import { z } from 'zod';
 // server would accept, or vice versa.
 export const MOBILE_REGEX = /^[6-9]\d{9}$/;
 const PINCODE_REGEX = /^[0-9]{6}$/;
+const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
 // Reused across forms below. Upper bounds exist purely as a client-side
 // sanity cap (avoid shipping arbitrarily long strings to the server) — the
@@ -17,6 +19,43 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required').max(128, 'Password is too long'),
 });
 export type LoginFormValues = z.infer<typeof loginSchema>;
+
+// Mirrors POST /api/dealer/register (docs/api.md §3) — the recommended
+// one-shot dealer signup endpoint. GST/PAN/address/pincode are optional
+// server-side too; left blank they're simply omitted from the payload
+// (see submitRegister in app/(auth)/register.tsx).
+export const registerSchema = z
+  .object({
+    companyName: z.string().trim().min(2, 'Company name is required').max(150, 'Company name is too long'),
+    ownerName: z.string().trim().min(2, 'Owner name is required').max(100, 'Owner name is too long'),
+    phone: mobileField,
+    email: emailField,
+    password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password is too long'),
+    confirmPassword: z.string().min(1, 'Confirm your password').max(128, 'Password is too long'),
+    state: z.string().trim().min(2, 'State is required').max(100, 'State name is too long'),
+    city: z.string().trim().min(2, 'City is required').max(100, 'City name is too long'),
+    gstNumber: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(GST_REGEX, 'Enter a valid GST number')
+      .optional()
+      .or(z.literal('')),
+    panNumber: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(PAN_REGEX, 'Enter a valid PAN number')
+      .optional()
+      .or(z.literal('')),
+    companyAddress: z.string().trim().max(300, 'Address is too long').optional().or(z.literal('')),
+    pincode: z.string().trim().regex(PINCODE_REGEX, 'Enter a valid 6-digit pincode').optional().or(z.literal('')),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
+export type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export const forgotPasswordRequestSchema = z.object({
   identifier: z.string().trim().min(3, 'Enter your email or mobile number').max(254, 'That value is too long'),

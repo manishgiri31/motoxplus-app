@@ -67,6 +67,35 @@ export interface RefreshResponse {
   refreshToken: string;
 }
 
+// Mirrors POST /api/dealer/register (docs/api.md §3) — the recommended
+// one-shot dealer signup endpoint. Optional fields left out entirely (not
+// sent as empty strings) when the dealer doesn't fill them in.
+export interface DealerRegisterPayload {
+  companyName: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  password: string;
+  state: string;
+  city: string;
+  gstNumber?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
+  companyAddress?: string;
+  shopAddress?: string;
+  pincode?: string;
+}
+
+// Creates a role: DEALER user with a linked Dealer record at status:
+// PENDING — the account cannot sign in until an admin approves it (see
+// auth/access.ts#canAccessDealerApp). No accessToken/refreshToken here,
+// unlike login — registration does not start a session.
+export interface DealerRegisterResponse {
+  success: true;
+  userId: string;
+  email: string;
+}
+
 export interface ForgotPasswordPayload {
   email?: string;
   mobile?: string;

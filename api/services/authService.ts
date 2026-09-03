@@ -3,6 +3,8 @@ import { loginResponseSchema, meResponseSchema } from '../schemas';
 import type {
   ChangeEmailPayload,
   ChangeEmailResponse,
+  DealerRegisterPayload,
+  DealerRegisterResponse,
   ForgotPasswordPayload,
   ForgotPasswordResponse,
   LoginResponse,
@@ -33,6 +35,12 @@ export const authService = {
     apiClient.post<LoginResponse>('/mobile/auth/login', payload).then((r) => loginResponseSchema.parse(r.data)),
 
   me: () => apiClient.get<MeResponse>('/mobile/auth/me').then((r) => meResponseSchema.parse(r.data)),
+
+  // POST /dealer/register (docs/api.md §3) — full one-shot dealer signup.
+  // Response carries no tokens; the new account starts at dealer.status
+  // PENDING and needs admin approval before it can sign in.
+  register: (payload: DealerRegisterPayload) =>
+    apiClient.post<DealerRegisterResponse>('/dealer/register', payload).then((r) => r.data),
 
   forgotPassword: (payload: ForgotPasswordPayload) =>
     apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', payload).then((r) => r.data),
