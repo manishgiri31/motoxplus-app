@@ -137,16 +137,17 @@ export default function LoginScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Need a dealer account?</Text>
+            <Link href="/(auth)/register" style={styles.applyLink}>
+              <Text style={styles.applyLabel}>Create a dealer account</Text>
+            </Link>
             <Pressable
               onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}
               hitSlop={10}
-              style={styles.applyLink}
               accessibilityRole="link"
               accessibilityLabel="Apply on MotoXPlus Website"
             >
-              <Text style={styles.applyLabel}>Apply on MotoXPlus Website</Text>
+              <Text style={styles.footerNote}>or apply on the MotoXPlus website</Text>
             </Pressable>
-            <Text style={styles.footerNote}>Dealer applications are completed on the MotoXPlus website.</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
