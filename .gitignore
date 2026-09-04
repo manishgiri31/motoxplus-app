@@ -18,8 +18,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 GoogleService-Info.plist
-# google-services.json is committed on purpose: it holds no secret (project id +
-# public API key only) and EAS builds need it since the repo is the build source.
+# GitHub secret scanning flagged the committed API key here — do not commit
+# the real file again. Use google-services.json.example as the template and
+# provide the real one via an EAS "file" environment variable at build time
+# (see README.md), or locally by copying the example and filling it in.
+google-services.json
 
 # Metro
 .metro-health-check*

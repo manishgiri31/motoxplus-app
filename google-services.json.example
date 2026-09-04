@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1009676907585",
-    "project_id": "motoxplusapp",
-    "storage_bucket": "motoxplusapp.firebasestorage.app"
+    "project_number": "REPLACE_WITH_PROJECT_NUMBER",
+    "project_id": "REPLACE_WITH_PROJECT_ID",
+    "storage_bucket": "REPLACE_WITH_PROJECT_ID.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1009676907585:android:79b1d86b8246d7740982c0",
+        "mobilesdk_app_id": "REPLACE_WITH_MOBILESDK_APP_ID",
         "android_client_info": {
           "package_name": "com.manishgirii.motoxplusapp"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDo2WHa63f3tT6aRyH9ehnZQWoCbld74BI"
+          "current_key": "REPLACE_WITH_API_KEY"
         }
       ],
       "services": {

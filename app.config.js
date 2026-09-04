@@ -1,0 +1,91 @@
+module.exports = {
+  expo: {
+    name: "motoxplus-app",
+    slug: "motoxplus-app",
+    version: "1.0.0",
+    orientation: "portrait",
+    icon: "./assets/images/icon.png",
+    scheme: "motoxplusapp",
+    userInterfaceStyle: "light",
+    newArchEnabled: true,
+    jsEngine: "hermes",
+    ios: {
+      supportsTablet: true,
+      infoPlist: {
+        LSApplicationQueriesSchemes: ["tez", "phonepe", "paytmmp"],
+      },
+    },
+    android: {
+      adaptiveIcon: {
+        backgroundColor: "#D01F25",
+        foregroundImage: "./assets/images/android-icon-foreground.png",
+        backgroundImage: "./assets/images/android-icon-background.png",
+        monochromeImage: "./assets/images/android-icon-monochrome.png",
+      },
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+      package: "com.manishgirii.motoxplusapp",
+      // Locally, copy google-services.json.example to google-services.json and
+      // fill in your own Firebase values. On EAS, set GOOGLE_SERVICES_JSON as a
+      // "file" environment variable so this path resolves to the injected file.
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
+    },
+    web: {
+      output: "static",
+      favicon: "./assets/images/favicon.png",
+    },
+    plugins: [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: "#FBFAF8",
+          dark: {
+            image: "./assets/images/splash-icon.png",
+            backgroundColor: "#0A0A0A",
+          },
+        },
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/images/android-icon-monochrome.png",
+          color: "#D01F25",
+          defaultChannel: "orders",
+          enableBackgroundRemoteNotifications: false,
+        },
+      ],
+      [
+        "expo-build-properties",
+        {
+          android: {
+            enableProguardInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+            extraProguardRules:
+              "-keepattributes *Annotation*\n-dontwarn com.razorpay.**\n-keep class com.razorpay.** {*;}\n-optimizations !method/inlining/*\n-keepclasseswithmembers class * {\n  public void onPayment*(...);\n}",
+          },
+        },
+      ],
+    ],
+    experiments: {
+      typedRoutes: true,
+      reactCompiler: true,
+    },
+    extra: {
+      router: {},
+      eas: {
+        projectId: "f85cfed7-38ff-412b-a9c5-4aa9d3d1a152",
+      },
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
+    updates: {
+      url: "https://u.expo.dev/f85cfed7-38ff-412b-a9c5-4aa9d3d1a152",
+    },
+  },
+};

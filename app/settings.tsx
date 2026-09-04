@@ -11,7 +11,7 @@ import { Button } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 
 // The Appearance (System/Light/Dark) picker that used to live here is hidden
-// — the app is locked to light mode for now (app.json's userInterfaceStyle,
+// — the app is locked to light mode for now (app.config.js's userInterfaceStyle,
 // stores/settingsStore.ts always forcing NativeWind's colorScheme to
 // 'light') until dark mode is properly revisited. The theme-preference store
 // and its type are untouched, just not surfaced from this screen anymore.

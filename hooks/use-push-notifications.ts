@@ -6,7 +6,7 @@ import { pushService } from '@/api/services/pushService';
 import type { DevicePlatform } from '@/api/types';
 import { logger } from '@/utils/logger';
 
-// Matches the config plugin's defaultChannel (app.json) and the channelId
+// Matches the config plugin's defaultChannel (app.config.js) and the channelId
 // the backend sends order notifications on (src/lib/push/send.ts on the
 // website) — Android routes a push to this channel by id.
 const ORDER_CHANNEL_ID = 'orders';

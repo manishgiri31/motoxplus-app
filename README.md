@@ -25,6 +25,26 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Firebase / google-services.json
+
+`google-services.json` holds Firebase credentials and is **not** committed to
+the repo (it's gitignored). To set it up:
+
+- **Local development**: copy `google-services.json.example` to
+  `google-services.json` in the project root and fill in the real values from
+  the [Firebase console](https://console.firebase.google.com).
+- **EAS builds**: create a `GOOGLE_SERVICES_JSON` [file environment
+  variable](https://docs.expo.dev/eas/environment-variables/#file-environment-variables)
+  with `eas env:create --scope project --name GOOGLE_SERVICES_JSON --type file --visibility secret`
+  and upload the real file. `app.config.js` reads `process.env.GOOGLE_SERVICES_JSON`
+  first, falling back to the local file.
+
+If you get a GitHub secret scanning alert for a Google API key committed in
+`google-services.json`, rotate/regenerate that key in the [Google Cloud
+Console credentials page](https://console.cloud.google.com/apis/credentials)
+and restrict it to this Android app's package name + SHA-1 fingerprint, then
+update the `GOOGLE_SERVICES_JSON` EAS secret with the new file.
+
 ## Get a fresh project
 
 When you're ready, run:

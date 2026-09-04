@@ -11,7 +11,7 @@ interface SettingsState {
 }
 
 // App is locked to light mode (stopgap until dark mode is properly revisited
-// — see app.json's userInterfaceStyle). themePreference is still recorded
+// — see app.config.js's userInterfaceStyle). themePreference is still recorded
 // and the Settings UI for it still exists in code (just not rendered — see
 // app/settings.tsx) so nothing is lost once dark mode comes back; the actual
 // NativeWind colorScheme is always forced to 'light' regardless of pref,
