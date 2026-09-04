@@ -8,7 +8,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrder } from '@/api/hooks/useOrders';
 import { webOrigin } from '@/config/env';
-import { ONLINE_PAYMENTS_ENABLED } from '@/constants/features';
 import { useRazorpayPayment, type RazorpayPhase } from '@/hooks/useRazorpayPayment';
 import { Button, Card, ErrorState, MonoLabel } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
@@ -33,7 +32,7 @@ export default function PayScreen() {
   const { phase } = payment;
 
   // Card/UPI reference and amounts on screen — keep it out of screenshots and
-  // the app-switcher snapshot while this screen is open (same as pay-upi was).
+  // the app-switcher snapshot while this screen is open.
   ScreenCapture.usePreventScreenCapture('pay');
 
   // Once the backend has confirmed the payment, move the dealer to the live
@@ -66,27 +65,6 @@ export default function PayScreen() {
   // nothing to collect here.
   const nothingToPay =
     order.paymentType === 'COD' || order.amountDue <= 0 || order.status !== 'PENDING';
-
-  if (!ONLINE_PAYMENTS_ENABLED) {
-    return (
-      <SafeAreaView style={styles.screen} edges={['bottom']}>
-        <View style={styles.content}>
-          <Card>
-            <Text style={styles.title}>Online payment unavailable</Text>
-            <Text style={styles.muted}>
-              Card / UPI payment isn&apos;t available right now. Please contact support to complete this payment.
-            </Text>
-            <Button
-              label="Contact support"
-              variant="ghost"
-              onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)}
-              style={styles.spaced}
-            />
-          </Card>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (nothingToPay && phase !== 'verified') {
     return (

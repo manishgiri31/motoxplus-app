@@ -25,13 +25,20 @@ export function Skeleton({ width = '100%', height = 16, radius = radii.sm, style
   return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: colors.line }, animatedStyle, style]} />;
 }
 
+// Mirrors CatalogProductCard's metrics (12px padding, square image, 2-line
+// name block, meta + price rows) so the grid doesn't jump when real cards
+// swap in for the loading state.
 export function SkeletonProductCard() {
   return (
     <View style={styles.productCard}>
-      <Skeleton height={140} radius={radii.md} />
-      <Skeleton height={14} width="80%" />
-      <Skeleton height={14} width="50%" />
-      <Skeleton height={18} width="40%" />
+      <View style={styles.productCardImage}>
+        <Skeleton width="100%" height="100%" radius={radii.sm} />
+      </View>
+      <Skeleton height={36} />
+      <View style={styles.productCardFooter}>
+        <Skeleton height={12} width="55%" />
+        <Skeleton height={20} width="45%" />
+      </View>
     </View>
   );
 }
@@ -51,7 +58,21 @@ export function SkeletonListRow() {
 const styles = StyleSheet.create({
   productCard: {
     width: '100%',
-    gap: 8,
+    padding: 12,
+    gap: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+  },
+  productCardImage: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+  },
+  productCardFooter: {
+    gap: 6,
   },
   listRow: {
     flexDirection: 'row',

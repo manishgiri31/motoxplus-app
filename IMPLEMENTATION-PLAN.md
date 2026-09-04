@@ -136,5 +136,5 @@ Run one phase at a time, e.g.:
 > Read IMPLEMENTATION-PLAN.md. Implement Phase 2 only. Follow the existing patterns in sortProducts.ts and SortSheet.tsx for the filter implementation. Don't touch anything from later phases. After implementing, list every file you changed and any backend/API gaps you found.
 
 Deferred (revisit when unblocked):
-- Razorpay in-app payment (`react-native-razorpay`) — after site verification. Flip `ONLINE_PAYMENTS_ENABLED` when live.
+- ~~Razorpay in-app payment (`react-native-razorpay`)~~ — DONE (v3.0.0, native SDK, New Arch). Prepaid orders pay in-app via `app/order/[id]/pay.tsx`; the `ONLINE_PAYMENTS_ENABLED` stopgap flag has been removed.
 - Mobile OTP verification screen — after DLT ID; `authService.sendMobileOtp` / `verifyMobile` are already ready server-side.

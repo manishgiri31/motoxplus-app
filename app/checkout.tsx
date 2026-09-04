@@ -18,26 +18,19 @@ import { Input } from '@/components/ui';
 import { Button } from '@/src/components/ui';
 import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
 import { colors, fonts, radii } from '@/src/theme';
-import { ONLINE_PAYMENTS_ENABLED } from '@/constants/features';
 import { webOrigin } from '@/config/env';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const paymentOptions: { label: string; value: PaymentType; hint: string; disabled?: boolean }[] = [
-  { label: 'Cash on Delivery', value: 'COD', hint: 'Pay when your order arrives' },
-  {
-    label: 'Pay in full',
-    value: 'FULL_100',
-    hint: ONLINE_PAYMENTS_ENABLED ? 'Card, UPI or netbanking via Razorpay' : 'Coming soon',
-    disabled: !ONLINE_PAYMENTS_ENABLED,
-  },
+const paymentOptions: { label: string; value: PaymentType; hint: string }[] = [
+  { label: 'Cash on Delivery', value: 'COD', hint: 'Pay the full amount when your order arrives' },
   {
     label: 'Pay 20% advance',
     value: 'ADVANCE_20',
-    hint: ONLINE_PAYMENTS_ENABLED ? 'Pay 20% now via Razorpay — balance due on delivery' : 'Coming soon',
-    disabled: !ONLINE_PAYMENTS_ENABLED,
+    hint: 'Pay 20% now via Razorpay — balance 80% on delivery',
   },
+  { label: 'Pay in full', value: 'FULL_100', hint: 'Pay 100% now — card, UPI or netbanking via Razorpay' },
 ];
 
 export default function CheckoutScreen() {
@@ -47,7 +40,7 @@ export default function CheckoutScreen() {
   const { summary: dealerSummary } = useDealerSummary();
   const createOrder = useCreateOrder();
 
-  const [paymentType, setPaymentType] = useState<PaymentType>(ONLINE_PAYMENTS_ENABLED ? 'FULL_100' : 'COD');
+  const [paymentType, setPaymentType] = useState<PaymentType>('FULL_100');
   const [formError, setFormError] = useState<string | null>(null);
   const [serviceability, setServiceability] = useState<ShippingServiceabilityResponse | null>(null);
 
@@ -226,17 +219,16 @@ export default function CheckoutScreen() {
               return (
                 <Pressable
                   key={opt.value}
-                  onPress={() => !opt.disabled && setPaymentType(opt.value)}
-                  disabled={opt.disabled}
+                  onPress={() => setPaymentType(opt.value)}
                   accessibilityRole="radio"
-                  accessibilityState={{ checked: selected, disabled: opt.disabled }}
+                  accessibilityState={{ checked: selected }}
                   accessibilityLabel={opt.label}
                   accessibilityHint={opt.hint}
-                  style={[styles.paymentCard, selected && styles.paymentCardSelected, opt.disabled && styles.paymentCardDisabled]}
+                  style={[styles.paymentCard, selected && styles.paymentCardSelected]}
                 >
                   <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
                   <View style={styles.paymentText}>
-                    <Text style={[styles.paymentLabel, opt.disabled && styles.paymentLabelDisabled]}>{opt.label}</Text>
+                    <Text style={styles.paymentLabel}>{opt.label}</Text>
                     <Text style={styles.paymentHint}>{opt.hint}</Text>
                   </View>
                 </Pressable>
@@ -327,13 +319,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   paymentCardSelected: { borderColor: colors.red, backgroundColor: colors.redSoft },
-  paymentCardDisabled: { opacity: 0.5 },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   radioSelected: { borderColor: colors.red },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.red },
   paymentText: { flex: 1 },
   paymentLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
-  paymentLabelDisabled: { color: colors.muted },
   paymentHint: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
   policyLine: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, lineHeight: 17 },
   policyLink: { fontFamily: fonts.body.semiBold, color: colors.red },

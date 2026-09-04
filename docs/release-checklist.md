@@ -76,12 +76,12 @@ actually exists in this repo right now.
 - [ ] **App Store / Play Store submission** — needs store listings, screenshots, privacy-policy URL
       (the web app's `/privacy` already exists and is linked from Settings — reuse that URL for the
       store listing), and signing credentials.
-- [ ] **Online payment (Razorpay) native SDK** — still not installed (same Expo-Go-breaks-on-import
-      constraint as before). Not currently blocking checkout: non-COD orders now go through a manual
-      UPI/bank-transfer submission flow instead (`api/services/upiService.ts`,
-      `app/order/[id]/pay-upi.tsx`) since Razorpay is disabled server-side
-      (`RAZORPAY_ENABLED=false`). Install `react-native-razorpay` and wire it into
-      `app/checkout.tsx`'s online-payment branch only if/when Razorpay is re-enabled.
+- [x] **Online payment (Razorpay) native SDK** — done. `react-native-razorpay` (New Architecture
+      build) is wired: prepaid orders (`FULL_100` / `ADVANCE_20`) are paid in-app via the native SDK
+      (`app/order/[id]/pay.tsx` + `hooks/useRazorpayPayment`, server-side verify via
+      `POST /payments/verify`). The old manual UPI/bank-transfer stopgap
+      (`upiService.ts` / `pay-upi.tsx` / `ONLINE_PAYMENTS_ENABLED` flag) has been removed.
+      Needs a dev/production build — not Expo Go.
 - [ ] **`/api/shipping/estimate` mobile auth** — still session-only, not patched for the mobile JWT
       (see `docs/api.md` §9). Low priority since checkout doesn't depend on it (the order's own
       `shippingCost` is authoritative), but worth fixing if you want a live shipping estimate before

@@ -51,10 +51,12 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
         accessibilityLabel={`${product.name}, ${product.brand}${outOfStock ? ', out of stock' : ''}`}
       >
         <View className="relative">
+          {/* aspect-square + contain, not a fixed height + cover: parts photos
+              vary wildly in dimensions and cover crops/stretches them. */}
           <Image
             source={getImageSource(primaryImage?.imageUrl)}
-            className="w-full h-36 bg-surface"
-            contentFit="cover"
+            className="w-full aspect-square bg-surface"
+            contentFit="contain"
             transition={150}
             cachePolicy="memory-disk"
             recyclingKey={product.id}
@@ -70,7 +72,9 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
           <Text className="text-[11px] font-medium text-muted uppercase" numberOfLines={1}>
             {product.brand}
           </Text>
-          <Text className="text-[14px] font-semibold text-text" numberOfLines={2}>
+          {/* Pinned to two lines' height so a 1-line name doesn't shorten the
+              card relative to its neighbours in the rail. */}
+          <Text className="text-[14px] leading-[18px] font-semibold text-text h-9" numberOfLines={2}>
             {product.name}
           </Text>
           <PriceTag price={product.price} mrp={product.mrp} size="sm" />

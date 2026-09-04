@@ -25,9 +25,6 @@ export const queryKeys = {
   shipping: {
     serviceability: (pincode: string) => ['shipping', 'serviceability', pincode] as const,
   },
-  upi: {
-    orderDetails: (orderId: string) => ['payments', 'upi', orderId] as const,
-  },
   vehicles: {
     taxonomy: () => ['vehicles', 'taxonomy'] as const,
   },
