@@ -161,6 +161,10 @@ export interface ProductImage {
   sortOrder: number;
 }
 
+// Mirrors prisma ProductStockStatus in motoxplus-web. Set by an admin; this is
+// the source of truth for availability (see utils/stock.ts).
+export type ProductStockStatus = 'IN_STOCK' | 'FEW_LEFT' | 'OUT_OF_STOCK';
+
 export interface Product {
   id: string;
   name: string;
@@ -174,7 +178,9 @@ export interface Product {
   gstRate: number;
   hsnCode: string;
   moq: number;
+  /** @deprecated No longer maintained by the backend; use stockStatus (utils/stock.ts). */
   stock: number;
+  stockStatus?: ProductStockStatus;
   brand: string;
   oemNumber: string | null;
   warranty: string;
@@ -222,12 +228,85 @@ export interface CartItem {
   quantity: number;
   product: Product;
   variant: ProductVariant | null;
+  // GST Benefit scheme: free items the dealer picked once a scheme applied.
+  // Priced at 0 for the dealer and excluded from cart totals (the server
+  // taxes them separately) — see utils/cartTotals.ts.
+  isSchemeItem?: boolean;
 }
 
 export interface Cart {
   id?: string;
   dealerId?: string;
   items: CartItem[];
+  /** Applied GST Benefit scheme, if any. */
+  schemeId?: string | null;
+  /** Set on the read that silently removed a scheme that stopped being valid. */
+  schemeCleared?: boolean;
+  schemeClearedReason?: string;
+}
+
+// --- GST Benefit schemes ---
+// GET /api/schemes/eligible?orderValue= and POST /api/cart/scheme in
+// motoxplus-web (src/app/api/schemes, src/app/api/cart/scheme).
+export interface EligibleScheme {
+  id: string;
+  name: string;
+  code: string;
+  benefitPercent: number;
+  minOrderValue: number;
+  maxBenefitValue: number | null;
+  /** Rupee value of free items this order can claim. */
+  benefit: number;
+  /** Empty = every category is eligible. */
+  eligibleCategoryIds: string[];
+}
+
+export interface EligibleSchemesResponse {
+  schemes: EligibleScheme[];
+}
+
+export interface SchemeItemInput {
+  productId: string;
+  variantId?: string | null;
+  quantity: number;
+}
+
+export interface ApplySchemePayload {
+  /** null clears the applied scheme. */
+  schemeId: string | null;
+  items?: SchemeItemInput[];
+}
+
+// --- Dealer KYC documents ---
+// Mirrors prisma DealerDocumentType in motoxplus-web.
+export type DealerDocumentType = 'GST_CERTIFICATE' | 'PAN_CARD' | 'BUSINESS_REGISTRATION' | 'SHOP_IMAGE' | 'OTHER';
+
+export interface DealerDocument {
+  id: string;
+  documentType: DealerDocumentType;
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+}
+
+export interface DealerDocumentsResponse {
+  documents: DealerDocument[];
+}
+
+export interface SignedUrlResponse {
+  signedUrl: string;
+  expiresIn: number;
+}
+
+// --- Contact form ---
+export type ContactSubject = 'dealer' | 'product' | 'partnership' | 'other';
+
+export interface ContactPayload {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: ContactSubject;
+  message: string;
 }
 
 export type PaymentType = 'ADVANCE_20' | 'FULL_100' | 'COD';
@@ -249,6 +328,10 @@ export interface OrderItem {
   gstRate: number;
   gstAmount: number;
   total: number;
+  // GST Benefit free item: `total` is the full-rate value and
+  // `schemeDiscountAmount` is the 100% discount offsetting it.
+  isSchemeItem?: boolean;
+  schemeDiscountAmount?: number;
 }
 
 export interface Invoice {
@@ -259,6 +342,12 @@ export interface Invoice {
   subtotal: number;
   gstAmount: number;
   grandTotal: number;
+  issuedAt?: string;
+  // Tax-head breakup: intra-state invoices carry CGST+SGST, inter-state IGST.
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  placeOfSupply?: string | null;
 }
 
 export interface ShipmentEvent {
@@ -295,6 +384,8 @@ export interface Order {
   subtotal: number;
   gstAmount: number;
   shippingCost: number;
+  /** Rupee value of free GST Benefit items on this order (0 if none). */
+  schemeBenefitValue?: number;
   grandTotal: number;
   paymentType: PaymentType;
   amountDue: number;

@@ -25,6 +25,15 @@ export const env = {
   razorpayKeyId: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? '',
 } as const;
 
+// Seller details printed on the in-app tax invoice (the web app reads the same
+// values from NEXT_PUBLIC_COMPANY_*). All optional: an unset value just leaves
+// that line off the invoice.
+export const company = {
+  address: process.env.EXPO_PUBLIC_COMPANY_ADDRESS ?? '',
+  gst: process.env.EXPO_PUBLIC_COMPANY_GST ?? '',
+  phone: process.env.EXPO_PUBLIC_COMPANY_PHONE ?? '',
+} as const;
+
 // The Next.js web app's origin, for deep-linking to pages that only exist
 // there (contact, privacy, terms) — derived from apiUrl since there's no
 // separate EXPO_PUBLIC_WEB_URL.

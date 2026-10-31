@@ -14,8 +14,21 @@ export interface CartTotals {
   grandTotal: number;
 }
 
+/**
+ * Splits a cart into the lines the dealer pays for and the free GST Benefit
+ * scheme lines. Scheme items are priced and taxed separately server-side
+ * (they cost the dealer nothing), so they must never reach the totals below.
+ */
+export function splitCartItems(items: CartItem[]): { regularItems: CartItem[]; schemeItems: CartItem[] } {
+  return {
+    regularItems: items.filter((item) => !item.isSchemeItem),
+    schemeItems: items.filter((item) => item.isSchemeItem),
+  };
+}
+
 /** Same subtotal/GST/shipping math the cart and checkout screens both need. */
-export function calculateCartTotals(items: CartItem[]): CartTotals {
+export function calculateCartTotals(allItems: CartItem[]): CartTotals {
+  const { regularItems: items } = splitCartItems(allItems);
   let subtotal = 0;
   let gstAmount = 0;
   for (const item of items) {

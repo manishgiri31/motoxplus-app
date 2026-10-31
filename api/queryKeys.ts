@@ -21,6 +21,10 @@ export const queryKeys = {
   },
   dealer: {
     account: () => ['dealer', 'account'] as const,
+    documents: () => ['dealer', 'documents'] as const,
+  },
+  schemes: {
+    eligible: (orderValue: number) => ['schemes', 'eligible', orderValue] as const,
   },
   shipping: {
     serviceability: (pincode: string) => ['shipping', 'serviceability', pincode] as const,

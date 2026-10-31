@@ -1,6 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { memo, useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, type BaseAnimationBuilder, type EntryExitAnimationFunction } from 'react-native-reanimated';
@@ -11,7 +10,6 @@ import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useProducts } from '@/api/hooks/useProducts';
 import type { Category, Product } from '@/api/types';
 import { BannerCarousel, type BannerSlide } from '@/components/BannerCarousel';
-import { webOrigin } from '@/config/env';
 import { dealerStatusVariant } from '@/constants/dealerStatus';
 import { orderStatusVariant } from '@/constants/orderStatus';
 import { useAuth } from '@/auth/useAuth';
@@ -243,7 +241,7 @@ export default function HomeScreen() {
     { icon: 'search', label: 'Search Parts', onPress: () => router.push('/search') },
     { icon: 'truck', label: 'Track Shipment', onPress: trackShipment },
     { icon: 'file-text', label: 'Invoices', onPress: () => router.push('/invoices') },
-    { icon: 'headphones', label: 'Support', onPress: () => WebBrowser.openBrowserAsync(`${webOrigin}/contact`) },
+    { icon: 'headphones', label: 'Support', onPress: () => router.push('/contact') },
   ];
 
   const displayName = user?.name ?? dealer?.ownerName ?? 'Dealer';
@@ -431,12 +429,12 @@ export default function HomeScreen() {
                   onPress={() => router.push(`/product/${product.id}`)}
                   style={styles.lowStockRow}
                   accessibilityRole="button"
-                  accessibilityLabel={`${product.name}, only ${product.stock} left`}
+                  accessibilityLabel={`${product.name}, few left`}
                 >
                   <Text style={styles.lowStockName} numberOfLines={1}>
                     {product.name}
                   </Text>
-                  <Text style={styles.lowStockCount}>Only {product.stock} left</Text>
+                  <Text style={styles.lowStockCount}>Few left</Text>
                 </Pressable>
               ))}
             </View>

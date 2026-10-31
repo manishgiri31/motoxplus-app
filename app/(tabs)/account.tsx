@@ -97,6 +97,8 @@ export default function AccountScreen() {
         </Card>
 
         <Reveal style={styles.menuGroup}>
+          <MenuRow icon="user" label="Profile" onPress={() => router.push('/profile')} />
+          <MenuRow icon="folder" label="Documents" onPress={() => router.push('/documents')} />
           <MenuRow icon="heart" label="Wishlist" onPress={() => router.push('/wishlist')} />
           <MenuRow icon="bell" label="Notifications" onPress={() => router.push('/notifications')} />
           <MenuRow icon="mail" label="Change email" onPress={() => router.push('/change-email')} />
@@ -105,7 +107,7 @@ export default function AccountScreen() {
         </Reveal>
 
         <Reveal style={styles.menuGroup} delay={80}>
-          <MenuRow icon="mail" label="Contact support" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)} />
+          <MenuRow icon="mail" label="Contact support" onPress={() => router.push('/contact')} />
           <MenuRow icon="shield" label="Privacy policy" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/privacy`)} />
           <MenuRow icon="file-text" label="Terms of service" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/terms`)} />
         </Reveal>

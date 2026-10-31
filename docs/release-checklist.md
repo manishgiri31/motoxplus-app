@@ -65,10 +65,35 @@ actually exists in this repo right now.
 
 - [ ] **Crash reporting (Sentry/Bugsnag/etc.)** — not installed. `utils/logger.ts` is already the
       single place to wire a real SDK's `captureException` into once you pick one and have a DSN.
-- [ ] **Push notifications** — not installed. Two blockers, not just "not done yet": (1) no
-      `/api/*/push-token` endpoint exists on the backend to store device tokens, (2) needs an EAS
-      project (for push credentials) which needs your Expo account. Notifications screen currently
-      shows an honest empty state instead of fake data.
+- [ ] **Push notifications (Android, FCM via Expo Push)** — app side is wired; end-to-end test on a
+      real build is still pending.
+  - **Done in the app:** `expo-notifications` plugin in `app.json` (channel `orders`),
+    `google-services.json` committed (no secret in it) and set as `android.googleServicesFile`,
+    `extra.eas.projectId` set. `hooks/use-push-notifications.ts` asks permission, gets the Expo
+    push token and calls `POST /mobile/push-token`; `auth/AuthProvider.tsx` registers on login and
+    unregisters on logout; `app/_layout.tsx` sets the foreground handler + `orders` channel and
+    routes notification taps to the deep link. Notifications are delivered live only (the
+    Notifications screen shows an empty state, no history).
+  - **Done outside the repo (reported by the user, not verifiable from here):** FCM V1 service
+    account key uploaded to EAS (`eas credentials` → Android → Google Service Account → FCM V1).
+    The key file is never committed; `.gitignore` blocks `*firebase-adminsdk*.json`,
+    `*service-account*.json`, `*serviceAccountKey*.json`.
+  - **Unverified — backend (`motoxplus-web`):** that `POST /api/mobile/push-token` stores the
+    token, and that `src/lib/push/send.ts` (`notifyOrderEvent`) posts to
+    `https://exp.host/--/api/v2/push/send` with `to: "ExponentPushToken[...]"` and
+    `channelId: "orders"`. Check these in the web repo before relying on real order pushes.
+  - **Remaining:**
+    1. Build: `eas build --profile preview --platform android` (native config changed, so OTA
+       won't do; Expo Go can't receive pushes). Install the APK on a real device.
+    2. Log in on the device, allow the notification permission, and confirm an
+       `ExponentPushToken[...]` row appears in the backend DB for that dealer.
+    3. Paste that token into https://expo.dev/notifications and send a test push (use channel
+       `orders`); check it shows in foreground and background, and that tapping opens the right screen.
+    4. Trigger a real order event from the backend (e.g. change an order's status) and confirm the
+       push arrives.
+    5. Log out and confirm the token is removed (`DELETE /mobile/push-token`).
+  - **iOS — deferred:** needs an APNs key and `GoogleService-Info.plist` (git-ignored) plus an
+    Apple Developer account. Not set up; revisit after the Android release.
 - [ ] **OTA updates (`expo-updates`)** — needs an EAS project ID in `app.json`
       (`extra.eas.projectId`), which is created via `eas init` under your account.
 - [ ] **Actual EAS builds (Android/iOS)** — `eas build --profile preview` needs `eas login`. iOS

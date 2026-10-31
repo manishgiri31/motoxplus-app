@@ -19,6 +19,7 @@ import { useVehicleStore } from '@/stores/vehicleStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
 import { PRODUCT_SORT_OPTIONS, sortProducts } from '@/utils/sortProducts';
+import { isOutOfStock } from '@/utils/stock';
 
 // No "popular searches" analytics endpoint on the backend — this is a
 // static, curated list of common catalog terms for a motorcycle-parts
@@ -89,7 +90,7 @@ export default function SearchScreen() {
       list = list.filter((p) => p.category.slug === filters.categorySlug);
     }
     if (filters.inStockOnly) {
-      list = list.filter((p) => p.stock > 0);
+      list = list.filter((p) => !isOutOfStock(p));
     }
     return sortProducts(list, filters.sort);
   }, [fetchedResults, filters]);

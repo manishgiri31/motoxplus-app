@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { LOW_STOCK_THRESHOLD } from '@/constants/stock';
+import { isFewLeft } from '@/utils/stock';
 
 import type { Order, Product } from '../types';
 import { useAllOrders } from './useAllOrders';
@@ -46,7 +46,7 @@ export function useDealerSummary() {
     ).slice(0, 10);
 
     const lowStockProducts = recentlyOrderedProducts
-      .filter((p) => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD)
+      .filter(isFewLeft)
       .slice(0, 6);
 
     const invoiceCount = orders.filter((o) => o.invoice).length;

@@ -31,17 +31,22 @@ export function getErrorMessage(error: unknown, fallback = FALLBACK_MESSAGE): st
   return fallback;
 }
 
-// Exact copy of ACCOUNT_NOT_VERIFIED_MESSAGE in motoxplus-web's
+// Copy of ACCOUNT_NOT_VERIFIED_MESSAGE in motoxplus-web's
 // lib/auth/verified-account.ts — matched by content (not endpoint) so a 403
 // from /cart, /orders, /payments/create-order, or /payments/verify is
-// recognized the same way no matter which one failed.
+// recognized the same way no matter which one failed. Compared by prefix: the
+// backend has reworded the tail of this message before, and an exact match
+// silently stopped recognizing it.
 export const ACCOUNT_NOT_VERIFIED_MESSAGE =
-  'Your account is not verified or approved yet. Please complete verification and wait for admin approval before continuing.';
+  'Your account is not verified or is not active. Please complete email and mobile verification, or contact support if your account has been suspended.';
+
+const ACCOUNT_NOT_VERIFIED_PREFIX = 'Your account is not verified';
 
 export function isAccountNotVerifiedError(error: unknown): boolean {
   return (
     isAxiosError<ApiErrorBody>(error) &&
     error.response?.status === 403 &&
-    error.response.data?.error === ACCOUNT_NOT_VERIFIED_MESSAGE
+    typeof error.response.data?.error === 'string' &&
+    error.response.data.error.startsWith(ACCOUNT_NOT_VERIFIED_PREFIX)
   );
 }

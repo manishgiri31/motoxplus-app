@@ -15,6 +15,7 @@ import { Button, ErrorState, SkeletonProductCard } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { sortProducts } from '@/utils/sortProducts';
+import { isOutOfStock } from '@/utils/stock';
 
 // Results screen for the home-screen vehicle picker (VehiclePickerCard).
 // `vehicle`/`variant` are the model/variant slugs from GET /api/vehicles,
@@ -49,7 +50,7 @@ export default function VehiclePartsScreen() {
       list = list.filter((p) => p.category.slug === filters.categorySlug);
     }
     if (filters.inStockOnly) {
-      list = list.filter((p) => p.stock > 0);
+      list = list.filter((p) => !isOutOfStock(p));
     }
     return sortProducts(list, filters.sort);
   }, [fetchedProducts, search, filters]);

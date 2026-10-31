@@ -1,14 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { ActivityIndicator, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useOrder } from '@/api/hooks/useOrders';
 import type { CancelOrderResponse, OrderStatus } from '@/api/types';
 import { Badge as LegacyBadge } from '@/components/ui';
-import { webOrigin } from '@/config/env';
 import { orderStatusVariant } from '@/constants/orderStatus';
 import { CancellationSheet } from '@/src/components/cancellation/CancellationSheet';
 import { Badge, Button, Card, ErrorState, MonoLabel, Toast } from '@/src/components/ui';
@@ -145,7 +143,14 @@ export default function OrderDetailScreen() {
                   {item.quantity} × {formatCurrency(item.unitPrice)}
                 </Text>
               </View>
-              <Text style={styles.itemTotal}>{formatCurrency(item.total)}</Text>
+              {item.isSchemeItem ? (
+                <View style={styles.freeCol}>
+                  <Text style={styles.freeStruck}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.freeLabel}>FREE</Text>
+                </View>
+              ) : (
+                <Text style={styles.itemTotal}>{formatCurrency(item.total)}</Text>
+              )}
             </View>
           ))}
         </Card>
@@ -154,6 +159,9 @@ export default function OrderDetailScreen() {
           <Text style={styles.sectionTitle}>Payment summary</Text>
           <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal)} />
           <SummaryRow label="GST" value={formatCurrency(order.gstAmount)} />
+          {!!order.schemeBenefitValue && order.schemeBenefitValue > 0 && (
+            <SummaryRow label="GST Benefit (free items)" value={`-${formatCurrency(order.schemeBenefitValue)}`} />
+          )}
           <SummaryRow label="Shipping" value={order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)} />
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
@@ -166,18 +174,8 @@ export default function OrderDetailScreen() {
         {order.invoice && (
           <Card style={styles.invoiceCard}>
             <Text style={styles.sectionTitle}>{`Invoice #${order.invoice.invoiceNumber}`}</Text>
-            <Text style={styles.invoiceNote}>
-              A downloadable PDF isn&apos;t available in the app yet — you can share these details for now.
-            </Text>
-            <Button
-              label="Share invoice details"
-              variant="ghost"
-              onPress={() =>
-                Share.share({
-                  message: `Invoice ${order.invoice!.invoiceNumber} for order #${order.orderNumber}\nTotal: ${formatCurrency(order.invoice!.grandTotal)}`,
-                })
-              }
-            />
+            <Text style={styles.invoiceNote}>GST tax invoice for this order, with the full item and tax breakup.</Text>
+            <Button label="View invoice" variant="ghost" onPress={() => router.push(`/invoice/${order.id}`)} />
           </Card>
         )}
 
@@ -205,7 +203,7 @@ export default function OrderDetailScreen() {
             <Button
               label="Contact support"
               variant="ghost"
-              onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)}
+              onPress={() => router.push('/contact')}
             />
           </View>
         )}
@@ -270,6 +268,9 @@ const styles = StyleSheet.create({
   refundCard: { gap: 8 },
   refundTrackerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   invoiceCard: { gap: 8 },
+  freeCol: { alignItems: 'flex-end' },
+  freeStruck: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.subtle, textDecorationLine: 'line-through' },
+  freeLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.success },
   invoiceNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   address: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
   shippedNotice: { gap: 8, alignItems: 'flex-start' },

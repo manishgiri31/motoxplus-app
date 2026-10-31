@@ -23,7 +23,7 @@ const InvoiceRow = memo(function InvoiceRow({ order }: { order: Order }) {
   const status = paymentStatusVariant[order.paymentStatus];
 
   return (
-    <Card onPress={() => router.push(`/order/${order.id}`)} accessibilityLabel={`Invoice ${invoice.invoiceNumber}`} style={styles.card}>
+    <Card onPress={() => router.push(`/invoice/${order.id}`)} accessibilityLabel={`Invoice ${invoice.invoiceNumber}`} style={styles.card}>
       <View style={styles.row}>
         <View style={styles.left}>
           <MonoLabel color="ink" style={styles.invoiceNumber}>{`#${invoice.invoiceNumber}`}</MonoLabel>

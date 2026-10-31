@@ -16,6 +16,7 @@ import { colors, fonts, radii } from '@/src/theme';
 import { useWishlistHasHydrated, useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
+import { isOutOfStock } from '@/utils/stock';
 
 const WishlistRow = memo(function WishlistRow({
   item,
@@ -68,7 +69,7 @@ const WishlistRow = memo(function WishlistRow({
         <Button
           label="Add"
           variant="ghost"
-          disabled={!productQuery.data || productQuery.data.stock <= 0}
+          disabled={!productQuery.data || isOutOfStock(productQuery.data)}
           loading={addToCart.isPending}
           style={styles.addButton}
           onPress={() => {

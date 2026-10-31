@@ -77,8 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = user;
   }, [user]);
 
+  // Several requests can hit the same 403 at once (cart badge, cart screen,
+  // retries) — show the prompt once, then stay quiet for a while.
+  const verifyPromptShownAt = useRef(0);
   useEffect(() => {
     onVerificationRequired(() => {
+      const now = Date.now();
+      if (now - verifyPromptShownAt.current < 60_000) return;
+      verifyPromptShownAt.current = now;
       const current = userRef.current;
       const target = current && !current.emailVerified ? '/verify-email' : '/verify-mobile';
       Alert.alert(

@@ -17,6 +17,7 @@ import { colors, fonts } from '@/src/theme';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
+import { isFewLeft, isOutOfStock, stockLabel } from '@/utils/stock';
 
 function SpecChip({ label, value }: { label: string; value: string }) {
   return (
@@ -78,7 +79,7 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const outOfStock = product.stock <= 0;
+  const outOfStock = isOutOfStock(product);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
   const visibleVehicles = vehiclesExpanded ? product.compatibility : product.compatibility.slice(0, 4);
 
@@ -156,7 +157,7 @@ export default function ProductDetailScreen() {
           )}
 
           <View style={styles.badgeRow}>
-            <Badge label={outOfStock ? 'Out of stock' : `${product.stock} in stock`} tone={outOfStock ? 'danger' : 'success'} />
+            <Badge label={stockLabel(product)} tone={outOfStock ? 'danger' : isFewLeft(product) ? 'warning' : 'success'} />
             {product.warranty && product.warranty !== 'No Warranty' && <Badge label={product.warranty} tone="neutral" />}
           </View>
 
@@ -218,7 +219,7 @@ export default function ProductDetailScreen() {
         <View style={styles.bottomPrice}>
           <BlurredPrice price={product.price} isDealerApproved={isDealerApproved} />
         </View>
-        <Stepper value={quantity} moq={product.moq} max={product.stock > 0 ? product.stock : undefined} onChange={setQuantity} disabled={outOfStock} />
+        <Stepper value={quantity} moq={product.moq} onChange={setQuantity} disabled={outOfStock} />
         <Button
           label={outOfStock ? 'Out of stock' : 'Add to cart'}
           variant="brand"

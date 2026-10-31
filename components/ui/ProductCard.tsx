@@ -9,6 +9,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
+import { isOutOfStock } from '@/utils/stock';
 import { Badge } from './Badge';
 import { Image } from './Image';
 import { PriceTag } from './PriceTag';
@@ -32,7 +33,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const colors = useThemeColors();
 
-  const outOfStock = product.stock <= 0;
+  const outOfStock = isOutOfStock(product);
   const handlePress = useCallback(() => onPress(product), [onPress, product]);
   const heartPulse = usePulseAnimation();
 

@@ -122,6 +122,10 @@ function RootNavigator() {
           <Stack.Screen name="invoices" options={{ title: 'Invoices' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+          <Stack.Screen name="documents" options={{ title: 'Documents' }} />
+          <Stack.Screen name="contact" options={{ title: 'Contact support' }} />
+          <Stack.Screen name="invoice/[id]" options={{ title: 'Invoice' }} />
           <Stack.Screen name="verify-email" options={{ title: 'Verify email', presentation: 'modal' }} />
           <Stack.Screen name="verify-mobile" options={{ title: 'Verify mobile', presentation: 'modal' }} />
           <Stack.Screen name="change-email" options={{ title: 'Change email', presentation: 'modal' }} />

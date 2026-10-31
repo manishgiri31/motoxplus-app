@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
 import type { Product } from '@/api/types';
 import { Image } from '@/components/ui';
-import { LOW_STOCK_THRESHOLD } from '@/constants/stock';
+import { isFewLeft, isOutOfStock } from '@/utils/stock';
 import type { SelectedVehicle } from '@/stores/vehicleStore';
 import { getImageSource } from '@/utils/image';
 import { isCompatibleWithVehicle } from '@/utils/vehicleCompatibility';
@@ -41,8 +41,8 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
   const isDealerApproved = canAccessDealerApp(user, dealer);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
   const fits = guaranteedFit || isCompatibleWithVehicle(product, vehicle);
-  const outOfStock = product.stock <= 0;
-  const lowStock = !outOfStock && product.stock <= LOW_STOCK_THRESHOLD;
+  const outOfStock = isOutOfStock(product);
+  const lowStock = !outOfStock && isFewLeft(product);
 
   return (
     <Card onPress={() => router.push(`/product/${product.id}`)} accessibilityLabel={product.name} style={styles.card}>
@@ -60,7 +60,7 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
         )}
         {(outOfStock || lowStock) && (
           <View style={styles.stockBadge}>
-            <Badge label={outOfStock ? 'Out of stock' : `Only ${product.stock} left`} variant="brand" />
+            <Badge label={outOfStock ? 'Out of stock' : 'Few left'} variant="brand" />
           </View>
         )}
       </View>

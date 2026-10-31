@@ -15,6 +15,7 @@ import { Button, ErrorState, SkeletonProductCard } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { sortProducts } from '@/utils/sortProducts';
+import { isOutOfStock } from '@/utils/stock';
 
 export default function CategoryProductsScreen() {
   const columns = useGridColumns();
@@ -43,7 +44,7 @@ export default function CategoryProductsScreen() {
       list = list.filter((p) => p.partNumber.toUpperCase().includes(q) || p.name.toUpperCase().includes(q));
     }
     if (filters.inStockOnly) {
-      list = list.filter((p) => p.stock > 0);
+      list = list.filter((p) => !isOutOfStock(p));
     }
     return sortProducts(list, filters.sort);
   }, [fetchedProducts, search, filters]);

@@ -61,6 +61,22 @@ function isLoginRequest(config: RetryableConfig): boolean {
 
 let refreshPromise: Promise<string | null> | null = null;
 
+// A 401 that survives a successful token refresh is not proof the session is
+// dead: some routes answer 401 for per-route reasons (GET /cart does for a
+// dealer whose email or mobile isn't verified yet). Ask the server about the
+// session itself via /mobile/auth/me. Only an explicit 401 there means the
+// session is really gone; a network failure must not log anyone out.
+async function isSessionStillValid(): Promise<boolean> {
+  const tokens = await secureStorage.getTokens();
+  if (!tokens?.accessToken) return false;
+  try {
+    await refreshClient.get('/mobile/auth/me', { headers: { Authorization: `Bearer ${tokens.accessToken}` } });
+    return true;
+  } catch (err) {
+    return !(axios.isAxiosError(err) && err.response?.status === 401);
+  }
+}
+
 // POST /mobile/auth/refresh returns only a token pair, not (user, dealer) —
 // there's nothing here for auth/access.ts#canAccessDealerApp to check. That's
 // fine: role/status are re-verified the next time this token is used to hit
@@ -115,10 +131,16 @@ apiClient.interceptors.response.use(
       }
 
       // Already replayed once with a freshly refreshed token and still got a
-      // 401 (e.g. the account was disabled/suspended server-side mid-session,
-      // or the session was revoked from another device) — without this, the
-      // client stayed "logged in" forever with tokens the server will never
-      // accept again, silently 401ing on every subsequent request.
+      // 401. If the session itself is still valid this is just that route
+      // refusing the request (see isSessionStillValid) — surface the error to
+      // the screen and stay signed in. Otherwise (account disabled/suspended
+      // server-side, session revoked from another device) the tokens will
+      // never be accepted again, so sign out instead of silently 401ing on
+      // every subsequent request.
+      if (await isSessionStillValid()) {
+        HapticService.error();
+        return Promise.reject(error);
+      }
       await secureStorage.clearTokens();
       emitAuthFailure();
       HapticService.error();

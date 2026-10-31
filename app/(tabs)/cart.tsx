@@ -12,14 +12,16 @@ import { useProduct } from '@/api/hooks/useProducts';
 import type { CartItem } from '@/api/types';
 import { useAuth } from '@/auth/useAuth';
 import { Image, Input } from '@/components/ui';
+import { SchemeBenefitCard } from '@/src/components/cart/SchemeBenefitCard';
 import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
 import { Button, Stepper, Toast } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useWishlistStore } from '@/stores/wishlistStore';
-import { calculateCartTotals, FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
+import { calculateCartTotals, FREE_DELIVERY_THRESHOLD, splitCartItems } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
+import { isOutOfStock } from '@/utils/stock';
 
 const CartRow = memo(function CartRow({ item, onRemove }: { item: CartItem; onRemove: (item: CartItem) => void }) {
   const addToCart = useAddToCart();
@@ -115,11 +117,13 @@ export default function CartScreen() {
   const { dealer } = useAuth();
   const { data: cart, isLoading, isError, error, refetch, isRefetching } = useCart();
   const { summary: dealerSummary } = useDealerSummary();
-  const items = cart?.items ?? [];
+  // GST Benefit free items are shown in their own card, never as payable rows.
+  const { regularItems: items, schemeItems } = splitCartItems(cart?.items ?? []);
   const addToCart = useAddToCart();
   const removeItem = useRemoveCartItem();
   const [lastRemoved, setLastRemoved] = useState<CartItem | null>(null);
   const [deliveryPincode, setDeliveryPincode] = useState('');
+  const [schemeMessage, setSchemeMessage] = useState<string | null>(null);
 
   const onRefresh = () => {
     HapticService.light();
@@ -194,6 +198,16 @@ export default function CartScreen() {
       />
 
       {items.length > 0 && (
+        <SchemeBenefitCard
+          regularSubtotal={totals.subtotal}
+          appliedSchemeId={cart?.schemeId}
+          schemeItems={schemeItems}
+          clearedReason={cart?.schemeCleared ? (cart.schemeClearedReason ?? 'Your GST Benefit selection was no longer valid and was removed.') : null}
+          onNotify={setSchemeMessage}
+        />
+      )}
+
+      {items.length > 0 && (
         <View style={styles.freeDeliveryCard}>
           {qualifiesForFreeDelivery ? (
             <View style={styles.freeDeliveryRow}>
@@ -247,7 +261,7 @@ export default function CartScreen() {
             variant="brand"
             fullWidth
             onPress={() => {
-              if (items.some((i) => i.product.stock <= 0)) {
+              if (items.some((i) => isOutOfStock(i.product))) {
                 HapticService.error();
                 Alert.alert('Some items are out of stock', 'Remove out-of-stock items before checking out.');
                 return;
@@ -257,6 +271,8 @@ export default function CartScreen() {
           />
         </View>
       )}
+
+      {schemeMessage && <Toast message={schemeMessage} onHide={() => setSchemeMessage(null)} />}
 
       {lastRemoved && (
         <Toast

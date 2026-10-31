@@ -45,6 +45,7 @@ export default function CheckoutScreen() {
   const [serviceability, setServiceability] = useState<ShippingServiceabilityResponse | null>(null);
 
   const items = cart?.items ?? [];
+  const freeItemCount = items.filter((i) => i.isSchemeItem).reduce((sum, i) => sum + i.quantity, 0);
 
   const totals = useMemo(() => {
     const base = calculateCartTotals(cart?.items ?? []);
@@ -251,6 +252,7 @@ export default function CheckoutScreen() {
           <View style={styles.summary}>
             <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
             <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
+            {freeItemCount > 0 && <SummaryRow label="GST Benefit" value={`${freeItemCount} free item${freeItemCount > 1 ? 's' : ''}`} />}
             <SummaryRow label="Delivery charges" value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)} />
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
