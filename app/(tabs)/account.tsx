@@ -9,7 +9,7 @@ import { useAuth } from '@/auth/useAuth';
 import { Avatar, Badge } from '@/components/ui';
 import { webOrigin } from '@/config/env';
 import { dealerStatusTone } from '@/constants/dealerStatus';
-import { Button, Card } from '@/src/components/ui';
+import { Button, Card, Footer, Reveal } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 
 interface MenuRowProps {
@@ -52,7 +52,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Account</Text>
+        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Account</Text>
 
         <Card style={styles.profileCard}>
           <View style={styles.profileRow}>
@@ -78,7 +78,7 @@ export default function AccountScreen() {
               <Text style={styles.nagText}>
                 Your email isn&apos;t verified — verify it now, ordering is blocked until you do.
               </Text>
-              <Feather name="chevron-right" size={16} color={colors.red} />
+              <Feather name="chevron-right" size={16} color={colors.link} />
             </Pressable>
           )}
           {user && !user.mobileVerified && (
@@ -91,30 +91,31 @@ export default function AccountScreen() {
               <Text style={styles.nagText}>
                 Your mobile number isn&apos;t verified — verify it now, ordering is blocked until you do.
               </Text>
-              <Feather name="chevron-right" size={16} color={colors.red} />
+              <Feather name="chevron-right" size={16} color={colors.link} />
             </Pressable>
           )}
         </Card>
 
-        <View style={styles.menuGroup}>
+        <Reveal style={styles.menuGroup}>
           <MenuRow icon="heart" label="Wishlist" onPress={() => router.push('/wishlist')} />
           <MenuRow icon="bell" label="Notifications" onPress={() => router.push('/notifications')} />
           <MenuRow icon="mail" label="Change email" onPress={() => router.push('/change-email')} />
           <MenuRow icon="monitor" label="Active sessions" onPress={() => router.push('/sessions')} />
           <MenuRow icon="settings" label="Settings" onPress={() => router.push('/settings')} />
-        </View>
+        </Reveal>
 
-        <View style={styles.menuGroup}>
+        <Reveal style={styles.menuGroup} delay={80}>
           <MenuRow icon="mail" label="Contact support" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)} />
           <MenuRow icon="shield" label="Privacy policy" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/privacy`)} />
           <MenuRow icon="file-text" label="Terms of service" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/terms`)} />
-        </View>
+        </Reveal>
 
         <View style={styles.signOutGroup}>
           <Button label="Sign out" variant="ghost" onPress={confirmLogout} style={styles.signOutButton} />
           <Button label="Sign out of all devices" variant="ghost" onPress={confirmLogoutAll} style={styles.signOutButton} />
         </View>
       </ScrollView>
+      <Footer />
     </SafeAreaView>
   );
 }
@@ -122,16 +123,16 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   content: { padding: 16, gap: 24, paddingBottom: 32 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
   profileCard: { gap: 12 },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   profileInfo: { flex: 1, gap: 2 },
-  profileName: { fontFamily: fonts.body.semiBold, fontSize: 16, color: colors.ink },
-  profileEmail: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
+  profileName: { fontFamily: fonts.body.semiBold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  profileEmail: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
   companyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  companyName: { fontFamily: fonts.body.medium, fontSize: 14, color: colors.ink },
+  companyName: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   nagRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  nagText: { flex: 1, fontFamily: fonts.body.regular, fontSize: 12, color: colors.red },
+  nagText: { flex: 1, fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.red },
   menuGroup: { borderTopWidth: 1, borderTopColor: colors.line },
   menuRow: {
     flexDirection: 'row',
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   menuRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuLabel: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.ink },
+  menuLabel: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   menuLabelDestructive: { color: colors.red },
   signOutGroup: { gap: 12 },
   signOutButton: { alignSelf: 'stretch' },

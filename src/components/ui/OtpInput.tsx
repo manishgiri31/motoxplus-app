@@ -59,9 +59,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
   },
-  boxActive: { borderColor: colors.red, borderWidth: 2 },
-  digit: { fontFamily: fonts.mono.medium, fontSize: 20, color: colors.ink },
+  boxActive: { borderColor: colors.accent, borderWidth: 2 },
+  digit: { fontFamily: fonts.mono.medium, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
   hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
 });

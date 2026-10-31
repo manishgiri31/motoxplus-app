@@ -22,7 +22,7 @@ export function Skeleton({ width = '100%', height = 16, radius = radii.sm, style
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
-  return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: colors.line }, animatedStyle, style]} />;
+  return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: colors.lineSoft }, animatedStyle, style]} />;
 }
 
 // Mirrors CatalogProductCard's metrics (12px padding, square image, 2-line
@@ -61,8 +61,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
     borderRadius: radii.md,
   },
   productCardImage: {

@@ -9,8 +9,7 @@ export interface SuccessToastProps {
   durationMs?: number;
 }
 
-// Mirrors Button's "destructive" variant styling (solid tone + white text) —
-// same pattern, success color instead of danger.
+// Ink pill with a success-green check, matching the Toast in src/components/ui.
 export function SuccessToast({ message, onHide, durationMs = 1800 }: SuccessToastProps) {
   useEffect(() => {
     const timer = setTimeout(onHide, durationMs);
@@ -19,11 +18,11 @@ export function SuccessToast({ message, onHide, durationMs = 1800 }: SuccessToas
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(200)}
-      exiting={FadeOutDown.duration(200)}
-      className="absolute bottom-lg left-lg right-lg flex-row items-center gap-sm bg-success rounded-md px-lg py-md"
+      entering={FadeInDown.duration(280)}
+      exiting={FadeOutDown.duration(240)}
+      className="absolute bottom-lg left-lg right-lg flex-row items-center gap-sm bg-secondary rounded-lg px-lg py-md min-h-[44px]"
     >
-      <Feather name="check-circle" size={18} color="white" />
+      <Feather name="check-circle" size={18} color="#30D158" />
       <Text className="flex-1 text-[14px] font-semibold text-white">{message}</Text>
     </Animated.View>
   );

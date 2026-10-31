@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   name: {
     fontFamily: fonts.body.semiBold,
-    fontSize: 14,
+    fontSize: 14, letterSpacing: -0.224,
     lineHeight: NAME_LINE_HEIGHT,
     color: colors.ink,
     height: NAME_LINES * NAME_LINE_HEIGHT,
@@ -115,6 +115,6 @@ const styles = StyleSheet.create({
   footer: { marginTop: 'auto', paddingTop: 6, gap: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 16 },
   metaPart: { flexShrink: 1 },
-  moq: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted, flexShrink: 0 },
+  moq: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, flexShrink: 0 },
   priceRow: { minHeight: 24, justifyContent: 'center' },
 });

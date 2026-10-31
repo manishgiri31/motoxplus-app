@@ -55,8 +55,16 @@ module.exports = {
         muted: 'rgb(var(--muted) / <alpha-value>)',
         primary: {
           DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+          hover: 'rgb(var(--primary-hover) / <alpha-value>)',
+          active: 'rgb(var(--primary-active) / <alpha-value>)',
           foreground: 'rgb(var(--primary-foreground) / <alpha-value>)',
         },
+        link: {
+          DEFAULT: 'rgb(var(--link) / <alpha-value>)',
+          'on-dark': 'rgb(var(--link-on-dark) / <alpha-value>)',
+        },
+        'border-soft': 'rgb(var(--border-soft) / <alpha-value>)',
+        subtle: 'rgb(var(--subtle) / <alpha-value>)',
         secondary: {
           DEFAULT: 'rgb(var(--secondary) / <alpha-value>)',
           foreground: 'rgb(var(--secondary-foreground) / <alpha-value>)',
@@ -66,21 +74,26 @@ module.exports = {
         danger: 'rgb(var(--danger) / <alpha-value>)',
 
         // --- Redesign tokens (src/theme), prefixed `theme-*` so they sit
-        // alongside the semantic tokens above without colliding with them
-        // (e.g. `muted` and `card` already exist above with different,
-        // dark-mode-aware values). Keep these in sync with src/theme by hand
-        // — the redesign is light-only, so unlike the tokens above these do
-        // NOT change under `.dark:root`.
-        'theme-paper': '#FBFAF8',
-        'theme-card': '#FFFFFF',
-        'theme-ink': '#17181A',
-        'theme-muted': '#6B6E73',
-        'theme-line': '#E7E5E1',
-        'theme-red': '#D01F25',
-        'theme-red-pressed': '#B5181E',
-        'theme-red-soft': '#FCEFEF',
-        'theme-dark': '#212226',
-        'theme-dark-border': '#33353A',
+        // alongside the semantic tokens above without colliding with them.
+        // Keep these in sync with src/theme by hand. The app is light-only.
+        'theme-paper': '#FFFFFF',
+        'theme-card': '#F5F5F7',
+        'theme-ink': '#1D1D1F',
+        'theme-muted': '#6E6E73',
+        'theme-subtle': '#86868B',
+        'theme-line': '#D2D2D7',
+        'theme-line-soft': '#E8E8ED',
+        'theme-accent': '#0071E3',
+        'theme-accent-hover': '#0077ED',
+        'theme-accent-active': '#006EDB',
+        'theme-link': '#0066CC',
+        'theme-link-on-dark': '#2997FF',
+        'theme-red': '#D70015',
+        'theme-red-pressed': '#B8000F',
+        'theme-red-soft': '#FFF0F1',
+        'theme-black': '#000000',
+        'theme-dark': '#161617',
+        'theme-dark-border': '#333336',
       },
       spacing: {
         xxs: '2px',
@@ -105,16 +118,18 @@ module.exports = {
         'theme-4xl': '64px',
       },
       borderRadius: {
-        sm: '6px',
-        md: '10px',
-        lg: '14px',
+        sm: '8px',
+        md: '12px', // inputs, buttons (legacy components/ui)
+        lg: '18px', // cards
         xl: '20px',
 
         // src/theme's radii — deliberately different numbers from the sm/md/lg
         // above, hence the separate `theme-*` names rather than overriding them.
-        'theme-sm': '10px',
-        'theme-md': '14px',
+        'theme-sm': '12px',
+        'theme-md': '18px',
         'theme-lg': '20px',
+        'theme-input': '12px',
+        'theme-card': '18px',
         'theme-pill': '999px',
       },
       fontSize: {
@@ -130,28 +145,27 @@ module.exports = {
         caption: ['11px', { lineHeight: '14px' }],
         price: ['20px', { lineHeight: '24px' }],
 
-        // Matches src/theme's typography scale.
-        'theme-h1': ['32px', { lineHeight: '38px' }],
-        'theme-h2': ['24px', { lineHeight: '30px' }],
-        'theme-h3': ['18px', { lineHeight: '24px' }],
-        'theme-body': ['15.5px', { lineHeight: '22px' }],
-        'theme-body-semibold': ['15.5px', { lineHeight: '22px' }],
-        'theme-caption': ['13.5px', { lineHeight: '18px' }],
-        'theme-mono': ['12px', { lineHeight: '16px' }],
-        'theme-eyebrow': ['11px', { lineHeight: '14px' }],
+        // Matches src/theme's type scale: 12, 14, 17, 21, 28, 40, 56, 80.
+        'theme-caption': ['12px', { lineHeight: '16px', letterSpacing: '-0.12px' }],
+        'theme-small': ['14px', { lineHeight: '20px', letterSpacing: '-0.224px' }],
+        'theme-body': ['17px', { lineHeight: '25px', letterSpacing: '-0.374px' }],
+        'theme-h3': ['21px', { lineHeight: '23px', letterSpacing: '-0.315px' }],
+        'theme-h2': ['28px', { lineHeight: '30px', letterSpacing: '-0.42px' }],
+        'theme-h1': ['40px', { lineHeight: '42px', letterSpacing: '-0.6px' }],
+        'theme-display': ['56px', { lineHeight: '59px', letterSpacing: '-0.84px' }],
+        'theme-jumbo': ['80px', { lineHeight: '84px', letterSpacing: '-1.2px' }],
       },
       fontFamily: {
-        // Prefixed like the other theme-* tokens so nothing outside the
-        // redesign can accidentally pick these up via generic `font-sans`.
-        'theme-display': ['SchibstedGrotesk_700Bold'],
-        'theme-display-medium': ['SchibstedGrotesk_500Medium'],
-        'theme-display-bold': ['SchibstedGrotesk_700Bold'],
-        'theme-display-extrabold': ['SchibstedGrotesk_800ExtraBold'],
+        // Inter everywhere; display/mono keys kept as aliases for older classNames.
+        'theme-display': ['Inter_600SemiBold'],
+        'theme-display-medium': ['Inter_500Medium'],
+        'theme-display-bold': ['Inter_600SemiBold'],
+        'theme-display-extrabold': ['Inter_700Bold'],
         'theme-sans': ['Inter_400Regular'],
         'theme-sans-medium': ['Inter_500Medium'],
         'theme-sans-semibold': ['Inter_600SemiBold'],
-        'theme-mono': ['IBMPlexMono_400Regular'],
-        'theme-mono-medium': ['IBMPlexMono_500Medium'],
+        'theme-mono': ['Inter_400Regular'],
+        'theme-mono-medium': ['Inter_500Medium'],
       },
     },
   },

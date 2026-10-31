@@ -9,6 +9,7 @@ import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Category, Product, ProductSuggestion } from '@/api/types';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
 import { Image } from '@/components/ui';
+import { useGridColumns } from '@/hooks/use-grid-columns';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
 import { EmptyState, SkeletonProductCard } from '@/src/components/ui';
@@ -62,6 +63,7 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
 });
 
 export default function SearchScreen() {
+  const columns = useGridColumns();
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
   const selectedVehicle = useVehicleStore((s) => s.selectedVehicle);
@@ -154,8 +156,8 @@ export default function SearchScreen() {
                 HapticService.light();
                 suggestionsQuery.refetch();
               }}
-              tintColor={colors.red}
-              colors={[colors.red]}
+              tintColor={colors.link}
+              colors={[colors.link]}
             />
           }
           ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing found for "${query}"`} />}
@@ -183,9 +185,10 @@ export default function SearchScreen() {
             </View>
           )}
           <FlatList
+            key={`grid-${columns}`}
             data={results}
             keyExtractor={(item) => item.id}
-            numColumns={2}
+            numColumns={columns}
             columnWrapperStyle={styles.resultsRow}
             contentContainerStyle={[styles.resultsContent, results.length === 0 && styles.emptyContent]}
             renderItem={({ item }: { item: Product }) => (
@@ -208,11 +211,11 @@ export default function SearchScreen() {
                   HapticService.light();
                   resultsQuery.refetch();
                 }}
-                tintColor={colors.red}
-                colors={[colors.red]}
+                tintColor={colors.link}
+                colors={[colors.link]}
               />
             }
-            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.red} /> : null}
+            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.link} /> : null}
             ListEmptyComponent={
               resultsQuery.isLoading ? (
                 <View style={styles.loadingGrid}>
@@ -271,22 +274,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     height: 44,
-    borderWidth: 1,
-    borderColor: colors.line,
     borderRadius: radii.md,
     paddingHorizontal: 12,
     backgroundColor: colors.card,
   },
-  searchInput: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 13, color: colors.ink },
-  cancelLabel: { fontFamily: fonts.body.semiBold, fontSize: 15, color: colors.ink },
+  searchInput: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  cancelLabel: { fontFamily: fonts.body.semiBold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   suggestionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
   suggestionImage: { width: 40, height: 40, borderRadius: radii.sm, backgroundColor: colors.card },
   suggestionText: { flex: 1 },
-  suggestionName: { fontFamily: fonts.body.medium, fontSize: 14, color: colors.ink },
-  suggestionMeta: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  suggestionName: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  suggestionMeta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   sortRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
   sortButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sortLabel: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.ink },
+  sortLabel: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   resultsRow: { paddingHorizontal: 8, gap: 0 },
   resultsContent: { paddingHorizontal: 8, paddingVertical: 16 },
   resultCell: { flex: 1, paddingHorizontal: 8, paddingBottom: 16 },

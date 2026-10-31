@@ -1,9 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
 import { CartTabIcon } from '@/components/CartTabIcon';
 import { HapticTab } from '@/components/haptic-tab';
-import { colors } from '@/src/theme';
+import { NavBarBackground } from '@/src/components/ui/NavBarBackground';
+import { colors, fonts } from '@/src/theme';
 
 export default function TabLayout() {
   return (
@@ -11,9 +13,17 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: colors.red,
+        // Nav links are 12px; active goes to pure black, inactive stays secondary grey.
+        tabBarActiveTintColor: colors.black,
         tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line },
+        tabBarLabelStyle: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12 },
+        tabBarBackground: () => <NavBarBackground />,
+        tabBarStyle: {
+          backgroundColor: 'transparent',
+          borderTopColor: colors.lineSoft,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          elevation: 0,
+        },
         // Each tab mounts only on first visit, and its screen tree is frozen
         // (no re-renders, paused effects) while another tab is focused —
         // avoids five tabs' worth of queries/state updates running at once.

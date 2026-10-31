@@ -43,7 +43,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
     // navigation if it were nested inside an accessible outer Pressable.
     // "relative" lives here instead of on the image wrapper so the heart's
     // absolute position is unchanged (zero padding above it either way).
-    <View className="relative w-full bg-card rounded-lg border border-border overflow-hidden">
+    <View className="relative w-full bg-card rounded-lg overflow-hidden">
       <Pressable
         onPress={handlePress}
         className="active:opacity-80"
@@ -55,7 +55,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
               vary wildly in dimensions and cover crops/stretches them. */}
           <Image
             source={getImageSource(primaryImage?.imageUrl)}
-            className="w-full aspect-square bg-surface"
+            className="w-full aspect-square bg-background"
             contentFit="contain"
             transition={150}
             cachePolicy="memory-disk"
@@ -69,7 +69,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
         </View>
 
         <View className="p-md gap-xs">
-          <Text className="text-[11px] font-medium text-muted uppercase" numberOfLines={1}>
+          <Text className="text-[12px] font-medium text-muted uppercase" numberOfLines={1}>
             {product.brand}
           </Text>
           {/* Pinned to two lines' height so a 1-line name doesn't shorten the
@@ -99,10 +99,10 @@ export const ProductCard = memo(function ProductCard({ product, onPress }: Produ
         accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         // Visual chip stays 32x32 (unchanged design) — hitSlop brings the
         // effective touch target up to the 44x44 accessibility minimum.
-        className="absolute top-sm right-sm w-8 h-8 rounded-full bg-card/90 items-center justify-center"
+        className="absolute top-sm right-sm w-8 h-8 rounded-full bg-background/90 items-center justify-center"
       >
         <Animated.View style={heartPulse.style}>
-          <Feather name="heart" size={16} color={wishlisted ? colors.primary : colors.muted} />
+          <Feather name="heart" size={16} color={wishlisted ? colors.danger : colors.muted} />
         </Animated.View>
       </Pressable>
     </View>

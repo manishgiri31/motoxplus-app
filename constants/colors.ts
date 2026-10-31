@@ -1,9 +1,9 @@
 /**
- * Brand palette — premium automotive: black / white / red, minimal & industrial.
+ * Palette — clean product-store look: white / light grey / near-black, with a
+ * single blue accent for primary buttons.
  *
- * `palette` holds raw, mode-independent brand colors (the red ramp, gray
- * ramp). `semanticColors` mirrors the CSS custom properties defined in
- * global.css (:root / .dark:root) exactly — keep these two in sync by hand.
+ * `palette` holds raw colors (gray ramp, accent blues). `semanticColors`
+ * mirrors the CSS custom properties defined in global.css (:root) exactly — keep these two in sync by hand.
  * global.css drives NativeWind className-based styling (bg-background,
  * text-text, ...); this file exists for the cases that need a plain color
  * string in JS — native `color` props (icons, ActivityIndicator, StatusBar)
@@ -11,62 +11,42 @@
  */
 
 export const palette = {
-  red: {
-    50: '#FFF1F1',
-    100: '#FFDCDC',
-    200: '#FFB3B3',
-    300: '#FF8080',
-    400: '#F94D4D',
-    500: '#E4111A', // primary brand red
-    600: '#C10D16',
-    700: '#9A0A11',
-    800: '#73070D',
-    900: '#4D0509',
-  },
+  // Neutral ramp, light-only. Mirrors the product-store palette in src/theme.
   gray: {
-    50: '#FAFAFA',
-    100: '#F2F2F2',
-    200: '#E4E4E4',
-    300: '#CBCBCB',
-    400: '#A3A3A3',
-    500: '#737373',
-    600: '#525252',
-    700: '#3A3A3A',
-    800: '#242424',
-    900: '#141414',
+    50: '#FBFBFD',
+    100: '#F5F5F7',
+    200: '#E8E8ED',
+    300: '#D2D2D7',
+    400: '#AEAEB2',
+    500: '#86868B',
+    600: '#6E6E73',
+    700: '#424245',
+    800: '#2C2C2E',
+    900: '#1D1D1F',
+  },
+  blue: {
+    500: '#0071E3',
+    600: '#006EDB',
   },
 } as const;
 
+// Light-only: the app has no dark theme (see global.css), so there is a single
+// set of semantic colors.
 export const semanticColors = {
   light: {
     background: '#FFFFFF',
-    surface: '#FAFAFA',
-    card: '#FFFFFF',
-    border: '#E4E4E4',
-    text: '#0A0A0A',
-    muted: '#737373',
-    primary: '#E4111A',
+    surface: '#F5F5F7',
+    card: '#F5F5F7',
+    border: '#D2D2D7',
+    text: '#1D1D1F',
+    muted: '#6E6E73',
+    primary: '#0071E3',
     primaryForeground: '#FFFFFF',
-    secondary: '#0A0A0A',
+    secondary: '#1D1D1F',
     secondaryForeground: '#FFFFFF',
-    success: '#1C8A4C',
-    warning: '#B8760E',
-    danger: '#C11E1E',
-  },
-  dark: {
-    background: '#0A0A0A',
-    surface: '#141414',
-    card: '#242424',
-    border: '#3A3A3A',
-    text: '#FFFFFF',
-    muted: '#A3A3A3',
-    primary: '#E4111A',
-    primaryForeground: '#FFFFFF',
-    secondary: '#FFFFFF',
-    secondaryForeground: '#0A0A0A',
-    success: '#34C774',
-    warning: '#D99822',
-    danger: '#E04C4C',
+    success: '#248A3D',
+    warning: '#B76B00',
+    danger: '#D70015',
   },
 } as const;
 

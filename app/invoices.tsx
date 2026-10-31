@@ -56,7 +56,7 @@ export default function InvoicesScreen() {
     return (
       <SafeAreaView style={styles.screen} edges={['bottom']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Invoices</Text>
+          <Text accessibilityRole="header" aria-level={1} style={styles.title}>Invoices</Text>
         </View>
         <View style={styles.listContent}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -78,7 +78,7 @@ export default function InvoicesScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Invoices</Text>
+        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Invoices</Text>
       </View>
 
       <FlatList
@@ -93,8 +93,8 @@ export default function InvoicesScreen() {
               HapticService.light();
               refetch();
             }}
-            tintColor={colors.red}
-            colors={[colors.red]}
+            tintColor={colors.link}
+            colors={[colors.link]}
           />
         }
         ListEmptyComponent={
@@ -117,15 +117,15 @@ export default function InvoicesScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
   listContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
   emptyContent: { flexGrow: 1 },
   card: { gap: 0 },
   row: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   left: { flex: 1, gap: 4 },
-  invoiceNumber: { fontSize: 14 },
-  orderLine: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  invoiceNumber: { fontSize: 14, letterSpacing: -0.224 },
+  orderLine: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   right: { alignItems: 'flex-end', gap: 6 },
-  amount: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink, textAlign: 'right' },
-  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, textAlign: 'center', paddingVertical: 16, paddingHorizontal: 16 },
+  amount: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, textAlign: 'right' },
+  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textAlign: 'center', paddingVertical: 16, paddingHorizontal: 16 },
 });

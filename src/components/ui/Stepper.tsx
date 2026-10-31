@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: 'center',
     fontFamily: fonts.mono.medium,
-    fontSize: 14,
+    fontSize: 14, letterSpacing: -0.224,
     color: colors.ink,
   },
 });

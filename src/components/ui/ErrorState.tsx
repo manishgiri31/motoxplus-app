@@ -22,7 +22,7 @@ export function ErrorState({ error, message, onRetry }: ErrorStateProps) {
       </View>
       <Text style={styles.title}>Something went wrong</Text>
       <Text style={styles.message}>{text}</Text>
-      {onRetry && <Button label="Try again" variant="ghost" onPress={onRetry} style={styles.action} />}
+      {onRetry && <Button label="Try again" variant="brand" onPress={onRetry} style={styles.action} />}
     </View>
   );
 }
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  title: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink, textAlign: 'center' },
-  message: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  title: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, textAlign: 'center' },
+  message: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center' },
   action: { marginTop: 12 },
 });

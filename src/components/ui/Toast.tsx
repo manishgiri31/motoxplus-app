@@ -4,7 +4,7 @@ import Animated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withT
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { colors, fonts, radii } from '@/src/theme';
+import { colors, fonts, motion, radii } from '@/src/theme';
 
 export interface ToastProps {
   message: string;
@@ -22,13 +22,13 @@ export function Toast({ message, onHide, durationMs = 1800, action }: ToastProps
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    progress.value = reduceMotion ? 1 : withTiming(1, { duration: 220 });
+    progress.value = reduceMotion ? 1 : withTiming(1, { duration: motion.duration.fast, easing: motion.easing });
 
     const timer = setTimeout(() => {
       if (reduceMotion) {
         onHide();
       } else {
-        progress.value = withTiming(0, { duration: 180 }, (finished) => {
+        progress.value = withTiming(0, { duration: motion.duration.fast, easing: motion.easing }, (finished) => {
           if (finished) runOnJS(onHide)();
         });
       }
@@ -71,7 +71,9 @@ const styles = StyleSheet.create({
   },
   pill: {
     maxWidth: '86%',
-    backgroundColor: colors.ink,
+    minHeight: 44,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(29,29,31,0.94)',
     borderRadius: radii.pill,
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -83,13 +85,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.body.semiBold,
-    fontSize: 14,
+    fontSize: 14, letterSpacing: -0.224,
     color: '#FFFFFF',
     textAlign: 'center',
   },
   actionLabel: {
     fontFamily: fonts.body.semiBold,
-    fontSize: 14,
-    color: colors.red,
+    fontSize: 14, letterSpacing: -0.224,
+    color: colors.linkOnDark,
   },
 });

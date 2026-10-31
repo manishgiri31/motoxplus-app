@@ -72,7 +72,7 @@ export default function PayScreen() {
         <View style={styles.content}>
           <Card style={styles.centerCard}>
             <Feather name="check-circle" size={40} color={colors.ink} />
-            <Text style={styles.title}>Nothing left to pay</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Nothing left to pay</Text>
             <Text style={styles.muted}>This order has no pending amount.</Text>
             <Button label="Back to order" variant="brand" fullWidth onPress={() => router.replace(`/order/${order.id}`)} />
           </Card>
@@ -101,7 +101,7 @@ export default function PayScreen() {
         {phase === 'verified' ? (
           <Card style={styles.centerCard}>
             <Feather name="check-circle" size={40} color={colors.ink} />
-            <Text style={styles.title}>Payment successful</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Payment successful</Text>
             <Text style={styles.muted}>
               {payment.invoiceNumber
                 ? `Invoice ${payment.invoiceNumber} generated. Taking you to your order…`
@@ -112,7 +112,7 @@ export default function PayScreen() {
         ) : busy ? (
           <Card style={styles.centerCard}>
             <ActivityIndicator color={colors.ink} />
-            <Text style={styles.title}>{PHASE_COPY[phase]}</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>{PHASE_COPY[phase]}</Text>
             <Text style={styles.muted}>
               {phase === 'verifying'
                 ? 'Confirming your payment with our server. Please don’t close the app.'
@@ -181,13 +181,13 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 16 },
   centerCard: { alignItems: 'center', gap: 12, paddingVertical: 24 },
   amountCard: { alignItems: 'center', gap: 4 },
-  amount: { fontSize: 24 },
-  orderRef: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
-  title: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink, textAlign: 'center' },
-  cardHeading: { fontFamily: fonts.display.bold, fontSize: 15, color: colors.ink },
-  muted: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 19 },
+  amount: { fontSize: 28, letterSpacing: -0.42 },
+  orderRef: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  title: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, textAlign: 'center' },
+  cardHeading: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  muted: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   infoCard: { gap: 6 },
   warnCard: { gap: 6, backgroundColor: colors.redSoft, borderColor: colors.redSoft },
   spaced: { marginTop: 4 },
-  secured: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 4 },
+  secured: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textAlign: 'center', marginTop: 4 },
 });

@@ -34,7 +34,7 @@ export default function AccessDeniedScreen() {
         </View>
 
         <View style={styles.textBlock}>
-          <Text accessibilityRole="header" style={styles.title}>
+          <Text accessibilityRole="header" aria-level={1} style={styles.title}>
             Dealer Access Required
           </Text>
           <Text style={styles.message}>This app is available only for approved MotoXPlus dealers.</Text>
@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   textBlock: { gap: 8 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 22, color: colors.ink, textAlign: 'center' },
-  message: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.muted, textAlign: 'center', lineHeight: 22 },
-  detail: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 4 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, textAlign: 'center' },
+  message: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, textAlign: 'center', lineHeight: 25 },
+  detail: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 4 },
   actions: { width: '100%', gap: 12, marginTop: 8 },
 });

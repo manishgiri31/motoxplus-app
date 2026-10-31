@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { router, Stack, type Href } from 'expo-router';
@@ -6,25 +6,50 @@ import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import '../global.css';
 
 import { useAuth } from '@/auth/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { configureNotifications, getNotificationUrl } from '@/hooks/use-push-notifications';
 import { AppProviders } from '@/providers/AppProviders';
-import { fontsToLoad } from '@/src/theme';
+import { NAV_BAR_FILL } from '@/src/components/ui/NavBarBackground';
+import { colors, fonts, fontsToLoad, layout } from '@/src/theme';
 // Side-effect import — starts the persisted theme preference's rehydration
 // (and re-applies it via nativewind's colorScheme.set) as early as possible.
 import '@/stores/settingsStore';
 
 SplashScreen.preventAutoHideAsync();
 
+// Light-only navigation theme: white canvas, ink text, soft separators. The
+// app has no dark theme (see global.css).
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.link,
+    background: colors.paper,
+    card: colors.paper,
+    text: colors.ink,
+    border: colors.lineSoft,
+  },
+};
+
+// On wide web viewports keep the app in a centered column (capped at the same
+// 1260px as page content) instead of stretching lists edge to edge. Native
+// renders its children untouched.
+function WebColumn({ children }: { children: React.ReactNode }) {
+  if (Platform.OS !== 'web') return <>{children}</>;
+  return (
+    <View style={{ flex: 1, width: '100%', maxWidth: layout.contentMaxWidth, alignSelf: 'center', overflow: 'hidden' }}>
+      {children}
+    </View>
+  );
+}
+
 function RootNavigator() {
-  const colorScheme = useColorScheme();
   const { isAuthenticated, isLoading } = useAuth();
   const [fontsLoaded, fontError] = useFonts(fontsToLoad);
   const ready = !isLoading && (fontsLoaded || !!fontError);
@@ -72,8 +97,17 @@ function RootNavigator() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <ThemeProvider value={navigationTheme}>
+      <WebColumn>
+      <Stack
+        screenOptions={{
+          // Translucent white header with a 17px / 600 title.
+          headerStyle: { backgroundColor: NAV_BAR_FILL },
+          headerTintColor: colors.ink,
+          headerTitleStyle: { fontFamily: fonts.body.semiBold, fontSize: 17 },
+          contentStyle: { backgroundColor: colors.paper },
+        }}
+      >
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="product/[id]" options={{ title: 'Product' }} />
@@ -99,6 +133,7 @@ function RootNavigator() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>
+      </WebColumn>
       {/* Redesigned screens are light-only (bg paper) regardless of the
           system/Settings dark-mode preference, so "auto" would show white
           icons on a light background whenever dark mode is active — force

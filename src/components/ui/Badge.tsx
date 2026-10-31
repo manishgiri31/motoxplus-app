@@ -9,14 +9,13 @@ export interface BadgeProps {
   variant?: BadgeVariant;
 }
 
-// success/info tints aren't part of the core palette (theme colors are
-// paper/card/ink/muted/line/red only) — kept local to Badge rather than
-// added to src/theme, which stays exactly the spec'd token set.
+// success/info tints are status colors, not part of the surface palette, so
+// they live here rather than in the neutral token set.
 const variantStyles: Record<BadgeVariant, { background: string; border?: string; text: string }> = {
   neutral: { background: colors.paper, border: colors.line, text: colors.muted },
-  brand: { background: colors.redSoft, text: colors.red },
-  success: { background: '#EAF7EF', text: '#1C8A4C' },
-  info: { background: '#EAF2FB', text: '#2B6CB0' },
+  brand: { background: colors.card, text: colors.ink },
+  success: { background: colors.successSoft, text: colors.success },
+  info: { background: colors.infoSoft, text: colors.link },
 };
 
 export function Badge({ label, variant = 'neutral' }: BadgeProps) {
@@ -44,7 +43,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.body.semiBold,
-    fontSize: 12,
+    fontSize: 12, letterSpacing: -0.12,
     lineHeight: 16,
   },
 });

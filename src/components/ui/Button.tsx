@@ -1,17 +1,15 @@
 import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, {
-  interpolate,
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { useFocusRing } from '@/hooks/use-focus-ring';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { colors, fonts, radii } from '@/src/theme';
+import { colors, fonts, motion, radii } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
+// brand: primary — solid blue pill (the only place the accent fills a surface).
+// ghost: secondary — blue outline pill.
+// solid: ink-filled pill, for the rare neutral call-to-action.
 export type ButtonVariant = 'solid' | 'brand' | 'ghost';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
@@ -25,11 +23,17 @@ export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> 
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// Solid's "darker" pressed shade isn't spec'd as a hex — one step darker than
-// ink, close enough to read as a press state without a separate token.
-const INK_PRESSED = '#0B0C0E';
+// Interaction state driven through one shared value: 0 = rest, 1 = hover
+// (web / pointer devices), 2 = pressed. Colors interpolate between the three.
+const REST = 0;
+const HOVER = 1;
+const PRESSED = 2;
 
-const PRESS_DURATION = 120;
+const GHOST_TINT = {
+  rest: 'rgba(0,113,227,0)',
+  hover: 'rgba(0,113,227,0.08)',
+  pressed: 'rgba(0,113,227,0.16)',
+};
 
 export function Button({
   label,
@@ -40,44 +44,55 @@ export function Button({
   style,
   onPressIn,
   onPressOut,
+  onFocus,
+  onBlur,
+  onHoverIn,
+  onHoverOut,
   ...pressableProps
 }: ButtonProps) {
   const reduceMotion = useReduceMotion();
+  const focusRing = useFocusRing();
   const isDisabled = disabled || loading;
-  const pressed = useSharedValue(0);
+  const state = useSharedValue(REST);
+
+  const goTo = useCallback(
+    (next: number) => {
+      state.value = reduceMotion ? next : withTiming(next, { duration: motion.duration.fast, easing: motion.easing });
+    },
+    [reduceMotion, state]
+  );
 
   const handlePressIn = useCallback(
     (e: Parameters<NonNullable<PressableProps['onPressIn']>>[0]) => {
-      pressed.value = reduceMotion ? 1 : withTiming(1, { duration: PRESS_DURATION });
+      goTo(PRESSED);
       HapticService.light();
       onPressIn?.(e);
     },
-    [onPressIn, pressed, reduceMotion]
+    [goTo, onPressIn]
   );
 
   const handlePressOut = useCallback(
     (e: Parameters<NonNullable<PressableProps['onPressOut']>>[0]) => {
-      pressed.value = reduceMotion ? 0 : withTiming(0, { duration: PRESS_DURATION });
+      goTo(REST);
       onPressOut?.(e);
     },
-    [onPressOut, pressed, reduceMotion]
+    [goTo, onPressOut]
   );
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scale = variant === 'solid' ? interpolate(pressed.value, [0, 1], [1, 0.97]) : 1;
+    const inputs = [REST, HOVER, PRESSED];
+    const scale = interpolate(state.value, inputs, [1, 1, motion.pressScale]);
     const backgroundColor =
-      variant === 'solid'
-        ? interpolateColor(pressed.value, [0, 1], [colors.ink, INK_PRESSED])
-        : variant === 'brand'
-          ? interpolateColor(pressed.value, [0, 1], [colors.red, colors.redPressed])
-          : 'transparent';
-    const borderColor =
-      variant === 'ghost' ? interpolateColor(pressed.value, [0, 1], [colors.line, colors.ink]) : 'transparent';
+      variant === 'brand'
+        ? interpolateColor(state.value, inputs, [colors.accent, colors.accentHover, colors.accentActive])
+        : variant === 'solid'
+          ? interpolateColor(state.value, inputs, [colors.ink, colors.black, colors.black])
+          : interpolateColor(state.value, inputs, [GHOST_TINT.rest, GHOST_TINT.hover, GHOST_TINT.pressed]);
 
-    return { transform: [{ scale }], backgroundColor, borderColor };
+    return { transform: [{ scale }], backgroundColor };
   });
 
-  const labelColor = variant === 'ghost' ? colors.ink : '#FFFFFF';
+  const labelColor = variant === 'ghost' ? colors.link : colors.white;
 
   return (
     <AnimatedPressable
@@ -86,7 +101,31 @@ export function Button({
       disabled={isDisabled}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[styles.base, variant === 'ghost' && styles.ghostBorder, fullWidth && styles.fullWidth, animatedStyle, isDisabled && styles.disabled, style]}
+      onHoverIn={(e) => {
+        if (!isDisabled) goTo(HOVER);
+        onHoverIn?.(e);
+      }}
+      onHoverOut={(e) => {
+        goTo(REST);
+        onHoverOut?.(e);
+      }}
+      onFocus={(e) => {
+        focusRing.onFocus();
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        focusRing.onBlur();
+        onBlur?.(e);
+      }}
+      style={[
+        styles.base,
+        variant === 'ghost' && styles.ghostBorder,
+        fullWidth && styles.fullWidth,
+        animatedStyle,
+        focusRing.ringStyle,
+        isDisabled && styles.disabled,
+        style,
+      ]}
       {...pressableProps}
     >
       {loading ? (
@@ -102,8 +141,9 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    height: 48,
-    paddingHorizontal: 20,
+    minHeight: 48,
+    minWidth: 44,
+    paddingHorizontal: 24,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -111,13 +151,13 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   ghostBorder: {
-    borderWidth: 1,
+    borderColor: colors.accent,
   },
   fullWidth: {
     width: '100%',
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   content: {
     flexDirection: 'row',
@@ -128,6 +168,7 @@ const styles = StyleSheet.create({
     // Weight lives in the font family (Inter_600SemiBold), not a fontWeight
     // style — see src/theme's typography comment on custom-font synthesis.
     fontFamily: fonts.body.semiBold,
-    fontSize: 15.5,
+    fontSize: 17,
+    letterSpacing: -0.374,
   },
 });

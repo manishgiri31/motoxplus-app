@@ -18,9 +18,9 @@ import { useAuth } from '@/auth/useAuth';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { CategoryCard } from '@/src/components/catalog/CategoryCard';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
-import { Badge, Button, Skeleton, SkeletonProductCard } from '@/src/components/ui';
+import { Badge, Button, Reveal, Section, Skeleton, SkeletonProductCard } from '@/src/components/ui';
 import { VehiclePickerCard } from '@/src/components/vehicle/VehiclePickerCard';
-import { colors, fonts, radii } from '@/src/theme';
+import { colors, fonts, motion, radii } from '@/src/theme';
 import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { discountPercent, formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
@@ -28,7 +28,9 @@ import { HapticService } from '@/utils/haptics';
 // Staggered fade-up entrance for the hero sections below, honoring reduce-motion
 // by dropping the translateY (FadeInDown) in favor of a plain opacity fade.
 function entrance(reduceMotion: boolean, delayMs: number): BaseAnimationBuilder | EntryExitAnimationFunction {
-  return reduceMotion ? FadeIn.duration(200).delay(delayMs) : FadeInDown.duration(220).delay(delayMs);
+  return reduceMotion
+    ? FadeIn.duration(motion.duration.fast).delay(delayMs)
+    : FadeInDown.duration(motion.duration.slow).easing(motion.easing).delay(delayMs);
 }
 
 function Avatar({ name, size = 48 }: { name: string; size?: number }) {
@@ -41,7 +43,7 @@ function Avatar({ name, size = 48 }: { name: string; size?: number }) {
 }
 
 const avatarStyles = StyleSheet.create({
-  base: { backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center' },
+  base: { backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
   label: { fontFamily: fonts.display.bold, color: '#FFFFFF' },
 });
 
@@ -63,7 +65,7 @@ const CategoryGrid = memo(function CategoryGrid({ categories }: { categories: Ca
 
 const categoryStyles = StyleSheet.create({
   section: { marginBottom: 24 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink, paddingHorizontal: 16, marginBottom: 12 },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, paddingHorizontal: 16, marginBottom: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12 },
   cell: { width: '50%', padding: 4 },
 });
@@ -98,7 +100,7 @@ function greetingForHour(hour: number): string {
 const ProductRail = memo(function ProductRail({ title, products }: { title: string; products: Product[] }) {
   if (products.length === 0) return null;
   return (
-    <View style={railStyles.section}>
+    <Reveal style={railStyles.section}>
       <Text style={railStyles.title}>{title}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={railStyles.scrollContent}>
         {products.map((product) => (
@@ -107,7 +109,7 @@ const ProductRail = memo(function ProductRail({ title, products }: { title: stri
           </View>
         ))}
       </ScrollView>
-    </View>
+    </Reveal>
   );
 });
 
@@ -128,7 +130,7 @@ function ProductRailSkeleton({ title }: { title: string }) {
 
 const railStyles = StyleSheet.create({
   section: { gap: 12, marginBottom: 24 },
-  title: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink, paddingHorizontal: 16 },
+  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, paddingHorizontal: 16 },
   scrollContent: { paddingHorizontal: 16, gap: 12 },
   cell: { width: 160 },
 });
@@ -187,9 +189,7 @@ const statStyles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
   card: {
     width: '47%',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: colors.white,
     borderRadius: radii.md,
     padding: 16,
     gap: 8,
@@ -198,13 +198,13 @@ const statStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  value: { fontFamily: fonts.display.bold, fontSize: 19, color: colors.ink },
+  value: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
   valueWarn: { color: colors.red },
-  label: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  label: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
 });
 
 export default function HomeScreen() {
@@ -255,6 +255,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
       >
+        <Section tone="light" flushTop style={styles.heroBand}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Avatar name={displayName} size={48} />
@@ -305,7 +306,9 @@ export default function HomeScreen() {
         <Animated.View entering={entrance(reduceMotion, 80)} style={styles.vehicleCardWrap}>
           <VehiclePickerCard />
         </Animated.View>
+        </Section>
 
+        <Section tone="alt">
         <Animated.View entering={entrance(reduceMotion, 160)}>
           <CategoryGrid categories={categoriesQuery.data ?? []} />
         </Animated.View>
@@ -361,7 +364,7 @@ export default function HomeScreen() {
               accessibilityLabel={action.label}
             >
               <View style={styles.quickActionIcon}>
-                <Feather name={action.icon} size={18} color={colors.red} />
+                <Feather name={action.icon} size={18} color={colors.link} />
               </View>
               <Text style={styles.quickActionLabel} numberOfLines={1}>
                 {action.label}
@@ -370,12 +373,17 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <BannerCarousel slides={PROMO_SLIDES} />
+        </Section>
 
+        <Section tone="dark">
+          <BannerCarousel slides={PROMO_SLIDES} />
+        </Section>
+
+        <Section tone="light">
         {productsQuery.isLoading ? <ProductRailSkeleton title="Today's Offers" /> : <ProductRail title="Today's Offers" products={offers} />}
 
         {summaryQuery.isSuccess && summary.recentOrders.length > 0 && (
-          <View style={styles.listSection}>
+          <Reveal style={styles.listSection}>
             <View style={styles.listSectionHeader}>
               <Text style={styles.listSectionTitle}>Recent Activity</Text>
               <Pressable onPress={goToOrders} hitSlop={8} accessibilityRole="button" accessibilityLabel="View all orders">
@@ -405,13 +413,13 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
             </View>
-          </View>
+          </Reveal>
         )}
 
         <ProductRail title="Recently Ordered" products={summary.recentlyOrderedProducts} />
 
         {summary.lowStockProducts.length > 0 && (
-          <View style={styles.listSection}>
+          <Reveal style={styles.listSection}>
             <View style={styles.lowStockHeader}>
               <Feather name="alert-triangle" size={16} color={colors.red} />
               <Text style={styles.listSectionTitle}>Low Stock Alerts</Text>
@@ -432,7 +440,7 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
             </View>
-          </View>
+          </Reveal>
         )}
 
         {productsQuery.isLoading ? (
@@ -440,6 +448,7 @@ export default function HomeScreen() {
         ) : (
           <ProductRail title="Recommended for You" products={recommended} />
         )}
+        </Section>
       </ScrollView>
     </SafeAreaView>
   );
@@ -447,13 +456,14 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  content: { paddingBottom: 32 },
+  content: { paddingBottom: 0 },
+  heroBand: { paddingBottom: 24 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 12 },
   headerText: { flex: 1 },
-  greeting: { fontFamily: fonts.body.medium, fontSize: 12, color: colors.muted },
-  name: { fontFamily: fonts.display.bold, fontSize: 22, color: colors.ink },
-  company: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  greeting: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  name: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
+  company: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   dealerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -463,26 +473,22 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: radii.md,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
   },
   creditBlock: { alignItems: 'flex-end' },
-  creditLabel: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
-  creditValue: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
+  creditLabel: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  creditValue: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   searchBar: {
     marginHorizontal: 16,
     marginBottom: 24,
     height: 48,
     borderRadius: radii.md,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     gap: 8,
   },
-  searchPlaceholder: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.muted },
+  searchPlaceholder: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted },
   vehicleCardWrap: { paddingHorizontal: 16, marginBottom: 24 },
   summaryError: {
     marginHorizontal: 16,
@@ -492,7 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.redSoft,
     gap: 8,
   },
-  summaryErrorText: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.red },
+  summaryErrorText: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.red },
   quickActions: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 24, gap: 8 },
   quickAction: {
     flex: 1,
@@ -500,23 +506,21 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 12,
     borderRadius: radii.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: colors.white,
   },
   quickActionIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickActionLabel: { fontFamily: fonts.body.medium, fontSize: 11, color: colors.ink, textAlign: 'center' },
+  quickActionLabel: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.ink, textAlign: 'center' },
   listSection: { gap: 12, marginBottom: 24 },
   listSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
-  listSectionTitle: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink },
-  viewAll: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.red },
+  listSectionTitle: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
+  viewAll: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.link },
   listSectionBody: { paddingHorizontal: 16, gap: 8 },
   orderRow: {
     flexDirection: 'row',
@@ -525,14 +529,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: radii.md,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
   },
   orderRowLeft: { flex: 1, paddingRight: 12, gap: 2 },
-  orderNumber: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
-  orderMeta: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  orderNumber: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  orderMeta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   orderRowRight: { alignItems: 'flex-end', gap: 2 },
-  orderTotal: { fontFamily: fonts.display.bold, fontSize: 13, color: colors.ink },
+  orderTotal: { fontFamily: fonts.display.bold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   lowStockHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   lowStockRow: {
     flexDirection: 'row',
@@ -542,6 +544,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     backgroundColor: colors.redSoft,
   },
-  lowStockName: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.ink, flex: 1, paddingRight: 12 },
-  lowStockCount: { fontFamily: fonts.body.semiBold, fontSize: 12, color: colors.red },
+  lowStockName: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink, flex: 1, paddingRight: 12 },
+  lowStockCount: { fontFamily: fonts.body.semiBold, fontSize: 12, letterSpacing: -0.12, color: colors.red },
 });

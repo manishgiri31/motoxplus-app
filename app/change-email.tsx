@@ -50,7 +50,7 @@ export default function ChangeEmailScreen() {
         </Pressable>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.title}>Change email</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Change email</Text>
             <Text style={styles.subtitle}>
               Current email: {user?.email}. You&apos;ll need to verify the new address before you can order again.
             </Text>
@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
   backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
   header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 30, lineHeight: 36, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 16, color: colors.muted, marginTop: 4 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
+  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
   form: { gap: 16 },
-  error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
+  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
 });

@@ -54,13 +54,13 @@ const styles = StyleSheet.create({
   },
   redacted: {
     fontFamily: fonts.display.bold,
-    fontSize: 20,
+    fontSize: 21,
     color: colors.muted,
     letterSpacing: 1,
   },
   realPrice: {
     fontFamily: fonts.display.bold,
-    fontSize: 20,
+    fontSize: 21, letterSpacing: -0.315,
     color: colors.ink,
   },
 });

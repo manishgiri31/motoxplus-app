@@ -19,7 +19,7 @@ export default function OrderPlacedScreen() {
         <Animated.View entering={FadeIn.duration(220)} style={styles.check}>
           <Feather name="check" size={40} color="#FFFFFF" />
         </Animated.View>
-        <Text style={styles.title}>Order placed</Text>
+        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Order placed</Text>
         <MonoLabel color="ink" style={styles.orderId}>{`#${orderNumber}`}</MonoLabel>
         <Button
           label="View order"
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
-  orderId: { fontSize: 15, marginTop: 4 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
+  orderId: { fontSize: 17, letterSpacing: -0.374, marginTop: 4 },
   button: { marginTop: 24, width: '100%' },
 });

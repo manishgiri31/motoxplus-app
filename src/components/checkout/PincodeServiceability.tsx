@@ -104,7 +104,7 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
-  checking: { fontFamily: fonts.body.regular, fontSize: 12.5, color: colors.muted },
+  checking: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -115,6 +115,6 @@ const styles = StyleSheet.create({
   },
   cardOk: { backgroundColor: colors.card, borderColor: colors.line },
   cardWarn: { backgroundColor: colors.redSoft, borderColor: colors.redSoft },
-  okText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 12.5, color: colors.ink },
-  warnText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 12.5, color: colors.red },
+  okText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.ink },
+  warnText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.red },
 });

@@ -98,7 +98,7 @@ export default function VerifyEmailScreen() {
         </Pressable>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.title}>Verify your email</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Verify your email</Text>
             <Text style={styles.subtitle}>
               {user?.email
                 ? `Enter the 6-digit code we sent to ${user.email}.`
@@ -124,7 +124,7 @@ export default function VerifyEmailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Resend code"
             >
-              <Text style={[styles.resendText, { color: resendCooldown > 0 ? colors.muted : colors.red }]}>
+              <Text style={[styles.resendText, { color: resendCooldown > 0 ? colors.muted : colors.link }]}>
                 {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
               </Text>
             </Pressable>
@@ -148,10 +148,10 @@ const styles = StyleSheet.create({
   backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
   header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 30, lineHeight: 36, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 16, color: colors.muted, marginTop: 4 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
+  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
   form: { gap: 16 },
-  errorCentered: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red, textAlign: 'center' },
-  successCentered: { fontFamily: fonts.body.regular, fontSize: 13, color: '#1C8A4C', textAlign: 'center' },
-  resendText: { fontFamily: fonts.body.medium, fontSize: 13, textAlign: 'center' },
+  errorCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red, textAlign: 'center' },
+  successCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.success, textAlign: 'center' },
+  resendText: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, textAlign: 'center' },
 });

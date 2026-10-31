@@ -64,7 +64,7 @@ export default function OrderTrackingScreen() {
             accessibilityRole="link"
             accessibilityLabel="View on carrier's site"
           >
-            <Feather name="external-link" size={16} color={colors.red} />
+            <Feather name="external-link" size={16} color={colors.link} />
             <Text style={styles.carrierLinkText}>View on carrier&apos;s site</Text>
           </Pressable>
         )}
@@ -101,31 +101,29 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 16 },
   waybillBlock: { gap: 4 },
-  waybillLabel: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
-  waybillValue: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink },
+  waybillLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
+  waybillValue: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
   statusCard: {
     padding: 16,
     borderRadius: radii.md,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
     gap: 4,
   },
-  statusText: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
-  statusMeta: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
-  statusSubMeta: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  statusText: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  statusMeta: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
+  statusSubMeta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   carrierLink: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  carrierLinkText: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.red },
+  carrierLinkText: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.link },
   historySection: { gap: 12, marginTop: 12 },
-  historyTitle: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
-  noEvents: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
+  historyTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  noEvents: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
   eventRow: { flexDirection: 'row', gap: 12 },
   eventRail: { alignItems: 'center' },
   eventDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.line },
-  eventDotActive: { backgroundColor: colors.red },
+  eventDotActive: { backgroundColor: colors.ink },
   eventLine: { width: 2, flex: 1, backgroundColor: colors.line, marginVertical: 4 },
   eventBody: { flex: 1, paddingBottom: 16, gap: 1 },
-  eventStatus: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
-  eventActivity: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
-  eventMeta: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  eventStatus: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  eventActivity: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  eventMeta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
 });

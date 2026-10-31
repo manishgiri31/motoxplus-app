@@ -26,6 +26,6 @@ const styles = StyleSheet.create({
   line: {
     width: 24,
     height: 1.5,
-    backgroundColor: colors.red,
+    backgroundColor: colors.ink,
   },
 });

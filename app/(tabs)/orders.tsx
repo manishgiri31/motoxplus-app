@@ -41,7 +41,7 @@ export default function OrdersScreen() {
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Orders</Text>
+          <Text accessibilityRole="header" aria-level={1} style={styles.title}>Orders</Text>
         </View>
         <View style={styles.listContent}>
           {Array.from({ length: 5 }).map((_, i) => (
@@ -63,7 +63,7 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Orders</Text>
+        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Orders</Text>
       </View>
 
       <FlatList
@@ -78,8 +78,8 @@ export default function OrdersScreen() {
               HapticService.light();
               refetch();
             }}
-            tintColor={colors.red}
-            colors={[colors.red]}
+            tintColor={colors.link}
+            colors={[colors.link]}
           />
         }
         ListEmptyComponent={
@@ -139,21 +139,21 @@ function ErrorFallback({ error, onRetry }: { error: unknown; onRetry: () => void
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
   listContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
   card: { gap: 12 },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   idCol: { gap: 4 },
-  date: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  date: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  itemCount: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
-  total: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
+  itemCount: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
+  total: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, paddingVertical: 16 },
-  pageLink: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  pageLink: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   pageLinkDisabled: { color: colors.muted },
-  pageLabel: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted },
+  pageLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
   emptyContent: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
-  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
-  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center' },
 });

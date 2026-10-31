@@ -70,7 +70,7 @@ export function CatalogFilterSheet({ visible, categories, value, onApply, onClos
                     HapticService.light();
                     onApply({ ...value, inStockOnly: v });
                   }}
-                  trackColor={{ false: colors.line, true: colors.red }}
+                  trackColor={{ false: colors.line, true: colors.success }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -90,7 +90,7 @@ export function CatalogFilterSheet({ visible, categories, value, onApply, onClos
                   accessibilityState={{ checked: value.sort === opt.value }}
                 >
                   <Text style={styles.sortLabel}>{opt.label}</Text>
-                  {value.sort === opt.value && <Feather name="check" size={16} color={colors.red} />}
+                  {value.sort === opt.value && <Feather name="check" size={16} color={colors.link} />}
                 </Pressable>
               ))}
             </View>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
   sheet: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     maxHeight: '85%',
@@ -132,9 +132,9 @@ const styles = StyleSheet.create({
   },
   handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line, marginVertical: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  title: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink },
+  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
   section: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
-  sectionTitle: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink, marginBottom: 12 },
+  sectionTitle: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink, marginBottom: 12 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sortRow: {
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
   },
-  sortLabel: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.ink },
+  sortLabel: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   done: { marginTop: 16 },
 });
 
@@ -155,7 +155,7 @@ const chipStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  chipActive: { backgroundColor: colors.redSoft, borderColor: colors.red },
-  label: { fontFamily: fonts.body.medium, fontSize: 13, color: colors.ink },
-  labelActive: { color: colors.red },
+  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  label: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  labelActive: { color: colors.white },
 });

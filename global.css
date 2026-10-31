@@ -3,43 +3,93 @@
 @tailwind utilities;
 
 /*
- * Semantic theme tokens. Values are space-separated RGB triplets so Tailwind's
- * opacity modifier (bg-background/50) works via rgb(var(--x) / <alpha-value>)
- * in tailwind.config.js. Referenced by constants/colors.ts (kept in sync by
- * hand) for the JS-side values native color props need (icons, StatusBar).
+ * Design tokens (also the web-facing token sheet). Values are space-separated
+ * RGB triplets so Tailwind's opacity modifier (bg-background/50) works via
+ * rgb(var(--x) / <alpha-value>) in tailwind.config.js. Referenced by
+ * constants/colors.ts and src/theme (kept in sync by hand) for the JS-side
+ * values native color props need (icons, StatusBar).
  *
- * darkMode: 'class' in tailwind.config.js means the `.dark:root` block below
- * is applied whenever nativewind's colorScheme is "dark" (system or manual
- * override) — see hooks/use-color-scheme.ts.
+ * The app is light-only. darkMode: 'class' stays in tailwind.config.js because
+ * nativewind's colorScheme.set() throws under the default 'media' strategy, but
+ * no `.dark:root` overrides are defined, so the dark class changes nothing.
  */
 :root {
-  --background: 255 255 255;
-  --surface: 250 250 250;
-  --card: 255 255 255;
-  --border: 228 228 228;
-  --text: 10 10 10;
-  --muted: 115 115 115;
-  --primary: 228 17 26;
+  /* Surfaces */
+  --background: 255 255 255; /* #ffffff */
+  --surface: 245 245 247; /* #f5f5f7 */
+  --card: 245 245 247; /* #f5f5f7 */
+  --border: 210 210 215; /* #d2d2d7 */
+  --border-soft: 232 232 237; /* #e8e8ed */
+
+  /* Text */
+  --text: 29 29 31; /* #1d1d1f */
+  --muted: 110 110 115; /* #6e6e73 */
+  --subtle: 134 134 139; /* #86868b */
+  --on-dark: 245 245 247; /* #f5f5f7 */
+
+  /* Accent: primary buttons only */
+  --primary: 0 113 227; /* #0071e3 */
+  --primary-hover: 0 119 237; /* #0077ed */
+  --primary-active: 0 110 219; /* #006edb */
   --primary-foreground: 255 255 255;
-  --secondary: 10 10 10;
+
+  /* Secondary actions are ink-filled; the blue outline button is styled in Button */
+  --secondary: 29 29 31;
   --secondary-foreground: 255 255 255;
-  --success: 28 138 76;
-  --warning: 184 118 14;
-  --danger: 193 30 30;
+
+  /* Links */
+  --link: 0 102 204; /* #0066cc */
+  --link-on-dark: 41 151 255; /* #2997ff */
+
+  /* Status */
+  --success: 36 138 61;
+  --warning: 183 107 0;
+  --danger: 215 0 21;
+
+  /* Shape and motion (used by web-only rules below) */
+  --radius-card: 18px;
+  --radius-input: 12px;
+  --radius-pill: 999px;
+  --motion-duration: 280ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.6, 1);
+  --focus-ring: 0 0 0 4px rgba(0, 125, 250, 0.6);
 }
 
-.dark:root {
-  --background: 10 10 10;
-  --surface: 20 20 20;
-  --card: 36 36 36;
-  --border: 58 58 58;
-  --text: 255 255 255;
-  --muted: 163 163 163;
-  --primary: 228 17 26;
-  --primary-foreground: 255 255 255;
-  --secondary: 255 255 255;
-  --secondary-foreground: 10 10 10;
-  --success: 52 199 116;
-  --warning: 217 152 34;
-  --danger: 224 76 76;
+/*
+ * Web-only rules. NativeWind emits these as ordinary CSS on web and ignores
+ * them on iOS/Android.
+ */
+@layer base {
+  html,
+  body {
+    /* Hard stop for horizontal scroll at 375px: nothing may widen the page. */
+    max-width: 100%;
+    overflow-x: hidden;
+    background-color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  /* Visible focus ring on every interactive element, keyboard focus only. */
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-input);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

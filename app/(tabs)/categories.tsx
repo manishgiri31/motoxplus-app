@@ -5,18 +5,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/api/hooks/useCategories';
 import type { Category } from '@/api/types';
+import { useGridColumns } from '@/hooks/use-grid-columns';
 import { CategoryCard } from '@/src/components/catalog/CategoryCard';
 import { EmptyState, ErrorState, SkeletonProductCard } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
 export default function CategoriesScreen() {
+  const columns = useGridColumns();
   const { data: categories, isLoading, isError, error, refetch, isRefetching } = useCategories();
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
-        <Text style={styles.title}>Categories</Text>
+        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Categories</Text>
       </Animated.View>
 
       {isError ? (
@@ -31,9 +33,10 @@ export default function CategoriesScreen() {
         </View>
       ) : (
         <FlatList
+          key={`grid-${columns}`}
           data={categories ?? []}
           keyExtractor={(item) => item.id}
-          numColumns={2}
+          numColumns={columns}
           contentContainerStyle={[styles.listContent, (categories ?? []).length === 0 && styles.emptyContent]}
           onRefresh={() => {
             HapticService.light();
@@ -65,7 +68,7 @@ export default function CategoriesScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8 },
   listContent: { paddingHorizontal: 8, paddingBottom: 24 },
   emptyContent: { flexGrow: 1 },

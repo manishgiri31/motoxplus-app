@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRevokeSession, useSessions } from '@/api/hooks/useSessions';
 import { getErrorMessage } from '@/api/errors';
 import type { UserSessionInfo } from '@/api/types';
-import { Badge, Card, ErrorState } from '@/src/components/ui';
+import { Badge, Card, ErrorState, SkeletonListRow, Toast } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
@@ -20,6 +20,7 @@ export default function SessionsScreen() {
   const { data, isLoading, isError, error, refetch } = useSessions();
   const revokeSession = useRevokeSession();
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const confirmRevoke = (session: UserSessionInfo) => {
     Alert.alert('Sign out this device?', 'This will immediately end that session.', [
@@ -30,7 +31,10 @@ export default function SessionsScreen() {
         onPress: () => {
           setRevokingId(session.id);
           revokeSession.mutate(session.id, {
-            onSuccess: () => HapticService.light(),
+            onSuccess: () => {
+              HapticService.light();
+              setToastMessage('Device signed out');
+            },
             onError: (err) => Alert.alert('Could not sign out that device', getErrorMessage(err)),
             onSettled: () => setRevokingId(null),
           });
@@ -41,8 +45,10 @@ export default function SessionsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
-        <ActivityIndicator color={colors.ink} />
+      <SafeAreaView style={styles.screen} edges={['bottom']}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonListRow key={i} />
+        ))}
       </SafeAreaView>
     );
   }
@@ -94,6 +100,7 @@ export default function SessionsScreen() {
         }}
         ListEmptyComponent={<Text style={styles.meta}>No active sessions.</Text>}
       />
+      {toastMessage && <Toast message={toastMessage} onHide={() => setToastMessage(null)} />}
     </SafeAreaView>
   );
 }
@@ -105,6 +112,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowInfo: { flex: 1, gap: 2 },
   rowHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  deviceLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
-  meta: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
+  deviceLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  meta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
 });

@@ -175,7 +175,7 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
-        <Text style={styles.title}>Cart</Text>
+        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Cart</Text>
       </Animated.View>
 
       <FlatList
@@ -183,7 +183,7 @@ export default function CartScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <CartRow item={item} onRemove={handleRemove} />}
         contentContainerStyle={items.length === 0 ? styles.emptyContent : styles.listContent}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={colors.red} colors={[colors.red]} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={colors.link} colors={[colors.link]} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Your cart is empty</Text>
@@ -197,7 +197,7 @@ export default function CartScreen() {
         <View style={styles.freeDeliveryCard}>
           {qualifiesForFreeDelivery ? (
             <View style={styles.freeDeliveryRow}>
-              <Feather name="check-circle" size={14} color={colors.red} />
+              <Feather name="check-circle" size={14} color={colors.success} />
               <Text style={styles.freeDeliveryText}>You&apos;ve unlocked free delivery</Text>
             </View>
           ) : (
@@ -291,19 +291,19 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 24, color: colors.ink },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
   listContent: { paddingBottom: 16 },
   emptyContent: { flexGrow: 1 },
   skeletonRow: { height: 96, backgroundColor: colors.line, opacity: 0.4, margin: 8, borderRadius: radii.md },
   row: { flexDirection: 'row', gap: 12, padding: 16, backgroundColor: colors.paper, borderBottomWidth: 1, borderBottomColor: colors.line },
   image: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.card },
   rowContent: { flex: 1, gap: 4 },
-  name: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
-  variant: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted },
-  price: { fontFamily: fonts.display.bold, fontSize: 15, color: colors.ink },
+  name: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
+  variant: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  price: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   rowFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   rowActions: { flexDirection: 'row', gap: 16 },
-  moqNote: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  moqNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   swipeAction: {
     width: 72,
     backgroundColor: colors.red,
@@ -316,18 +316,16 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: radii.md,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
     gap: 8,
   },
   freeDeliveryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  freeDeliveryText: { fontFamily: fonts.body.medium, fontSize: 12.5, color: colors.ink },
+  freeDeliveryText: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.ink },
   progressTrack: { height: 6, borderRadius: radii.pill, backgroundColor: colors.line, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: radii.pill, backgroundColor: colors.red },
+  progressFill: { height: '100%', borderRadius: radii.pill, backgroundColor: colors.ink },
   summary: { borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 8 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
-  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.ink },
+  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
+  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -335,11 +333,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
-  totalLabel: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
-  totalValue: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
-  disclaimer: { fontFamily: fonts.body.regular, fontSize: 11, color: colors.muted },
+  totalLabel: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  totalValue: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  disclaimer: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   pincodeBlock: { gap: 8, paddingTop: 4 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
-  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
-  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', marginBottom: 8 },
+  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', marginBottom: 8 },
 });

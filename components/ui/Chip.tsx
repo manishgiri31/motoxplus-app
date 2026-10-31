@@ -17,7 +17,7 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
       // the tappable area without changing the chip's visual size.
       hitSlop={6}
       className={`h-9 px-md rounded-full border justify-center ${
-        selected ? 'bg-secondary border-secondary' : 'bg-card border-border'
+        selected ? 'bg-secondary border-secondary' : 'bg-card border-transparent'
       }`}
     >
       <Text className={`text-[13px] font-medium ${selected ? 'text-secondary-foreground' : 'text-text'}`}>

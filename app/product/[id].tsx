@@ -12,7 +12,7 @@ import { useProduct, useProducts } from '@/api/hooks/useProducts';
 import { ProductGallery } from '@/components/ProductGallery';
 import { Badge, PriceTag, ProductCard, ProductDetailSkeleton } from '@/components/ui';
 import { usePulseAnimation } from '@/hooks/use-pulse-animation';
-import { BlurredPrice, Button, ErrorState, Eyebrow, MonoLabel, Stepper, Toast } from '@/src/components/ui';
+import { BlurredPrice, Button, ErrorState, Eyebrow, MonoLabel, Reveal, Stepper, Toast } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -168,11 +168,11 @@ export default function ProductDetailScreen() {
           </View>
 
           {product.compatibility.length > 0 && (
-            <View style={styles.section}>
+            <Reveal style={styles.section}>
               <Text style={styles.sectionTitle}>Compatible vehicles</Text>
               {visibleVehicles.map((v, i) => (
                 <View key={v} style={[styles.vehicleRow, i !== visibleVehicles.length - 1 && styles.vehicleRowDivider]}>
-                  <Feather name="check" size={16} color={colors.red} />
+                  <Feather name="check" size={16} color={colors.link} />
                   <Text style={styles.vehicleLabel}>{v}</Text>
                 </View>
               ))}
@@ -184,20 +184,20 @@ export default function ProductDetailScreen() {
                   <Feather name={vehiclesExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted} />
                 </Pressable>
               )}
-            </View>
+            </Reveal>
           )}
 
           {product.description && (
-            <View style={styles.section}>
+            <Reveal style={styles.section}>
               <Text style={styles.sectionTitle}>Description</Text>
               <Text style={styles.description}>{product.description}</Text>
-            </View>
+            </Reveal>
           )}
 
-          <View style={styles.section}>
+          <Reveal style={styles.section}>
             <Text style={styles.sectionTitle}>Reviews</Text>
             <Text style={styles.description}>No reviews yet.</Text>
-          </View>
+          </Reveal>
         </View>
 
         {related.length > 0 && (
@@ -245,9 +245,9 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   titleCol: { flex: 1, gap: 6 },
-  name: { fontFamily: fonts.display.bold, fontSize: 24, lineHeight: 30, color: colors.ink },
+  name: { fontFamily: fonts.display.bold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
   actions: { flexDirection: 'row', gap: 16 },
-  gstNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, marginTop: 4 },
+  gstNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, marginTop: 4 },
   badgeRow: { flexDirection: 'row', gap: 8 },
   specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   specChip: {
@@ -259,15 +259,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 4,
   },
-  specChipLabel: { fontFamily: fonts.body.medium, fontSize: 11, color: colors.muted, textTransform: 'uppercase' },
+  specChipLabel: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textTransform: 'uppercase' },
   section: { gap: 8 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   vehicleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   vehicleRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.line },
-  vehicleLabel: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.ink },
+  vehicleLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   expandRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12 },
-  expandLabel: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.muted },
-  description: { fontFamily: fonts.body.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
+  expandLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
+  description: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, lineHeight: 20, color: colors.muted },
   relatedSection: { gap: 12, marginTop: 8 },
   relatedRow: { paddingHorizontal: 16, gap: 12 },
   relatedItem: { width: 160 },

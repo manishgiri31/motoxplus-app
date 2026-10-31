@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts } from '@/api/hooks/useProducts';
 import type { Product } from '@/api/types';
+import { useGridColumns } from '@/hooks/use-grid-columns';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
 import { Button, ErrorState, SkeletonProductCard } from '@/src/components/ui';
@@ -20,6 +21,7 @@ import { sortProducts } from '@/utils/sortProducts';
 // matched server-side against the real ProductCompatibility fitment table —
 // every result here is already guaranteed compatible.
 export default function VehiclePartsScreen() {
+  const columns = useGridColumns();
   const { vehicle, variant, label } = useLocalSearchParams<{ vehicle?: string; variant?: string; label?: string }>();
   const navigation = useNavigation();
   const categoriesQuery = useCategories();
@@ -130,7 +132,7 @@ export default function VehiclePartsScreen() {
         <FlashList
           data={products}
           keyExtractor={(item: Product) => item.id}
-          numColumns={2}
+          numColumns={columns}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }: { item: Product }) => (
             <View style={styles.cell}>
@@ -143,7 +145,7 @@ export default function VehiclePartsScreen() {
           }}
           onRefresh={() => query.refetch()}
           refreshing={query.isRefetching}
-          ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.red} /> : null}
+          ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.link} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No compatible parts found</Text>
@@ -180,8 +182,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.dark,
   },
-  vehiclePillText: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 12, color: '#FFFFFF' },
-  vehiclePillAction: { fontFamily: fonts.body.semiBold, fontSize: 12, color: colors.red },
+  vehiclePillText: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 12, letterSpacing: -0.12, color: '#FFFFFF' },
+  vehiclePillAction: { fontFamily: fonts.body.semiBold, fontSize: 12, letterSpacing: -0.12, color: colors.linkOnDark },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   searchRow: {
     flex: 1,
@@ -189,13 +191,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     height: 44,
-    borderWidth: 1,
-    borderColor: colors.line,
     borderRadius: radii.md,
     paddingHorizontal: 12,
     backgroundColor: colors.card,
   },
-  searchInput: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 13, color: colors.ink },
+  searchInput: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   filterButton: {
     width: 44,
     height: 44,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 8, paddingBottom: 16 },
   footer: { paddingVertical: 16 },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 64, gap: 8 },
-  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, color: colors.ink },
-  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center' },
   emptyButton: { marginTop: 12 },
 });

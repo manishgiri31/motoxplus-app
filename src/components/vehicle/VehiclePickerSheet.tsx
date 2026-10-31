@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
   sheet: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     maxHeight: '80%',
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  title: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink },
+  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     height: 44,
     marginBottom: 8,
   },
-  searchInput: { flex: 1, fontFamily: fonts.body.regular, fontSize: 15, color: colors.ink },
+  searchInput: { flex: 1, fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   list: { maxHeight: 360 },
   row: {
     flexDirection: 'row',
@@ -129,6 +129,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  rowLabel: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.ink },
-  empty: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 24 },
+  rowLabel: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
+  empty: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', paddingVertical: 24 },
 });

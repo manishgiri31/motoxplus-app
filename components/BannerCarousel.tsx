@@ -1,17 +1,16 @@
 import { useMemo, useRef, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 
-import { colors, fonts, radii } from '@/src/theme';
+import { colors, fonts, layout, radii } from '@/src/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AUTO_SCROLL_INTERVAL_MS = 5000;
 // Large enough that no realistic session of manual swiping (forward or
 // backward) or 5s auto-advances runs off either end — the "infinite loop"
@@ -25,9 +24,9 @@ export interface BannerSlide {
   title: string;
 }
 
-function BannerCard({ slide }: { slide: BannerSlide }) {
+function BannerCard({ slide, width }: { slide: BannerSlide; width: number }) {
   return (
-    <View style={{ width: SCREEN_WIDTH }}>
+    <View style={{ width }}>
       <View style={styles.card}>
         <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
         <Text style={styles.title}>{slide.title}</Text>
@@ -37,6 +36,10 @@ function BannerCard({ slide }: { slide: BannerSlide }) {
 }
 
 export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
+  // Live window width (not a module-level snapshot) so pages stay one screen
+  // wide after rotation / resize, capped at the content column on wide screens.
+  const { width: windowWidth } = useWindowDimensions();
+  const SCREEN_WIDTH = Math.min(windowWidth, layout.contentMaxWidth);
   const count = slides.length;
   const startIndex = Math.floor(LOOP_MULTIPLIER / 2) * count;
   const listRef = useRef<FlatList>(null);
@@ -96,7 +99,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   if (count === 1) {
     return (
       <View style={styles.singleWrap}>
-        <BannerCard slide={slides[0]} />
+        <BannerCard slide={slides[0]} width={SCREEN_WIDTH} />
       </View>
     );
   }
@@ -112,7 +115,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
         showsHorizontalScrollIndicator={false}
         initialScrollIndex={startIndex}
         getItemLayout={(_, i) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * i, index: i })}
-        renderItem={({ index }) => <BannerCard slide={slides[index % count]} />}
+        renderItem={({ index }) => <BannerCard slide={slides[index % count]} width={SCREEN_WIDTH} />}
         onScrollBeginDrag={stopAutoScroll}
         onMomentumScrollEnd={onMomentumScrollEnd}
         onLayout={startAutoScroll}
@@ -129,23 +132,23 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
-    borderRadius: radii.lg,
+    borderRadius: radii.card,
     backgroundColor: colors.dark,
-    paddingHorizontal: 20,
-    paddingVertical: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
   eyebrow: {
     fontFamily: fonts.mono.medium,
     fontSize: 12,
     letterSpacing: 1,
     textTransform: 'uppercase',
-    color: colors.red,
+    color: colors.linkOnDark,
     marginBottom: 6,
   },
-  title: { fontFamily: fonts.display.bold, fontSize: 22, lineHeight: 28, color: '#FFFFFF' },
+  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, lineHeight: 23, color: colors.onDark },
   singleWrap: { marginBottom: 24 },
   wrap: { marginBottom: 24, gap: 8 },
   dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line },
-  dotActive: { width: 16, backgroundColor: colors.red },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.darkBorder },
+  dotActive: { width: 16, backgroundColor: colors.onDark },
 });

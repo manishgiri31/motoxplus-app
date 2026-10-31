@@ -11,13 +11,21 @@ import { useProduct } from '@/api/hooks/useProducts';
 import { Image } from '@/components/ui';
 import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
-import { BlurredPrice, Button, EmptyState, SkeletonListRow } from '@/src/components/ui';
+import { BlurredPrice, Button, EmptyState, SkeletonListRow, Toast } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
 import { useWishlistHasHydrated, useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
 
-const WishlistRow = memo(function WishlistRow({ item, isDealerApproved }: { item: WishlistItem; isDealerApproved: boolean }) {
+const WishlistRow = memo(function WishlistRow({
+  item,
+  isDealerApproved,
+  onNotify,
+}: {
+  item: WishlistItem;
+  isDealerApproved: boolean;
+  onNotify: (message: string) => void;
+}) {
   const remove = useWishlistStore((s) => s.remove);
   const productQuery = useProduct(item.productId);
   const addToCart = useAddToCart();
@@ -49,6 +57,7 @@ const WishlistRow = memo(function WishlistRow({ item, isDealerApproved }: { item
           onPress={() => {
             HapticService.medium();
             remove(item.productId);
+            onNotify('Removed from wishlist');
           }}
           hitSlop={13}
           accessibilityRole="button"
@@ -65,10 +74,13 @@ const WishlistRow = memo(function WishlistRow({ item, isDealerApproved }: { item
           onPress={() => {
             if (!productQuery.data) return;
             HapticService.light();
-            addToCart.mutate({
-              payload: { productId: item.productId, quantity: productQuery.data.moq },
-              product: productQuery.data,
-            });
+            addToCart.mutate(
+              {
+                payload: { productId: item.productId, quantity: productQuery.data.moq },
+                product: productQuery.data,
+              },
+              { onSuccess: () => onNotify('Added to cart') }
+            );
           }}
         />
       </View>
@@ -82,6 +94,7 @@ export default function WishlistScreen() {
   const hasHydrated = useWishlistHasHydrated();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { user, dealer } = useAuth();
   const isDealerApproved = canAccessDealerApp(user, dealer);
 
@@ -117,9 +130,9 @@ export default function WishlistScreen() {
       <FlatList
         data={sortedItems}
         keyExtractor={(item) => item.productId}
-        renderItem={({ item }) => <WishlistRow item={item} isDealerApproved={isDealerApproved} />}
+        renderItem={({ item }) => <WishlistRow item={item} isDealerApproved={isDealerApproved} onNotify={setToastMessage} />}
         contentContainerStyle={sortedItems.length === 0 ? styles.emptyContent : undefined}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.red} colors={[colors.red]} />}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.link} colors={[colors.link]} />}
         ListEmptyComponent={
           <EmptyState
             icon="heart"
@@ -130,6 +143,7 @@ export default function WishlistScreen() {
           />
         }
       />
+      {toastMessage && <Toast message={toastMessage} onHide={() => setToastMessage(null)} />}
     </SafeAreaView>
   );
 }
@@ -141,8 +155,8 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   image: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.card },
   rowText: { flex: 1, gap: 4 },
-  brand: { fontFamily: fonts.body.medium, fontSize: 11, color: colors.muted, textTransform: 'uppercase' },
-  name: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.ink },
+  brand: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textTransform: 'uppercase' },
+  name: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   rowActions: { alignItems: 'flex-end', gap: 8 },
   addButton: { height: 36, paddingHorizontal: 16 },
 });

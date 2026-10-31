@@ -27,7 +27,7 @@ export function Skeleton({ width = '100%', height = 16, radius = 6, className }:
   return (
     <Animated.View
       style={[{ width, height, borderRadius: radius }, style]}
-      className={`bg-border ${className ?? ''}`}
+      className={`bg-border-soft ${className ?? ''}`}
     />
   );
 }
@@ -35,7 +35,7 @@ export function Skeleton({ width = '100%', height = 16, radius = 6, className }:
 export function ProductCardSkeleton() {
   return (
     <View className="w-full gap-sm">
-      <Skeleton height={140} radius={10} />
+      <Skeleton height={140} radius={18} />
       <Skeleton height={14} width="80%" />
       <Skeleton height={14} width="50%" />
       <Skeleton height={18} width="40%" />
@@ -70,7 +70,7 @@ export function CategoryPillSkeleton() {
 // title + subtitle inside the same bordered card shell.
 export function CategoryCardSkeleton() {
   return (
-    <View className="flex-1 m-xs bg-card border border-border rounded-lg p-lg gap-sm">
+    <View className="flex-1 m-xs bg-card rounded-lg p-lg gap-sm">
       <Skeleton width={48} height={48} radius={24} />
       <Skeleton height={15} width="80%" />
       <Skeleton height={12} width="50%" />

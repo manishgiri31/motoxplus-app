@@ -92,9 +92,9 @@ export default function RegisterScreen() {
       <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
         <View style={styles.successContent}>
           <View style={styles.iconCircle}>
-            <Feather name="check" size={28} color={colors.red} />
+            <Feather name="check" size={28} color={colors.success} />
           </View>
-          <Text accessibilityRole="header" style={styles.title}>
+          <Text accessibilityRole="header" aria-level={1} style={styles.title}>
             Application Submitted
           </Text>
           <Text style={styles.message}>
@@ -133,7 +133,7 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Eyebrow>MotoXPlus Dealer</Eyebrow>
-            <Text style={styles.title}>Become a Dealer</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Become a Dealer</Text>
             <Text style={styles.subtitle}>Create your account to start ordering</Text>
           </View>
 
@@ -390,8 +390,8 @@ const styles = StyleSheet.create({
   backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 32, gap: 32 },
   header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 30, lineHeight: 36, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 16, color: colors.muted, marginTop: 4 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
+  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
   form: { gap: 16 },
   sectionLabel: {
     fontFamily: fonts.body.semiBold,
@@ -403,23 +403,23 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', gap: 12 },
   rowField: { flex: 1 },
-  error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
-  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, textAlign: 'center' },
+  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
+  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textAlign: 'center' },
   footer: { alignItems: 'center', gap: 4 },
-  footerText: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  footerText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
   signInLink: { paddingVertical: 4 },
-  signInLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.red },
+  signInLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.link },
   successContent: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 16 },
   iconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.redSoft,
+    backgroundColor: colors.successSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  message: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.muted, textAlign: 'center', lineHeight: 22 },
+  message: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, textAlign: 'center', lineHeight: 25 },
   messageStrong: { fontFamily: fonts.body.semiBold, color: colors.ink },
-  detail: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 },
+  detail: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   successButton: { marginTop: 8, width: '100%' },
 });

@@ -82,7 +82,7 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Eyebrow>MotoXPlus Dealer</Eyebrow>
-            <Text style={styles.title}>Welcome Back</Text>
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to manage your business</Text>
           </View>
 
@@ -160,15 +160,15 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
   header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 34, lineHeight: 40, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 16, color: colors.muted, marginTop: 4 },
+  title: { fontFamily: fonts.display.extraBold, fontSize: 40, letterSpacing: -0.6, lineHeight: 44, color: colors.ink },
+  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
   form: { gap: 16 },
-  error: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.red },
+  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
   forgotLink: { alignSelf: 'flex-end' },
-  forgotLabel: { fontFamily: fonts.body.semiBold, fontSize: 13, color: colors.ink },
+  forgotLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
   footer: { alignItems: 'center', gap: 4 },
-  footerText: { fontFamily: fonts.body.regular, fontSize: 14, color: colors.muted },
+  footerText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
   applyLink: { paddingVertical: 4 },
-  applyLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, color: colors.red },
-  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, textAlign: 'center' },
+  applyLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.link },
+  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textAlign: 'center' },
 });

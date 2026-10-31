@@ -37,8 +37,8 @@ export function CategoryCard({ category, onPress }: CategoryCardProps) {
 
 const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  tick: { width: 14, height: 2, borderRadius: 1, backgroundColor: colors.red },
-  name: { fontFamily: fonts.display.bold, fontSize: 15, color: colors.ink, marginBottom: 2 },
-  description: { fontFamily: fonts.body.regular, fontSize: 12.5, color: colors.muted },
-  count: { fontFamily: fonts.body.regular, fontSize: 12, color: colors.muted, marginTop: 6 },
+  tick: { width: 14, height: 2, borderRadius: 1, backgroundColor: colors.ink },
+  name: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, marginBottom: 2 },
+  description: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  count: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, marginTop: 6 },
 });

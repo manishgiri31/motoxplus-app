@@ -42,7 +42,7 @@ export function SortSheet<T extends string>({ visible, value, options, onSelect,
               style={styles.row}
             >
               <Text style={[styles.rowLabel, value === opt.value && styles.rowLabelSelected]}>{opt.label}</Text>
-              {value === opt.value && <Feather name="check" size={18} color={colors.red} />}
+              {value === opt.value && <Feather name="check" size={18} color={colors.link} />}
             </Pressable>
           ))}
         </View>
@@ -55,15 +55,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
   sheet: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     paddingTop: 8,
     paddingHorizontal: 20,
   },
   handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line, marginVertical: 8 },
-  title: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink, marginBottom: 8 },
+  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
-  rowLabel: { fontFamily: fonts.body.regular, fontSize: 15, color: colors.ink },
+  rowLabel: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   rowLabelSelected: { fontFamily: fonts.body.semiBold },
 });

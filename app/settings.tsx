@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   content: { padding: 16, gap: 32 },
   section: { gap: 12 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 16, color: colors.ink },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
   deleteButton: { marginTop: 4 },
   modalContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 16,
   },
-  modalTitle: { fontFamily: fonts.display.bold, fontSize: 18, color: colors.ink },
-  modalSubtitle: { fontFamily: fonts.body.regular, fontSize: 13, color: colors.muted, marginTop: -8 },
+  modalTitle: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
+  modalSubtitle: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, marginTop: -8 },
   modalDeleteButton: { marginTop: 4 },
 });
