@@ -1,53 +1,68 @@
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { Category } from '@/api/types';
-import { colors, fonts } from '@/src/theme';
-import { categoryIcon } from '@/utils/categoryIcon';
+import { useGridColumns } from '@/hooks/use-grid-columns';
+import { colors, layout, screenPaddingX, textStyles } from '@/src/theme';
 
 import { Card } from '../ui/Card';
-import { useSectionTone } from '../ui/Section';
+import { CategoryGlyph } from './CategoryGlyph';
 
 export interface CategoryCardProps {
   category: Category;
   onPress?: () => void;
 }
 
-// Centered tile: an icon disc, the family name and a quiet product count.
-// The disc inverts against the card (white on grey, grey on a white card) via
-// the surrounding Section tone.
+export const CATEGORY_GRID_GAP = 12;
+
+// Edge length of a square category card for the current grid: the card is 1:1
+// at normal text sizes, and its minHeight (not a fixed aspect ratio) so it can
+// grow when Dynamic Type makes the text taller than the square.
+export function useCategoryCardSide(): number {
+  const { width } = useWindowDimensions();
+  const columns = useGridColumns();
+  const contentWidth = Math.min(width, layout.contentMaxWidth) - screenPaddingX * 2;
+  return Math.floor((contentWidth - CATEGORY_GRID_GAP * (columns - 1)) / columns);
+}
+
+// Square bgAlt card: a white icon disc top-left, name and product count
+// anchored bottom-left.
 export function CategoryCard({ category, onPress }: CategoryCardProps) {
-  const onAlt = useSectionTone() === 'alt';
+  const side = useCategoryCardSide();
+  const count = category._count.products;
+
   return (
     <Card
       onPress={onPress ?? (() => router.push(`/category/${category.slug}`))}
-      accessibilityLabel={`${category.name}, ${category._count.products} products`}
-      style={styles.card}
+      accessibilityLabel={`${category.name}, ${count} ${count === 1 ? 'product' : 'products'}`}
+      style={[styles.card, { minHeight: side }]}
     >
-      <View style={[styles.disc, { backgroundColor: onAlt ? colors.card : colors.white }]}>
-        <Feather name={categoryIcon(category.name)} size={28} color={colors.ink} />
+      <View style={styles.disc}>
+        <CategoryGlyph name={category.name} size={26} color={colors.accent} />
       </View>
-      <Text style={styles.name} numberOfLines={2}>
-        {category.name}
-      </Text>
-      <Text style={styles.count}>
-        {category._count.products} {category._count.products === 1 ? 'product' : 'products'}
-      </Text>
+      <View style={styles.text}>
+        <Text style={styles.name} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+          {category.name}
+        </Text>
+        <Text style={styles.count} maxFontSizeMultiplier={1.2}>
+          {count} {count === 1 ? 'product' : 'products'}
+        </Text>
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'center', gap: 4, minHeight: 168, justifyContent: 'center' },
-  disc: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  name: {
-    fontFamily: fonts.display.bold,
-    fontSize: 17,
-    lineHeight: 19,
-    letterSpacing: -0.374,
-    color: colors.ink,
-    textAlign: 'center',
+  card: { flex: 1, padding: 16, justifyContent: 'space-between', gap: 12 },
+  disc: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  count: { fontFamily: fonts.body.regular, fontSize: 12, lineHeight: 16, letterSpacing: -0.12, color: colors.muted },
+  text: { gap: 2 },
+  name: { ...textStyles.headline },
+  count: { ...textStyles.callout },
 });

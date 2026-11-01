@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
@@ -12,31 +12,34 @@ import { isCompatibleWithVehicle } from '@/utils/vehicleCompatibility';
 
 import { BlurredPrice } from '../ui/BlurredPrice';
 import { Card } from '../ui/Card';
-import { MonoLabel } from '../ui/MonoLabel';
-import { colors, fonts } from '@/src/theme';
+import { colors, font, textStyles } from '@/src/theme';
+import { StatusBadge } from '../ui/StatusBadge';
 
 export interface CatalogProductCardProps {
   product: Product;
   vehicle?: SelectedVehicle | null;
   // When true, skip the client-side compatibility heuristic and always show
-  // the "fits" badge — for screens whose product list is already
+  // the "fits" eyebrow — for screens whose product list is already
   // server-filtered by GET /api/products' real vehicle/variant params
   // (vehicle-parts.tsx), every result is guaranteed compatible already. The
   // heuristic remains the only signal on unfiltered lists (Search/Category).
   guaranteedFit?: boolean;
+  // Show "Few left" as a warning badge over the image (home Low Stock rail)
+  // instead of as the eyebrow line.
+  stockBadge?: boolean;
 }
 
-// The product name is clamped to exactly two lines AND pinned to that height
-// (NAME_LINES * NAME_LINE_HEIGHT) whether the name is one line or two, so a
-// short name doesn't make its card shorter than its neighbours. Every other
-// region below is a fixed/aspect-ratio size too, which makes the whole card a
-// deterministic height for a given column width — FlatList/FlashList never
-// equalises row heights on its own, so without this the 2-col grid staggers.
+// Each text region below has a pinned (font-scale aware) height whether it is
+// filled or not, so the whole tile is a deterministic height for a given column
+// width — FlatList/FlashList never equalise row heights on their own, so
+// without this the grid staggers. Dynamic Type is honoured up to 120%.
+const MAX_FONT_SCALE = 1.2;
 const NAME_LINES = 2;
-const NAME_LINE_HEIGHT = 18;
 
-export function CatalogProductCard({ product, vehicle = null, guaranteedFit = false }: CatalogProductCardProps) {
+export function CatalogProductCard({ product, vehicle = null, guaranteedFit = false, stockBadge = false }: CatalogProductCardProps) {
   const { user, dealer } = useAuth();
+  const { fontScale } = useWindowDimensions();
+  const scale = Math.min(Math.max(fontScale, 1), MAX_FONT_SCALE);
   const isDealerApproved = canAccessDealerApp(user, dealer);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
   const fits = guaranteedFit || isCompatibleWithVehicle(product, vehicle);
@@ -44,41 +47,54 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
   const lowStock = !outOfStock && isFewLeft(product);
 
   // One eyebrow line above the name carries the most important status: stock
-  // first, then vehicle fit. It always reserves its height so cards stay equal.
+  // first, then vehicle fit.
   const eyebrow = outOfStock
-    ? { text: 'Out of stock', color: colors.muted }
-    : lowStock
+    ? { text: 'Out of stock', color: colors.ink3 }
+    : lowStock && !stockBadge
       ? { text: 'Few left', color: colors.warning }
       : fits && vehicle
-        ? { text: `Fits your ${vehicle.modelName}`, color: colors.success }
+        ? { text: 'Fits your bike', color: colors.accent }
         : null;
 
+  const partLabel = `Part number ${product.partNumber}`;
+  const label = [product.name, eyebrow?.text ?? (lowStock ? 'Few left' : null), partLabel, product.moq > 1 ? `Minimum order ${product.moq}` : null]
+    .filter(Boolean)
+    .join(', ');
+
   return (
-    <Card onPress={() => router.push(`/product/${product.id}`)} accessibilityLabel={product.name} style={styles.card}>
+    <Card onPress={() => router.push(`/product/${product.id}`)} accessibilityLabel={label} style={styles.card}>
       <View style={styles.imageWrap}>
         {/* contain (not cover) — spare-part photos come in wildly different
-            dimensions and cover would crop/stretch them. The white tile behind
-            the letterboxed image keeps the gap from reading as broken. The
-            missing-image placeholder renders into this same box, so the
-            card doesn't jump when an image loads in. */}
+            dimensions and cover would crop/stretch them. The missing-image
+            placeholder renders into this same box, so the tile doesn't jump
+            when an image loads in. */}
         <Image source={getImageSource(primaryImage?.imageUrl)} style={styles.image} contentFit="contain" cachePolicy="memory-disk" />
+        {stockBadge && lowStock && (
+          <View style={styles.badge}>
+            <StatusBadge label="Few left" tone="warning" />
+          </View>
+        )}
       </View>
 
       <View style={styles.body}>
-        <Text style={[styles.eyebrow, eyebrow && { color: eyebrow.color }]} numberOfLines={1}>
+        <Text
+          style={[styles.eyebrow, { minHeight: 16 * scale }, eyebrow && { color: eyebrow.color }]}
+          numberOfLines={1}
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
+        >
           {eyebrow?.text ?? ' '}
         </Text>
-        <Text style={styles.name} numberOfLines={NAME_LINES}>
+        <Text style={[styles.name, { height: NAME_LINES * 22 * scale }]} numberOfLines={NAME_LINES} maxFontSizeMultiplier={MAX_FONT_SCALE}>
           {product.name}
         </Text>
-        <MonoLabel style={styles.part} numberOfLines={1}>
+        <Text style={[styles.part, { minHeight: 16 * scale }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE}>
           {product.partNumber}
-        </MonoLabel>
-        <View style={styles.priceRow}>
-          <BlurredPrice price={product.price} isDealerApproved={isDealerApproved} />
+        </Text>
+        <View style={[styles.priceRow, { minHeight: 22 * scale }]}>
+          <BlurredPrice price={product.price} isDealerApproved={isDealerApproved} compact />
         </View>
-        <Text style={styles.moq} numberOfLines={1}>
-          {product.moq > 1 ? `MOQ ${product.moq}` : ' '}
+        <Text style={[styles.moq, { minHeight: 16 * scale }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+          {product.moq > 1 ? `Min. ${product.moq}` : ' '}
         </Text>
       </View>
     </Card>
@@ -86,46 +102,16 @@ export function CatalogProductCard({ product, vehicle = null, guaranteedFit = fa
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, padding: 16 },
-  imageWrap: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 14,
-  },
+  // Zero padding: the white image block runs edge to edge across the top of the
+  // card and the card's own 18pt corners (overflow hidden) round it.
+  card: { flex: 1, padding: 0, overflow: 'hidden' },
+  imageWrap: { width: '100%', aspectRatio: 1, backgroundColor: colors.white, padding: 12 },
   image: { width: '100%', height: '100%' },
-  body: { flex: 1, alignItems: 'center' },
-  eyebrow: {
-    fontFamily: fonts.body.semiBold,
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: -0.12,
-    color: colors.muted,
-    textAlign: 'center',
-    minHeight: 16,
-  },
-  name: {
-    fontFamily: fonts.display.bold,
-    fontSize: 14,
-    letterSpacing: -0.224,
-    lineHeight: NAME_LINE_HEIGHT,
-    color: colors.ink,
-    height: NAME_LINES * NAME_LINE_HEIGHT,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  part: { textAlign: 'center', marginTop: 6, minHeight: 16 },
-  priceRow: { minHeight: 24, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
-  moq: {
-    fontFamily: fonts.body.regular,
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: -0.12,
-    color: colors.muted,
-    textAlign: 'center',
-    minHeight: 16,
-    marginTop: 4,
-  },
+  badge: { position: 'absolute', top: 8, left: 8 },
+  body: { flex: 1, padding: 12, gap: 2 },
+  eyebrow: { ...textStyles.caption, ...font(600) },
+  name: { ...textStyles.headline },
+  part: { ...textStyles.caption, marginTop: 2 },
+  priceRow: { justifyContent: 'center', marginTop: 6 },
+  moq: { ...textStyles.caption },
 });

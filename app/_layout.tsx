@@ -15,6 +15,7 @@ import { useAuth } from '@/auth/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { configureNotifications, getNotificationUrl } from '@/hooks/use-push-notifications';
 import { AppProviders } from '@/providers/AppProviders';
+import { AppSplash } from '@/src/components/ui/AppSplash';
 import { NAV_BAR_FILL } from '@/src/components/ui/NavBarBackground';
 import { colors, fonts, fontsToLoad, layout } from '@/src/theme';
 // Side-effect import — starts the persisted theme preference's rehydration
@@ -92,8 +93,10 @@ function RootNavigator() {
   }, []);
 
   if (!ready) {
-    // Native splash screen is still visible at this point.
-    return null;
+    // White screen with just the wordmark fading in. The native launch screen
+    // (plain white) is hidden the moment this has been laid out, so there is
+    // no blank frame between the two.
+    return <AppSplash onShown={() => SplashScreen.hideAsync()} />;
   }
 
   return (
@@ -117,7 +120,10 @@ function RootNavigator() {
           <Stack.Screen name="order/[id]/tracking" options={{ title: 'Track order' }} />
           <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
           <Stack.Screen name="order-placed" options={{ title: 'Order placed', headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="search" options={{ title: 'Search', presentation: 'modal' }} />
+          <Stack.Screen
+            name="search"
+            options={{ title: 'Search', headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom', animationDuration: 280 }}
+          />
           <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
           <Stack.Screen name="invoices" options={{ title: 'Invoices' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />

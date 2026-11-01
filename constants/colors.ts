@@ -44,9 +44,9 @@ export const semanticColors = {
     primaryForeground: '#FFFFFF',
     secondary: '#1D1D1F',
     secondaryForeground: '#FFFFFF',
-    success: '#248A3D',
-    warning: '#B76B00',
-    danger: '#D70015',
+    success: '#008009',
+    warning: '#F56300',
+    danger: '#E30000',
   },
 } as const;
 

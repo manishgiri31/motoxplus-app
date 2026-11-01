@@ -4,7 +4,8 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useServiceability } from '@/api/hooks/useShipping';
 import type { ShippingServiceabilityResponse } from '@/api/types';
-import { colors, fonts, radii } from '@/src/theme';
+import { CircleCheck } from '@/components/icons/CircleCheck';
+import { colors, font, space } from '@/src/theme';
 
 interface Props {
   /** Current pincode value from the parent form (raw keystrokes are fine). */
@@ -12,8 +13,7 @@ interface Props {
   /**
    * Fired whenever the resolved result changes — `null` while the pincode is
    * incomplete or still loading, the Delhivery result once it resolves. The
-   * parent uses this to auto-fill city and to show a non-blocking
-   * "outside courier coverage" notice near the Place order button.
+   * parent uses this to auto-fill city.
    */
   onResult?: (result: ShippingServiceabilityResponse | null) => void;
 }
@@ -29,6 +29,7 @@ function useDebouncedValue(value: string, delayMs: number) {
   return debounced;
 }
 
+// Caption that sits under the pincode field, inside its list row.
 export function PincodeServiceability({ pincode, onResult }: Props) {
   const debounced = useDebouncedValue(pincode.trim(), 500);
   const valid = PINCODE_REGEX.test(debounced);
@@ -66,9 +67,11 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
 
   if (isFetching && !data) {
     return (
-      <View style={styles.row}>
-        <ActivityIndicator size="small" color={colors.muted} />
-        <Text style={styles.checking}>Checking delivery availability…</Text>
+      <View style={styles.caption} accessibilityLiveRegion="polite">
+        <ActivityIndicator size="small" color={colors.ink3} />
+        <Text style={styles.text} maxFontSizeMultiplier={1.2}>
+          Checking delivery availability…
+        </Text>
       </View>
     );
   }
@@ -82,9 +85,9 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
     const city = data?.city;
     const days = data?.estimatedDeliveryDays;
     return (
-      <View style={[styles.card, styles.cardOk]}>
-        <Feather name="check-circle" size={15} color={colors.ink} />
-        <Text style={styles.okText}>
+      <View style={styles.caption} accessibilityLiveRegion="polite">
+        <CircleCheck size={16} color={colors.success} />
+        <Text style={styles.text} maxFontSizeMultiplier={1.2}>
           Deliverable{city ? ` — ${city}` : ''}
           {days ? ` · ~${days} business days` : ''}
         </Text>
@@ -92,29 +95,25 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
     );
   }
 
+  // Non-blocking: the order still goes through and the team arranges delivery.
   return (
-    <View style={[styles.card, styles.cardWarn]}>
-      <Feather name="alert-circle" size={15} color={colors.red} />
-      <Text style={styles.warnText}>
-        {result.error ?? 'Delivery not available to this pincode.'}
+    <View style={styles.caption} accessibilityLiveRegion="polite">
+      <Feather name="alert-circle" size={14} color={colors.warning} />
+      <Text style={styles.text} maxFontSizeMultiplier={1.2}>
+        {result.error ?? 'Delivery may not be available to this pincode.'} Your order will still be placed and our
+        team will arrange delivery.
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
-  checking: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  card: {
+  caption: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 10,
-    borderRadius: radii.sm,
-    borderWidth: 1,
+    alignItems: 'flex-start',
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
   },
-  cardOk: { backgroundColor: colors.card, borderColor: colors.line },
-  cardWarn: { backgroundColor: colors.redSoft, borderColor: colors.redSoft },
-  okText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.ink },
-  warnText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.red },
+  text: { flex: 1, ...font(400), fontSize: 12, lineHeight: 16, color: colors.ink2 },
 });

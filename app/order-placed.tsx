@@ -1,11 +1,8 @@
-import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, MonoLabel } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { ResultLayout } from '@/src/components/checkout/ResultLayout';
+import { SuccessCheck } from '@/src/components/checkout/SuccessCheck';
+import { Button } from '@/src/components/ui/Button';
 
 // COD-only confirmation screen. Prepaid orders skip it entirely: checkout
 // routes them to /order/[id]/pay (native Razorpay checkout) and, once the
@@ -14,38 +11,16 @@ export default function OrderPlacedScreen() {
   const { orderId, orderNumber } = useLocalSearchParams<{ orderId: string; orderNumber: string }>();
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.content}>
-        <Animated.View entering={FadeIn.duration(220)} style={styles.check}>
-          <Feather name="check" size={40} color="#FFFFFF" />
-        </Animated.View>
-        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Order placed</Text>
-        <MonoLabel color="ink" style={styles.orderId}>{`#${orderNumber}`}</MonoLabel>
-        <Button
-          label="View order"
-          variant="solid"
-          fullWidth
-          onPress={() => router.replace(`/order/${orderId}`)}
-          style={styles.button}
-        />
-      </View>
-    </SafeAreaView>
+    <ResultLayout
+      icon={<SuccessCheck />}
+      title="Order placed"
+      reference={`Order #${orderNumber}`}
+      actions={
+        <>
+          <Button label="View order" variant="primary" fullWidth onPress={() => router.replace(`/order/${orderId}`)} />
+          <Button label="Continue shopping" variant="link" hideChevron onPress={() => router.replace('/(tabs)')} />
+        </>
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
-  check: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
-  orderId: { fontSize: 17, letterSpacing: -0.374, marginTop: 4 },
-  button: { marginTop: 24, width: '100%' },
-});

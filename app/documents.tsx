@@ -1,4 +1,3 @@
-import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
@@ -10,8 +9,14 @@ import { getErrorMessage } from '@/api/errors';
 import { useDealerDocuments, useUploadDocument } from '@/api/hooks/useDocuments';
 import { documentService, type UploadableFile } from '@/api/services/documentService';
 import type { DealerDocument, DealerDocumentType } from '@/api/types';
-import { Badge, Button, Card, ErrorState, Reveal, Skeleton, Toast } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { DocumentSourceSheet } from '@/src/components/account/DocumentSourceSheet';
+import { Button } from '@/src/components/ui/Button';
+import { ErrorState } from '@/src/components/ui/ErrorState';
+import { GroupedList } from '@/src/components/ui/GroupedList';
+import { Skeleton } from '@/src/components/ui/Skeleton';
+import { StatusBadge } from '@/src/components/ui/StatusBadge';
+import { Toast } from '@/src/components/ui/Toast';
+import { colors, font, layout, motion, screenPaddingX, sectionGap, space, textStyles } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
 const DOCUMENT_TYPES: { type: DealerDocumentType; label: string; hint: string }[] = [
@@ -34,12 +39,97 @@ function extensionFor(mime: string) {
   return mime === 'application/pdf' ? 'pdf' : mime === 'image/png' ? 'png' : 'jpg';
 }
 
+// One document: title and Uploaded / Missing badge, a file or hint line, and
+// the row's actions as plain link buttons (44pt targets).
+function DocumentRow({
+  label,
+  hint,
+  existing,
+  uploading,
+  viewing,
+  locked,
+  onUpload,
+  onView,
+}: {
+  label: string;
+  hint: string;
+  existing?: DealerDocument;
+  uploading: boolean;
+  viewing: boolean;
+  locked: boolean;
+  onUpload: () => void;
+  onView: () => void;
+}) {
+  const detail = existing
+    ? `${existing.fileName} · ${formatSize(existing.fileSize)} · ${new Date(existing.uploadedAt).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })}`
+    : hint;
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowHeader}>
+        <Text style={styles.rowTitle} maxFontSizeMultiplier={layout.maxFontScale}>
+          {label}
+        </Text>
+        <StatusBadge label={existing ? 'Uploaded' : 'Missing'} tone={existing ? 'success' : 'warning'} />
+      </View>
+      <Text style={styles.rowDetail} numberOfLines={2} maxFontSizeMultiplier={layout.maxFontScale}>
+        {detail}
+      </Text>
+      <View style={styles.actions}>
+        <Button
+          label={existing ? 'Replace' : 'Upload'}
+          accessibilityLabel={`${existing ? 'Replace' : 'Upload'} ${label}`}
+          variant="link"
+          hideChevron
+          loading={uploading}
+          disabled={locked}
+          onPress={onUpload}
+        />
+        {existing && (
+          <Button
+            label="View"
+            accessibilityLabel={`View ${label}`}
+            variant="link"
+            hideChevron
+            loading={viewing}
+            onPress={onView}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
+// Same shape as DocumentRow so nothing jumps when the data arrives.
+function DocumentRowSkeleton() {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowHeader}>
+        <Skeleton height={22} width="45%" />
+        <Skeleton height={24} width={72} radius={12} />
+      </View>
+      <Skeleton height={20} width="70%" />
+      <View style={styles.actions}>
+        <Skeleton height={22} width={64} />
+      </View>
+    </View>
+  );
+}
+
 export default function DocumentsScreen() {
   const { data, isLoading, isError, error, refetch, isRefetching } = useDealerDocuments();
   const upload = useUploadDocument();
   const [uploadingType, setUploadingType] = useState<DealerDocumentType | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Which document the source sheet is for. `target` outlives `sheetOpen` so
+  // the sheet's title doesn't blank while it animates out.
+  const [target, setTarget] = useState<{ type: DealerDocumentType; label: string } | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const byType = new Map<DealerDocumentType, DealerDocument>((data?.documents ?? []).map((d) => [d.documentType, d]));
   const uploadedCount = DOCUMENT_TYPES.filter((d) => byType.has(d.type)).length;
@@ -98,11 +188,17 @@ export default function DocumentsScreen() {
   };
 
   const choose = (type: DealerDocumentType, label: string) => {
-    Alert.alert(`Upload ${label.toLowerCase()}`, 'PDF, JPG or PNG, up to 10 MB.', [
-      { text: 'Photo library', onPress: () => pickPhoto(type) },
-      { text: 'Files', onPress: () => pickFile(type) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setTarget({ type, label });
+    setSheetOpen(true);
+  };
+
+  // iOS can't present the system picker while the sheet's Modal is still
+  // dismissing, so wait out its closing animation first.
+  const pickFrom = (picker: (type: DealerDocumentType) => Promise<void>) => {
+    if (!target) return;
+    const { type } = target;
+    setSheetOpen(false);
+    setTimeout(() => picker(type), motion.duration.slow + 80);
   };
 
   const view = async (doc: DealerDocument) => {
@@ -130,90 +226,75 @@ export default function DocumentsScreen() {
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <ScrollView
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.link} colors={[colors.link]} />}
       >
-        <View style={styles.header}>
-          <Text accessibilityRole="header" aria-level={1} style={styles.title}>
-            Documents
-          </Text>
-          <Text style={styles.subtitle}>
+        <View style={styles.intro}>
+          <Text style={styles.introText} maxFontSizeMultiplier={layout.maxFontScale}>
             Upload your verification documents to speed up order approvals. Files are stored securely and only the MotoXPlus
             team can see them.
           </Text>
+          <View style={styles.summary} accessibilityLiveRegion="polite">
+            <Text style={styles.summaryText} maxFontSizeMultiplier={layout.maxFontScale}>
+              {isLoading ? 'Checking your documents…' : `${uploadedCount} of ${DOCUMENT_TYPES.length} documents uploaded`}
+            </Text>
+            {!isLoading && uploadedCount === DOCUMENT_TYPES.length && <StatusBadge label="All complete" tone="success" />}
+          </View>
         </View>
 
-        <Card style={styles.summary}>
-          <Feather name="shield" size={20} color={colors.muted} />
-          <Text style={styles.summaryText}>
-            {isLoading ? 'Checking your documents…' : `${uploadedCount} of ${DOCUMENT_TYPES.length} documents uploaded`}
-          </Text>
-          {!isLoading && uploadedCount === DOCUMENT_TYPES.length && <Badge label="All complete" variant="success" />}
-        </Card>
-
-        {isLoading
-          ? DOCUMENT_TYPES.map((d) => <Skeleton key={d.type} height={132} radius={18} />)
-          : DOCUMENT_TYPES.map((d, i) => {
-              const existing = byType.get(d.type);
-              const busy = uploadingType === d.type;
-              return (
-                <Reveal key={d.type} delay={i * 40}>
-                  <Card style={styles.docCard}>
-                    <View style={styles.docHeader}>
-                      <View style={styles.docTitles}>
-                        <Text style={styles.docTitle}>{d.label}</Text>
-                        <Text style={styles.docHint}>{d.hint}</Text>
-                      </View>
-                      <Badge label={existing ? 'Uploaded' : 'Not uploaded'} variant={existing ? 'success' : 'neutral'} />
-                    </View>
-                    {existing && (
-                      <Text style={styles.docMeta} numberOfLines={1}>
-                        {existing.fileName} · {formatSize(existing.fileSize)} ·{' '}
-                        {new Date(existing.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </Text>
-                    )}
-                    <View style={styles.docActions}>
-                      <Button
-                        label={existing ? 'Replace' : 'Upload'}
-                        variant={existing ? 'ghost' : 'brand'}
-                        loading={busy}
-                        disabled={uploadingType !== null && !busy}
-                        onPress={() => choose(d.type, d.label)}
-                        style={styles.actionButton}
-                      />
-                      {existing && (
-                        <Button
-                          label="View"
-                          variant="ghost"
-                          loading={viewingId === existing.id}
-                          onPress={() => view(existing)}
-                          style={styles.actionButton}
-                        />
-                      )}
-                    </View>
-                  </Card>
-                </Reveal>
-              );
-            })}
+        <GroupedList>
+          {isLoading
+            ? DOCUMENT_TYPES.map((d) => <DocumentRowSkeleton key={d.type} />)
+            : DOCUMENT_TYPES.map((d) => {
+                const existing = byType.get(d.type);
+                const busy = uploadingType === d.type;
+                return (
+                  <DocumentRow
+                    key={d.type}
+                    label={d.label}
+                    hint={d.hint}
+                    existing={existing}
+                    uploading={busy}
+                    viewing={!!existing && viewingId === existing.id}
+                    locked={uploadingType !== null && !busy}
+                    onUpload={() => choose(d.type, d.label)}
+                    onView={() => existing && view(existing)}
+                  />
+                );
+              })}
+        </GroupedList>
       </ScrollView>
+
+      <DocumentSourceSheet
+        visible={sheetOpen}
+        documentLabel={target?.label ?? ''}
+        onClose={() => setSheetOpen(false)}
+        onPhotoLibrary={() => pickFrom(pickPhoto)}
+        onFiles={() => pickFrom(pickFile)}
+      />
       {toast && <Toast message={toast} onHide={() => setToast(null)} />}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 16, gap: 16, paddingBottom: 48 },
-  header: { gap: 6, paddingTop: 8 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, lineHeight: 31, letterSpacing: -0.42, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 14, lineHeight: 20, letterSpacing: -0.224, color: colors.muted },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  summaryText: { flex: 1, fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  docCard: { gap: 12 },
-  docHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  docTitles: { flex: 1, gap: 2 },
-  docTitle: { fontFamily: fonts.display.bold, fontSize: 17, lineHeight: 19, letterSpacing: -0.374, color: colors.ink },
-  docHint: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  docMeta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  docActions: { flexDirection: 'row', gap: 12 },
-  actionButton: { flex: 1 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: screenPaddingX, paddingTop: space.xl, paddingBottom: space.x5, gap: sectionGap },
+  intro: { gap: space.md },
+  introText: { ...textStyles.callout },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  summaryText: { ...textStyles.calloutStrong },
+  row: {
+    minHeight: layout.rowMinHeight,
+    paddingHorizontal: layout.rowInset,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+    gap: space.xs,
+  },
+  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  rowTitle: { ...font(400), flex: 1, fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink },
+  rowDetail: { ...textStyles.callout },
+  // Link buttons carry 8px of horizontal padding; pull the first one back so
+  // its text lines up with the title.
+  actions: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginLeft: -space.sm },
 });

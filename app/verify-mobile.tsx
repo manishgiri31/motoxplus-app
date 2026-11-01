@@ -12,7 +12,8 @@ import { authService } from '@/api/services/authService';
 import { mobileNumberSchema, otpSchema, type MobileNumberFormValues, type OtpFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
 import { Input } from '@/components/ui';
-import { Button, OtpInput } from '@/src/components/ui';
+import { OtpCodeEntry } from '@/src/components/auth/OtpCodeEntry';
+import { Button } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
@@ -155,18 +156,18 @@ export default function VerifyMobileScreen() {
               <Controller
                 control={otpForm.control}
                 name="otp"
-                render={({ field }) => <OtpInput value={field.value} onChange={field.onChange} autoFocus />}
+                render={({ field }) => (
+                  <OtpCodeEntry
+                    value={field.value}
+                    onChange={field.onChange}
+                    autoFocus
+                    error={otpForm.formState.errors.otp?.message ?? formError}
+                    message={resendMessage}
+                    resendSecondsLeft={resendCooldown}
+                    onResend={resendOtp}
+                  />
+                )}
               />
-              {otpForm.formState.errors.otp && (
-                <Text style={styles.errorCentered}>{otpForm.formState.errors.otp.message}</Text>
-              )}
-              {resendMessage && <Text style={styles.successCentered}>{resendMessage}</Text>}
-              {formError && <Text style={styles.errorCentered}>{formError}</Text>}
-              <Pressable onPress={resendOtp} disabled={resendCooldown > 0} hitSlop={10} accessibilityRole="button" accessibilityLabel="Resend code">
-                <Text style={[styles.resendText, { color: resendCooldown > 0 ? colors.muted : colors.link }]}>
-                  {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
-                </Text>
-              </Pressable>
               <Button
                 label="Verify mobile"
                 variant="brand"
@@ -193,6 +194,4 @@ const styles = StyleSheet.create({
   form: { gap: 16 },
   error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
   errorCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red, textAlign: 'center' },
-  successCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.success, textAlign: 'center' },
-  resendText: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, textAlign: 'center' },
 });

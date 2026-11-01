@@ -1,13 +1,16 @@
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DEALER_APPLICATION_URL } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
-import { Button, Eyebrow } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { Button } from '@/src/components/ui';
+import { alpha, colors, screenPaddingX, space, textStyles } from '@/src/theme';
+
+const ICON_SIZE = 64;
 
 // Reached two ways, both driven by AuthProvider's `accessDenied` flag
 // (auth/AuthProvider.tsx): a login attempt by a non-dealer/unapproved
@@ -27,26 +30,32 @@ export default function AccessDeniedScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <Eyebrow>MotoXPlus Dealer</Eyebrow>
-
-        <View style={styles.iconCircle}>
-          <Feather name="shield" size={28} color={colors.red} />
+        {/* Shield on a soft accent disc: the SF Symbol on iOS, a Feather
+            glyph of the same shape elsewhere. Decorative, hidden from screen readers. */}
+        <View style={styles.iconDisc} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {Platform.OS === 'ios' ? (
+            <SymbolView name="shield.fill" size={ICON_SIZE * 0.5} tintColor={colors.accent} />
+          ) : (
+            <Feather name="shield" size={ICON_SIZE * 0.5} color={colors.accent} />
+          )}
         </View>
 
         <View style={styles.textBlock}>
-          <Text accessibilityRole="header" aria-level={1} style={styles.title}>
+          <Text accessibilityRole="header" aria-level={1} style={styles.title} maxFontSizeMultiplier={1.2}>
             Dealer Access Required
           </Text>
-          <Text style={styles.message}>This app is available only for approved MotoXPlus dealers.</Text>
-          <Text style={styles.detail}>
+          <Text style={styles.body} maxFontSizeMultiplier={1.2}>
+            This app is available only for approved MotoXPlus dealers.
+          </Text>
+          <Text style={styles.detail} maxFontSizeMultiplier={1.2}>
             {"If you've already applied, please wait until your application is approved.\n"}
             {"If you haven't applied yet, you can submit a dealer application on our website."}
           </Text>
         </View>
 
         <View style={styles.actions}>
-          <Button label="Apply on Website" variant="brand" fullWidth onPress={() => Linking.openURL(DEALER_APPLICATION_URL)} />
-          <Button label="Back to sign in" variant="ghost" fullWidth onPress={backToSignIn} />
+          <Button label="Apply on Website" variant="primary" fullWidth onPress={() => Linking.openURL(DEALER_APPLICATION_URL)} />
+          <Button label="Back to sign in" variant="link" hideChevron onPress={backToSignIn} />
         </View>
       </View>
     </SafeAreaView>
@@ -54,19 +63,25 @@ export default function AccessDeniedScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 20 },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.redSoft,
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: screenPaddingX,
+    gap: space.x3,
+  },
+  iconDisc: {
+    width: ICON_SIZE * 1.5,
+    height: ICON_SIZE * 1.5,
+    borderRadius: ICON_SIZE * 0.75,
+    backgroundColor: alpha(colors.accent, 0.12),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textBlock: { gap: 8 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, textAlign: 'center' },
-  message: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, textAlign: 'center', lineHeight: 25 },
-  detail: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 4 },
-  actions: { width: '100%', gap: 12, marginTop: 8 },
+  textBlock: { alignItems: 'center', gap: space.sm },
+  title: { ...textStyles.title, textAlign: 'center' },
+  body: { ...textStyles.body, textAlign: 'center' },
+  detail: { ...textStyles.callout, textAlign: 'center', marginTop: space.sm },
+  actions: { width: '100%', alignItems: 'center', gap: space.sm },
 });

@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState } from '@/src/components/ui';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/theme';
 
 // Order push notifications ARE wired up (see hooks/use-push-notifications.ts +
@@ -13,7 +13,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <EmptyState
-        icon="bell-off"
+        icon="bell"
         title="No notifications yet"
         message="Order updates and account alerts will appear here once notifications are enabled."
       />
@@ -22,5 +22,5 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { flex: 1, backgroundColor: colors.bg },
 });

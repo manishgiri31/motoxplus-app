@@ -1,23 +1,28 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrder } from '@/api/hooks/useOrders';
-import type { CancelOrderResponse, OrderStatus } from '@/api/types';
-import { Badge as LegacyBadge } from '@/components/ui';
-import { orderStatusVariant } from '@/constants/orderStatus';
+import type { CancelOrderResponse, Order, OrderItem, OrderStatus, RefundStatus } from '@/api/types';
+import { CircleX } from '@/components/icons/CircleX';
+import { FileText } from '@/components/icons/FileText';
+import { MapPin } from '@/components/icons/MapPin';
+import { orderStatusBadgeTone, orderStatusLabel } from '@/constants/orderStatus';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { CancellationSheet } from '@/src/components/cancellation/CancellationSheet';
-import { Badge, Button, Card, ErrorState, MonoLabel, Toast } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { Button, ErrorState, GroupedList, Skeleton, Toast } from '@/src/components/ui';
+import { StatusBadge, type StatusTone } from '@/src/components/ui/StatusBadge';
+import { Timeline, type TimelineItem } from '@/src/components/ui/Timeline';
+import { colors, font, motion, radii, screenPaddingX, sectionGap, space, textStyles } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 
-const REFUND_STATUS_TONE: Record<'INITIATED' | 'PROCESSED' | 'FAILED' | 'NOT_APPLICABLE', 'brand' | 'success' | 'danger'> = {
-  INITIATED: 'brand',
+const REFUND_STATUS_TONE: Record<RefundStatus, StatusTone> = {
+  INITIATED: 'neutral',
   PROCESSED: 'success',
   FAILED: 'danger',
-  NOT_APPLICABLE: 'brand',
+  NOT_APPLICABLE: 'neutral',
 };
 
 // PROCESSING is still pre-shipment (see lib/orders/cancellation.ts on the
@@ -30,22 +35,35 @@ const CANCELLABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING
 
 const STEPS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
-function StatusTimeline({ status }: { status: OrderStatus }) {
-  if (status === 'CANCELLED') {
-    return <Badge label="Order cancelled" variant="neutral" />;
-  }
-  if (status === 'RETURNED') {
-    return <Badge label="Order returned" variant="neutral" />;
-  }
+function buildSteps(status: OrderStatus, placedOn: string): TimelineItem[] {
   const currentIndex = STEPS.indexOf(status);
+  return STEPS.map((step, i) => ({
+    key: step,
+    title: orderStatusLabel[step],
+    detail: step === 'PENDING' ? `Placed ${placedOn}` : undefined,
+    // Delivered is the end of the road: every step is complete, nothing pulses.
+    state: status === 'DELIVERED' || i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'upcoming',
+  }));
+}
+
+function StatusTimeline({ order }: { order: Order }) {
+  if (order.status === 'CANCELLED' || order.status === 'RETURNED') {
+    return (
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle} maxFontSizeMultiplier={1.2}>
+          {order.status === 'CANCELLED' ? 'Order cancelled' : 'Order returned'}
+        </Text>
+      </View>
+    );
+  }
+  const placedOn = new Date(order.createdAt).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
   return (
-    <View style={styles.timeline}>
-      {STEPS.map((step, i) => (
-        <View key={step} style={styles.timelineStep}>
-          <View style={[styles.dot, i <= currentIndex && styles.dotComplete]} />
-          {i < STEPS.length - 1 && <View style={[styles.timelineLine, i < currentIndex && styles.timelineLineComplete]} />}
-        </View>
-      ))}
+    <View style={styles.panel}>
+      <Timeline items={buildSteps(order.status, placedOn)} />
     </View>
   );
 }
@@ -53,6 +71,7 @@ function StatusTimeline({ status }: { status: OrderStatus }) {
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: order, isLoading, isError, error, refetch } = useOrder(id);
+  const reduceMotion = useReduceMotion();
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
   const [cancelledMessage, setCancelledMessage] = useState<string | null>(null);
   const [cancellation, setCancellation] = useState<CancelOrderResponse | null>(null);
@@ -77,135 +96,177 @@ export default function OrderDetailScreen() {
       );
     }
     return (
-      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
-        <ActivityIndicator color={colors.ink} />
+      <SafeAreaView style={styles.screen} edges={['bottom']}>
+        <DetailSkeleton />
       </SafeAreaView>
     );
   }
 
+  const showPaymentBanner = order.paymentType !== 'COD' && order.status === 'PENDING' && order.amountDue > 0;
+  const showActions = !!order.shipment || !!order.invoice;
+  const address = [
+    order.deliveryName,
+    order.shippingAddress,
+    [[order.deliveryCity, order.deliveryState].filter(Boolean).join(', '), order.deliveryPincode]
+      .filter(Boolean)
+      .join(' '),
+    order.deliveryPhone,
+  ].filter((line): line is string => !!line);
+
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <Animated.ScrollView entering={FadeIn.duration(200)} contentContainerStyle={styles.content}>
+      <Animated.ScrollView
+        entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.base)}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.headerRow}>
-          <View>
-            <MonoLabel color="ink" style={styles.orderNumber}>{`#${order.orderNumber}`}</MonoLabel>
-            <Text style={styles.date}>{new Date(order.createdAt).toLocaleString('en-IN')}</Text>
+          <View style={styles.headerText}>
+            <Text accessibilityRole="header" style={styles.orderNumber} maxFontSizeMultiplier={1.2}>
+              {`#${order.orderNumber}`}
+            </Text>
+            <Text style={styles.date} maxFontSizeMultiplier={1.2}>
+              {new Date(order.createdAt).toLocaleString('en-IN')}
+            </Text>
           </View>
-          <Badge label={order.status} variant={orderStatusVariant[order.status]} />
+          <StatusBadge label={orderStatusLabel[order.status]} tone={orderStatusBadgeTone[order.status]} />
         </View>
 
-        <StatusTimeline status={order.status} />
+        <StatusTimeline order={order} />
 
         {/* Only while the initial payment is still outstanding. Once an
             ADVANCE_20 order is CONFIRMED, its remaining balance is collected
             on delivery, not online — see app/order/[id]/pay.tsx. */}
-        {order.paymentType !== 'COD' && order.status === 'PENDING' && order.amountDue > 0 && (
-          <Button
-            label={`Complete payment — ${formatCurrency(order.amountDue)}`}
-            variant="brand"
-            onPress={() => router.push(`/order/${order.id}/pay`)}
-          />
+        {showPaymentBanner && (
+          <View style={styles.panel}>
+            <View style={styles.panelHead}>
+              <Text style={styles.panelTitle} maxFontSizeMultiplier={1.2}>
+                Payment due
+              </Text>
+              <Text style={styles.panelText} maxFontSizeMultiplier={1.2}>
+                {`${formatCurrency(order.amountDue)} is due on this order.`}
+              </Text>
+            </View>
+            <Button
+              label="Complete payment"
+              variant="primary"
+              fullWidth
+              accessibilityLabel={`Complete payment, ${formatCurrency(order.amountDue)} due`}
+              onPress={() => router.push(`/order/${order.id}/pay`)}
+            />
+          </View>
         )}
 
-        {order.shipment && (
-          <Button label="Track shipment" variant="ghost" onPress={() => router.push(`/order/${order.id}/tracking`)} />
+        {showActions && (
+          <View style={styles.actions}>
+            {order.shipment && (
+              <Button
+                label="Track shipment"
+                variant="secondary"
+                icon={MapPin}
+                style={styles.action}
+                onPress={() => router.push(`/order/${order.id}/tracking`)}
+              />
+            )}
+            {order.invoice && (
+              <Button
+                label="View invoice"
+                variant="secondary"
+                icon={FileText}
+                style={styles.action}
+                accessibilityLabel={`View invoice ${order.invoice.invoiceNumber}`}
+                onPress={() => router.push(`/invoice/${order.id}`)}
+              />
+            )}
+          </View>
         )}
 
         {cancellation && cancellation.refundStatus && (
-          <Card style={styles.refundCard}>
-            <Text style={styles.sectionTitle}>Refund</Text>
-            <View style={styles.refundTrackerRow}>
-              <MonoLabel color="ink">{formatCurrency(cancellation.refundAmount)}</MonoLabel>
-              <LegacyBadge
-                label={cancellation.refundStatus.replace('_', ' ')}
+          <GroupedList
+            header="Refund"
+            footer={
+              cancellation.refundStatus === 'FAILED'
+                ? "The automatic refund couldn't be processed — our accounts team has been notified and will follow up."
+                : null
+            }
+            footerTone="danger"
+          >
+            <SummaryRow label="Refund amount" value={formatCurrency(cancellation.refundAmount)} bold />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel} maxFontSizeMultiplier={1.2}>
+                Status
+              </Text>
+              <StatusBadge
+                label={cancellation.refundStatus.replace('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
                 tone={REFUND_STATUS_TONE[cancellation.refundStatus]}
               />
             </View>
-            {cancellation.refundStatus === 'FAILED' && (
-              <Text style={styles.invoiceNote}>
-                The automatic refund couldn&apos;t be processed — our accounts team has been notified and will follow
-                up.
-              </Text>
-            )}
-          </Card>
+          </GroupedList>
         )}
 
-        <Card>
-          <Text style={styles.sectionTitle}>Items</Text>
-          {order.items.map((item, i) => (
-            <View key={item.id} style={[styles.itemRow, i !== order.items.length - 1 && styles.itemRowDivider]}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={2}>
-                  {item.product.name}
-                </Text>
-                <MonoLabel>{item.product.partNumber}</MonoLabel>
-                <Text style={styles.itemQty}>
-                  {item.quantity} × {formatCurrency(item.unitPrice)}
-                </Text>
-              </View>
-              {item.isSchemeItem ? (
-                <View style={styles.freeCol}>
-                  <Text style={styles.freeStruck}>{formatCurrency(item.total)}</Text>
-                  <Text style={styles.freeLabel}>FREE</Text>
-                </View>
-              ) : (
-                <Text style={styles.itemTotal}>{formatCurrency(item.total)}</Text>
-              )}
-            </View>
+        <GroupedList header="Items">
+          {order.items.map((item) => (
+            <ItemRow key={item.id} item={item} />
           ))}
-        </Card>
+        </GroupedList>
 
-        <Card>
-          <Text style={styles.sectionTitle}>Payment summary</Text>
+        <GroupedList header="Payment summary">
           <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal)} />
           <SummaryRow label="GST" value={formatCurrency(order.gstAmount)} />
           {!!order.schemeBenefitValue && order.schemeBenefitValue > 0 && (
-            <SummaryRow label="GST Benefit (free items)" value={`-${formatCurrency(order.schemeBenefitValue)}`} />
+            <SummaryRow
+              label="GST Benefit (free items)"
+              value={`-${formatCurrency(order.schemeBenefitValue)}`}
+              valueColor={colors.success}
+            />
           )}
           <SummaryRow label="Shipping" value={order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(order.grandTotal)}</Text>
-          </View>
+          <SummaryRow label="Total" value={formatCurrency(order.grandTotal)} bold />
           <SummaryRow label="Paid" value={formatCurrency(order.amountPaid)} muted />
-          {order.amountDue > 0 && <SummaryRow label="Amount due" value={formatCurrency(order.amountDue)} accent />}
-        </Card>
+          {order.amountDue > 0 && (
+            <SummaryRow
+              // Once confirmed (COD, or the 80% balance of an advance order) the
+              // courier collects what's left in cash on delivery.
+              label={order.paymentType === 'COD' || order.status !== 'PENDING' ? 'Pay on Delivery' : 'Amount due'}
+              value={formatCurrency(order.amountDue)}
+              bold
+            />
+          )}
+        </GroupedList>
 
-        {order.invoice && (
-          <Card style={styles.invoiceCard}>
-            <Text style={styles.sectionTitle}>{`Invoice #${order.invoice.invoiceNumber}`}</Text>
-            <Text style={styles.invoiceNote}>GST tax invoice for this order, with the full item and tax breakup.</Text>
-            <Button label="View invoice" variant="ghost" onPress={() => router.push(`/invoice/${order.id}`)} />
-          </Card>
-        )}
-
-        {order.shippingAddress && (
-          <Card>
-            <Text style={styles.sectionTitle}>Delivery address</Text>
-            <Text style={styles.address}>{order.deliveryName}</Text>
-            <Text style={styles.address}>{order.shippingAddress}</Text>
-            <Text style={styles.address}>
-              {order.deliveryCity}, {order.deliveryState} {order.deliveryPincode}
-            </Text>
-            <Text style={styles.address}>{order.deliveryPhone}</Text>
-          </Card>
-        )}
-
-        {CANCELLABLE_STATUSES.includes(order.status) && (
-          <Button label="Cancel order" variant="ghost" onPress={() => setCancelSheetOpen(true)} />
+        {address.length > 0 && (
+          <GroupedList header="Delivery address">
+            <View style={styles.addressRow} accessible accessibilityLabel={`Delivery address, ${address.join(', ')}`}>
+              {address.map((line, i) => (
+                <Text
+                  key={i}
+                  style={i === 0 ? styles.addressName : styles.addressLine}
+                  maxFontSizeMultiplier={1.2}
+                >
+                  {line}
+                </Text>
+              ))}
+            </View>
+          </GroupedList>
         )}
 
         {order.status === 'SHIPPED' && (
-          <View style={styles.shippedNotice}>
-            <Text style={styles.shippedNoticeText}>
+          <View style={styles.notice}>
+            <Text style={styles.noticeText} maxFontSizeMultiplier={1.2}>
               This order has shipped, so it can no longer be cancelled from the app.
             </Text>
-            <Button
-              label="Contact support"
-              variant="ghost"
-              onPress={() => router.push('/contact')}
-            />
+            <Button label="Contact support" variant="link" onPress={() => router.push('/contact')} />
           </View>
+        )}
+
+        {CANCELLABLE_STATUSES.includes(order.status) && (
+          <Button
+            label="Cancel order"
+            variant="destructive"
+            icon={CircleX}
+            iconColor={colors.red}
+            style={styles.cancel}
+            onPress={() => setCancelSheetOpen(true)}
+          />
         )}
       </Animated.ScrollView>
 
@@ -221,58 +282,136 @@ export default function OrderDetailScreen() {
   );
 }
 
-function SummaryRow({ label, value, muted, accent }: { label: string; value: string; muted?: boolean; accent?: boolean }) {
+function ItemRow({ item }: { item: OrderItem }) {
+  const free = !!item.isSchemeItem;
+  const qtyLine = `${item.quantity} × ${formatCurrency(item.unitPrice)}`;
   return (
-    <View style={styles.summaryRow}>
-      <Text style={[styles.summaryLabel, accent && styles.summaryAccent]}>{label}</Text>
-      <Text style={[styles.summaryValue, muted && styles.summaryMuted, accent && styles.summaryAccent]}>{value}</Text>
+    <View
+      style={styles.itemRow}
+      accessible
+      accessibilityLabel={`${item.product.name}, part ${item.product.partNumber}, ${qtyLine}, ${
+        free ? 'free' : formatCurrency(item.total)
+      }`}
+    >
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+          {item.product.name}
+        </Text>
+        <Text style={styles.itemMeta} maxFontSizeMultiplier={1.2}>
+          {`${item.product.partNumber} · ${qtyLine}`}
+        </Text>
+      </View>
+      {free ? (
+        <View style={styles.freeCol}>
+          <Text style={styles.freeStruck} maxFontSizeMultiplier={1.2}>
+            {formatCurrency(item.total)}
+          </Text>
+          <StatusBadge label="FREE" tone="success" />
+        </View>
+      ) : (
+        <Text style={styles.itemTotal} maxFontSizeMultiplier={1.2}>
+          {formatCurrency(item.total)}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  bold,
+  muted,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  muted?: boolean;
+  valueColor?: string;
+}) {
+  return (
+    <View style={styles.row} accessible accessibilityLabel={`${label}, ${value}`}>
+      <Text style={[styles.rowLabel, bold && styles.rowBold, muted && styles.rowMuted]} maxFontSizeMultiplier={1.2}>
+        {label}
+      </Text>
+      <Text
+        style={[styles.rowValue, bold && styles.rowBold, muted && styles.rowMuted, !!valueColor && { color: valueColor }]}
+        maxFontSizeMultiplier={1.2}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+// Same blocks as the real screen, so nothing jumps when the order arrives.
+function DetailSkeleton() {
+  return (
+    <View style={styles.content}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Skeleton width="55%" height={34} radius={8} />
+          <Skeleton width="40%" height={20} radius={6} />
+        </View>
+        <Skeleton width={72} height={24} radius={radii.pill} />
+      </View>
+      <Skeleton height={248} radius={radii.card} />
+      <Skeleton height={52} radius={radii.pill} />
+      <Skeleton height={160} radius={radii.card} />
+      <Skeleton height={200} radius={radii.card} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  center: { alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, gap: 16 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  orderNumber: { fontSize: 17, letterSpacing: -0.374, marginBottom: 4 },
-  date: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  timeline: { flexDirection: 'row', alignItems: 'center' },
-  timelineStep: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.line },
-  dotComplete: { backgroundColor: colors.ink },
-  timelineLine: { flex: 1, height: 2, backgroundColor: colors.line },
-  timelineLineComplete: { backgroundColor: colors.ink },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, marginBottom: 8 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, gap: 12 },
-  itemRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.line },
-  itemInfo: { flex: 1, gap: 2 },
-  itemName: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  itemQty: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  itemTotal: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  summaryMuted: { color: colors.muted },
-  summaryAccent: { color: colors.ink, fontFamily: fonts.body.semiBold },
-  totalRow: {
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: screenPaddingX, paddingBottom: sectionGap, gap: sectionGap },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space.md },
+  headerText: { flex: 1, gap: space.xs },
+  orderNumber: { ...textStyles.title },
+  date: { ...textStyles.callout },
+  panel: { gap: space.md, padding: screenPaddingX, borderRadius: radii.card, backgroundColor: colors.bgAlt },
+  panelHead: { gap: space.xs },
+  panelTitle: { ...textStyles.headline },
+  panelText: { ...textStyles.callout },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  action: { flexGrow: 1, flexBasis: 150, paddingHorizontal: space.md },
+
+  row: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
+    gap: space.lg,
+    minHeight: 52,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
   },
-  totalLabel: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  totalValue: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  refundCard: { gap: 8 },
-  refundTrackerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  invoiceCard: { gap: 8 },
-  freeCol: { alignItems: 'flex-end' },
-  freeStruck: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.subtle, textDecorationLine: 'line-through' },
-  freeLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.success },
-  invoiceNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  address: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  shippedNotice: { gap: 8, alignItems: 'flex-start' },
-  shippedNoticeText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
+  rowLabel: { flexShrink: 1, ...textStyles.body },
+  rowValue: { ...textStyles.body, fontVariant: ['tabular-nums'] },
+  rowBold: { ...font(600) },
+  rowMuted: { color: colors.ink2 },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    minHeight: 52,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+  },
+  itemInfo: { flex: 1, gap: space.xs },
+  itemName: { ...textStyles.body },
+  itemMeta: { ...textStyles.callout },
+  itemTotal: { ...textStyles.body, ...font(600), fontVariant: ['tabular-nums'] },
+  freeCol: { alignItems: 'flex-end', gap: space.xs },
+  freeStruck: { ...textStyles.callout, color: colors.ink3, textDecorationLine: 'line-through' },
+
+  addressRow: { gap: space.xs, paddingHorizontal: space.lg, paddingVertical: space.md },
+  addressName: { ...textStyles.headline },
+  addressLine: { ...textStyles.callout },
+
+  notice: { gap: space.xs, alignItems: 'flex-start' },
+  noticeText: { ...textStyles.callout },
+  cancel: { alignSelf: 'center' },
 });

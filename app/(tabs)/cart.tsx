@@ -1,360 +1,320 @@
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
-import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAddToCart, useCart, useRemoveCartItem } from '@/api/hooks/useCart';
 import { useDealerSummary } from '@/api/hooks/useDealerSummary';
-import { useProduct } from '@/api/hooks/useProducts';
 import type { CartItem } from '@/api/types';
 import { useAuth } from '@/auth/useAuth';
-import { Image, Input } from '@/components/ui';
+import { ShoppingBag } from '@/components/icons/ShoppingBag';
+import { iconSizes } from '@/components/icons/iconSizes';
+import { CartLine, CART_LINE_TEXT_INSET, FreeLine } from '@/src/components/cart/CartLine';
+import { CartSkeleton } from '@/src/components/cart/CartSkeleton';
+import { FreeDeliveryCard } from '@/src/components/cart/FreeDeliveryCard';
+import { OutOfStockSheet } from '@/src/components/cart/OutOfStockSheet';
 import { SchemeBenefitCard } from '@/src/components/cart/SchemeBenefitCard';
+import { useRemoveFreeItem } from '@/src/components/cart/useRemoveFreeItem';
+import { CheckoutBottomBar } from '@/src/components/checkout/CheckoutBottomBar';
 import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
-import { Button, Stepper, Toast } from '@/src/components/ui';
-import { colors, fonts, radii } from '@/src/theme';
-import { PageHeader } from '@/src/components/ui/PageHeader';
-import { useWishlistStore } from '@/stores/wishlistStore';
-import { calculateCartTotals, FREE_DELIVERY_THRESHOLD, splitCartItems } from '@/utils/cartTotals';
+import { SummaryRow } from '@/src/components/checkout/SummaryRow';
+import {
+  Button,
+  EmptyState,
+  GroupedList,
+  InputField,
+  LargeTitleHeader,
+  CompactTitleBar,
+  Toast,
+  useLargeTitleScroll,
+} from '@/src/components/ui';
+import { colors, font, layout, screenPaddingX, sectionGap, space } from '@/src/theme';
+import { calculateCartTotals, splitCartItems } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
-import { getImageSource } from '@/utils/image';
 import { isOutOfStock } from '@/utils/stock';
 
-const CartRow = memo(function CartRow({ item, onRemove }: { item: CartItem; onRemove: (item: CartItem) => void }) {
-  const addToCart = useAddToCart();
-  const toggleWishlist = useWishlistStore((s) => s.toggle);
+const TITLE = 'Cart';
+// Toast sits this far above the sticky checkout bar.
+const TOAST_GAP = space.md;
+// How long the "Removed … Undo" toast stays up.
+const UNDO_MS = 4000;
 
-  const unitPrice = item.variant?.price ?? item.product.price;
-  const moq = item.product.moq;
-  // Unlike GET /api/products[/:id], GET /api/cart's embedded product does not
-  // include productImages (see docs/api.md §6) — only category is promised.
-  // The optimistic item added by useAddToCart carries the full Product (with
-  // images) from wherever it was added, but once the cart is invalidated and
-  // refetched from the server, that field is gone from every item. Fall back
-  // to fetching the product itself (cheap — React Query cache means this is
-  // usually already warm from browsing) so the row doesn't go blank on reload.
-  const hasImages = (item.product.productImages?.length ?? 0) > 0;
-  const fallbackProductQuery = useProduct(hasImages ? undefined : item.productId);
-  const images = hasImages ? item.product.productImages : fallbackProductQuery.data?.productImages;
-  const primaryImage = images?.find((i) => i.isPrimary) ?? images?.[0];
-
-  const changeQuantity = (nextQuantity: number) => {
-    addToCart.mutate({
-      payload: { productId: item.productId, quantity: nextQuantity, variantId: item.variantId ?? undefined },
-      product: item.product,
-      variant: item.variant ?? undefined,
-    });
-  };
-
-  const moveToWishlist = () => {
-    // Removing from cart is the dominant, visible effect here — one medium
-    // haptic, not a light (wishlist) + medium (remove) double-fire.
-    HapticService.medium();
-    toggleWishlist({
-      productId: item.product.id,
-      name: item.product.name,
-      price: item.product.price,
-      mrp: item.product.mrp,
-      imageUrl: primaryImage?.imageUrl ?? null,
-      brand: item.product.brand,
-    });
-    onRemove(item);
-  };
-
-  return (
-    <Swipeable
-      renderRightActions={() => (
-        <Pressable
-          onPress={() => onRemove(item)}
-          style={styles.swipeAction}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${item.product.name}`}
-        >
-          <Feather name="trash-2" size={20} color="#FFFFFF" />
-        </Pressable>
-      )}
-      overshootRight={false}
-    >
-      <Animated.View exiting={SlideOutRight.duration(200)} style={styles.row}>
-        <Image source={getImageSource(primaryImage?.imageUrl)} style={styles.image} cachePolicy="memory-disk" recyclingKey={item.productId} />
-        <View style={styles.rowContent}>
-          <Text style={styles.name} numberOfLines={2}>
-            {item.product.name}
-          </Text>
-          {item.variant && <Text style={styles.variant}>{item.variant.label}</Text>}
-          <Text style={styles.price}>{formatCurrency(unitPrice)}</Text>
-
-          <View style={styles.rowFooter}>
-            <Stepper value={item.quantity} moq={moq} onChange={changeQuantity} />
-            <View style={styles.rowActions}>
-              <Pressable onPress={moveToWishlist} hitSlop={13} accessibilityRole="button" accessibilityLabel="Move to wishlist">
-                <Feather name="heart" size={18} color={colors.muted} />
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  HapticService.medium();
-                  onRemove(item);
-                }}
-                hitSlop={13}
-                accessibilityRole="button"
-                accessibilityLabel="Remove item"
-              >
-                <Feather name="trash-2" size={18} color={colors.red} />
-              </Pressable>
-            </View>
-          </View>
-          {moq > 1 && <Text style={styles.moqNote}>Sold in multiples of {moq}</Text>}
-        </View>
-      </Animated.View>
-    </Swipeable>
-  );
-});
+type CartListLine = { kind: 'item'; item: CartItem } | { kind: 'free'; item: CartItem };
 
 export default function CartScreen() {
+  const insets = useSafeAreaInsets();
   const { dealer } = useAuth();
   const { data: cart, isLoading, isError, error, refetch, isRefetching } = useCart();
   const { summary: dealerSummary } = useDealerSummary();
-  // GST Benefit free items are shown in their own card, never as payable rows.
-  const { regularItems: items, schemeItems } = splitCartItems(cart?.items ?? []);
+  // GST Benefit free items are shown as FREE lines, never counted as payable.
+  const { regularItems: items, schemeItems } = useMemo(() => splitCartItems(cart?.items ?? []), [cart]);
   const addToCart = useAddToCart();
   const removeItem = useRemoveCartItem();
-  const [lastRemoved, setLastRemoved] = useState<CartItem | null>(null);
+  const { scrollY, onScroll } = useLargeTitleScroll();
+
+  const [removed, setRemoved] = useState<{ id: number; items: CartItem[] } | null>(null);
   const [deliveryPincode, setDeliveryPincode] = useState('');
   const [schemeMessage, setSchemeMessage] = useState<string | null>(null);
+  const [barHeight, setBarHeight] = useState(0);
+  const [stockSheet, setStockSheet] = useState<{ visible: boolean; items: CartItem[] }>({ visible: false, items: [] });
+
+  const { remove: removeFreeItem, removingId } = useRemoveFreeItem(cart?.schemeId, schemeItems, setSchemeMessage);
+
+  const lines = useMemo<CartListLine[]>(
+    () => [
+      ...items.map((item) => ({ kind: 'item' as const, item })),
+      ...schemeItems.map((item) => ({ kind: 'free' as const, item })),
+    ],
+    [items, schemeItems]
+  );
+
+  const totals = useMemo(() => calculateCartTotals(cart?.items ?? []), [cart]);
+  const taxedTotal = totals.subtotal + totals.gstAmount;
+  const hasItems = items.length > 0;
 
   const onRefresh = () => {
     HapticService.light();
     refetch();
   };
 
-  const totals = useMemo(() => calculateCartTotals(cart?.items ?? []), [cart]);
-  const taxedTotal = totals.subtotal + totals.gstAmount;
-  const qualifiesForFreeDelivery = taxedTotal >= FREE_DELIVERY_THRESHOLD;
-  const remainingForFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - taxedTotal);
-  const freeDeliveryProgress = Math.min(100, (taxedTotal / FREE_DELIVERY_THRESHOLD) * 100);
-
-  const handleRemove = (item: CartItem) => {
-    setLastRemoved(item);
-    removeItem.mutate(item.id);
+  const removeLines = (toRemove: CartItem[]) => {
+    setRemoved({ id: Date.now(), items: toRemove });
+    toRemove.forEach((line) => removeItem.mutate(line.id));
   };
 
   const handleUndo = () => {
-    if (!lastRemoved) return;
+    if (!removed) return;
     HapticService.light();
-    addToCart.mutate({
-      payload: {
-        productId: lastRemoved.productId,
-        quantity: lastRemoved.quantity,
-        variantId: lastRemoved.variantId ?? undefined,
-      },
-      product: lastRemoved.product,
-      variant: lastRemoved.variant ?? undefined,
-    });
-    setLastRemoved(null);
+    removed.items.forEach((line) =>
+      addToCart.mutate({
+        payload: { productId: line.productId, quantity: line.quantity, variantId: line.variantId ?? undefined },
+        product: line.product,
+        variant: line.variant ?? undefined,
+      })
+    );
+    setRemoved(null);
   };
+
+  const handleCheckout = () => {
+    const unavailable = items.filter((i) => isOutOfStock(i.product));
+    if (unavailable.length > 0) {
+      HapticService.error();
+      setStockSheet({ visible: true, items: unavailable });
+      return;
+    }
+    router.push('/checkout');
+  };
+
+  const topPadding = insets.top + space.sm;
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.screen} edges={['top']}>
-        <ActivityFallback />
-      </SafeAreaView>
+      <View style={styles.screen}>
+        <ScrollView scrollEnabled={false} contentContainerStyle={{ paddingTop: topPadding }}>
+          <LargeTitleHeader title={TITLE} />
+          <View style={styles.titleGap} />
+          <CartSkeleton />
+        </ScrollView>
+      </View>
     );
   }
 
   if (isError) {
     return (
-      <SafeAreaView style={styles.screen} edges={['top']}>
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Couldn&apos;t load your cart</Text>
-          <Text style={styles.emptyMessage}>{error instanceof Error ? error.message : 'Please try again.'}</Text>
-          <Button label="Retry" variant="ghost" onPress={() => refetch()} />
+      <View style={styles.screen}>
+        <View style={{ paddingTop: topPadding }}>
+          <LargeTitleHeader title={TITLE} />
         </View>
-      </SafeAreaView>
+        <EmptyState
+          icon="alert-circle"
+          title="Couldn't load your cart"
+          message={error instanceof Error ? error.message : 'Please try again.'}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
+      </View>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
-        <PageHeader title="Cart" />
-      </Animated.View>
+  const creditLine =
+    dealer && dealer.creditLimit > 0
+      ? `Available credit: ${formatCurrency(Math.max(0, dealer.creditLimit - dealerSummary.outstandingBalance))}`
+      : null;
+  const summaryFootnote = [
+    creditLine,
+    schemeItems.length > 0 ? 'Free items are not included in the total.' : null,
+    'Final total is confirmed by the server when you place the order.',
+  ]
+    .filter(Boolean)
+    .join('\n');
 
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CartRow item={item} onRemove={handleRemove} />}
-        contentContainerStyle={items.length === 0 ? styles.emptyContent : styles.listContent}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={colors.link} colors={[colors.link]} />}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Your cart is empty</Text>
-            <Text style={styles.emptyMessage}>Browse the catalog and add parts to get started.</Text>
-            <Button label="Browse products" variant="ghost" onPress={() => router.push('/(tabs)')} />
+  return (
+    <View style={styles.screen}>
+      <Animated.FlatList
+        data={lines}
+        keyExtractor={(line) => line.item.id}
+        renderItem={({ item: line }) =>
+          line.kind === 'item' ? (
+            <CartLine item={line.item} onRemove={(it) => removeLines([it])} />
+          ) : (
+            <FreeLine item={line.item} onRemove={removeFreeItem} removing={removingId === line.item.id} />
+          )
+        }
+        ItemSeparatorComponent={Separator}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{
+          paddingTop: topPadding,
+          paddingBottom: hasItems ? barHeight + sectionGap : sectionGap,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={onRefresh}
+            tintColor={colors.ink3}
+            colors={[colors.ink3]}
+            progressViewOffset={insets.top}
+          />
+        }
+        ListHeaderComponent={
+          <View>
+            <LargeTitleHeader title={TITLE} scrollY={scrollY} />
+            {hasItems && (
+              <View style={styles.cards}>
+                <SchemeBenefitCard
+                  regularSubtotal={totals.subtotal}
+                  appliedSchemeId={cart?.schemeId}
+                  schemeItems={schemeItems}
+                  clearedReason={
+                    cart?.schemeCleared
+                      ? (cart.schemeClearedReason ?? 'Your GST Benefit selection was no longer valid and was removed.')
+                      : null
+                  }
+                  onNotify={setSchemeMessage}
+                />
+                <FreeDeliveryCard taxedTotal={taxedTotal} />
+              </View>
+            )}
+            {hasItems && <View style={styles.listGap} />}
           </View>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            iconElement={<ShoppingBag size={iconSizes.hero} color={colors.ink3} />}
+            title="Your cart is empty"
+            actionLabel="Browse products"
+            onAction={() => router.push('/(tabs)')}
+            style={styles.empty}
+          />
+        }
+        ListFooterComponent={
+          hasItems ? (
+            <View style={styles.footerBlock}>
+              <GroupedList footer={summaryFootnote}>
+                <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
+                <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
+                <SummaryRow
+                  label="Shipping"
+                  value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}
+                  tone={totals.shipping === 0 ? 'success' : 'default'}
+                />
+                <SummaryRow label="Total" value={formatCurrency(totals.grandTotal)} strong />
+              </GroupedList>
+
+              <View style={styles.pincode}>
+                <InputField
+                  label="Check delivery pincode"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={deliveryPincode}
+                  onChangeText={(t) => setDeliveryPincode(t.replace(/\D/g, '').slice(0, 6))}
+                />
+                <PincodeServiceability pincode={deliveryPincode} />
+              </View>
+            </View>
+          ) : null
         }
       />
 
-      {items.length > 0 && (
-        <SchemeBenefitCard
-          regularSubtotal={totals.subtotal}
-          appliedSchemeId={cart?.schemeId}
-          schemeItems={schemeItems}
-          clearedReason={cart?.schemeCleared ? (cart.schemeClearedReason ?? 'Your GST Benefit selection was no longer valid and was removed.') : null}
-          onNotify={setSchemeMessage}
-        />
-      )}
-
-      {items.length > 0 && (
-        <View style={styles.freeDeliveryCard}>
-          {qualifiesForFreeDelivery ? (
-            <View style={styles.freeDeliveryRow}>
-              <Feather name="check-circle" size={14} color={colors.success} />
-              <Text style={styles.freeDeliveryText}>You&apos;ve unlocked free delivery</Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.freeDeliveryText}>
-                Add {formatCurrency(remainingForFreeDelivery)} more for free delivery
-              </Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${freeDeliveryProgress}%` }]} />
-              </View>
-            </>
-          )}
-        </View>
-      )}
-
-      {items.length > 0 && (
-        <View style={styles.summary}>
-          <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
-          <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
-          <SummaryRow label="Shipping" value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(totals.grandTotal)}</Text>
+      {hasItems && (
+        <CheckoutBottomBar aboveTabBar onHeightChange={setBarHeight}>
+          <View style={styles.totalRow} accessible accessibilityLabel={`Total, ${formatCurrency(totals.grandTotal)}`}>
+            <Text style={styles.totalLabel} maxFontSizeMultiplier={layout.maxFontScale}>
+              Total
+            </Text>
+            <Text style={styles.totalValue} maxFontSizeMultiplier={layout.maxFontScale}>
+              {formatCurrency(totals.grandTotal)}
+            </Text>
           </View>
-          {dealer && dealer.creditLimit > 0 && (
-            <SummaryRow
-              label="Available credit"
-              value={formatCurrency(Math.max(0, dealer.creditLimit - dealerSummary.outstandingBalance))}
-            />
-          )}
-
-          <View style={styles.pincodeBlock}>
-            <Input
-              label="Check delivery pincode"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={deliveryPincode}
-              onChangeText={(t) => setDeliveryPincode(t.replace(/\D/g, '').slice(0, 6))}
-            />
-            <PincodeServiceability pincode={deliveryPincode} />
-          </View>
-
-          <Text style={styles.disclaimer}>Final total is confirmed by the server when you place the order.</Text>
-
-          <Button
-            label="Proceed to checkout"
-            variant="brand"
-            fullWidth
-            onPress={() => {
-              if (items.some((i) => isOutOfStock(i.product))) {
-                HapticService.error();
-                Alert.alert('Some items are out of stock', 'Remove out-of-stock items before checking out.');
-                return;
-              }
-              router.push('/checkout');
-            }}
-          />
-        </View>
+          <Button label="Proceed to checkout" variant="primary" fullWidth onPress={handleCheckout} />
+        </CheckoutBottomBar>
       )}
 
-      {schemeMessage && <Toast message={schemeMessage} onHide={() => setSchemeMessage(null)} />}
+      <CompactTitleBar title={TITLE} scrollY={scrollY} />
 
-      {lastRemoved && (
+      <OutOfStockSheet
+        visible={stockSheet.visible}
+        items={stockSheet.items}
+        onClose={() => setStockSheet((s) => ({ ...s, visible: false }))}
+        onRemoveAll={() => {
+          HapticService.medium();
+          removeLines(stockSheet.items);
+          setStockSheet((s) => ({ ...s, visible: false }));
+        }}
+      />
+
+      {schemeMessage && (
         <Toast
-          message={`Removed ${lastRemoved.product.name}`}
-          action={{ label: 'Undo', onPress: handleUndo }}
-          onHide={() => setLastRemoved(null)}
+          message={schemeMessage}
+          onHide={() => setSchemeMessage(null)}
+          bottomOffset={hasItems ? barHeight + TOAST_GAP : undefined}
         />
       )}
-    </SafeAreaView>
-  );
-}
 
-function ActivityFallback() {
-  return (
-    <View style={styles.emptyContent}>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <View key={i} style={styles.skeletonRow} />
-      ))}
+      {removed && (
+        <Toast
+          key={removed.id}
+          message={removed.items.length === 1 ? `Removed ${removed.items[0].product.name}` : `Removed ${removed.items.length} items`}
+          action={{ label: 'Undo', onPress: handleUndo }}
+          durationMs={UNDO_MS}
+          onHide={() => setRemoved(null)}
+          bottomOffset={hasItems ? barHeight + TOAST_GAP : undefined}
+        />
+      )}
     </View>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
+function Separator() {
+  return <View style={styles.separator} />;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
-  listContent: { paddingBottom: 16 },
-  emptyContent: { flexGrow: 1 },
-  skeletonRow: { height: 96, backgroundColor: colors.line, opacity: 0.4, margin: 8, borderRadius: radii.md },
-  row: { flexDirection: 'row', gap: 12, padding: 16, backgroundColor: colors.paper, borderBottomWidth: 1, borderBottomColor: colors.line },
-  image: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.card },
-  rowContent: { flex: 1, gap: 4 },
-  name: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  variant: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  price: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  rowFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  rowActions: { flexDirection: 'row', gap: 16 },
-  moqNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  swipeAction: {
-    width: 72,
-    backgroundColor: colors.red,
-    alignItems: 'center',
-    justifyContent: 'center',
+  screen: { flex: 1, backgroundColor: colors.bg },
+  titleGap: { height: space.xl },
+  cards: { paddingHorizontal: screenPaddingX, marginTop: space.xl, gap: space.sm },
+  listGap: { height: space.md },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: CART_LINE_TEXT_INSET,
+    backgroundColor: colors.line,
   },
-  freeDeliveryCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 12,
-    borderRadius: radii.md,
-    backgroundColor: colors.card,
-    gap: 8,
+  empty: { flex: 0, paddingTop: 96 },
+  footerBlock: { paddingHorizontal: screenPaddingX, marginTop: sectionGap, gap: sectionGap },
+  pincode: { gap: space.sm },
+  totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  totalLabel: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink2 },
+  totalValue: {
+    ...font(600),
+    fontSize: 21,
+    lineHeight: 25,
+    letterSpacing: -0.42,
+    color: colors.ink,
+    fontVariant: ['tabular-nums'],
   },
-  freeDeliveryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  freeDeliveryText: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.ink },
-  progressTrack: { height: 6, borderRadius: radii.pill, backgroundColor: colors.line, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: radii.pill, backgroundColor: colors.ink },
-  summary: { borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 8 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  totalLabel: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  totalValue: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  disclaimer: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  pincodeBlock: { gap: 8, paddingTop: 4 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
-  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', marginBottom: 8 },
 });

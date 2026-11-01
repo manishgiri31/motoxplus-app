@@ -1,45 +1,51 @@
 import { Feather } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, fonts } from '@/src/theme';
+import { colors, font } from '@/src/theme';
 
-import { Button } from './Button';
+import { Button, type ButtonVariant } from './Button';
 
 export interface EmptyStateProps {
   icon?: React.ComponentProps<typeof Feather>['name'];
+  /** A ready-made icon (e.g. a components/icons glyph); takes the place of `icon`. */
+  iconElement?: React.ReactNode;
   title: string;
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Overrides the default full-height centered layout, e.g. `{ flex: 0 }` inside a scroll view. */
+  style?: StyleProp<ViewStyle>;
+  /** Defaults to the filled blue pill; pass 'secondary' for the outline pill. */
+  actionVariant?: ButtonVariant;
 }
 
-export function EmptyState({ icon, title, message, actionLabel, onAction }: EmptyStateProps) {
+// 48pt icon in ink3, one 17pt line, optionally one primary button.
+export function EmptyState({ icon, iconElement, title, message, actionLabel, onAction, style, actionVariant = 'primary' }: EmptyStateProps) {
   return (
-    <View style={styles.container}>
-      {icon && (
-        <View style={styles.iconCircle}>
-          <Feather name={icon} size={28} color={colors.muted} />
+    <View style={[styles.container, style]}>
+      {iconElement ? (
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {iconElement}
         </View>
+      ) : (
+        icon && <Feather name={icon} size={48} color={colors.ink3} accessibilityElementsHidden importantForAccessibility="no" />
       )}
-      <Text style={styles.title}>{title}</Text>
-      {message && <Text style={styles.message}>{message}</Text>}
-      {actionLabel && onAction && <Button label={actionLabel} variant="ghost" onPress={onAction} style={styles.action} />}
+      <Text style={styles.title} maxFontSizeMultiplier={1.2}>
+        {title}
+      </Text>
+      {message && (
+        <Text style={styles.message} maxFontSizeMultiplier={1.2}>
+          {message}
+        </Text>
+      )}
+      {actionLabel && onAction && <Button label={actionLabel} variant={actionVariant} onPress={onAction} style={styles.action} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  title: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, textAlign: 'center' },
-  message: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center' },
-  action: { marginTop: 12 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
+  title: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink, textAlign: 'center' },
+  message: { ...font(400), fontSize: 14, lineHeight: 20, color: colors.ink2, textAlign: 'center' },
+  action: { marginTop: 8 },
 });

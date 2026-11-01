@@ -1,18 +1,30 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
-import { dealerStatusVariant } from '@/constants/dealerStatus';
-import { Badge, Button, Card, Reveal } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { dealerStatusBadgeTone, dealerStatusLabel } from '@/constants/dealerStatus';
+import { Button } from '@/src/components/ui/Button';
+import { GroupedList, ListRow } from '@/src/components/ui/GroupedList';
+import { StatusBadge } from '@/src/components/ui/StatusBadge';
+import { colors, font, layout, screenPaddingX, sectionGap, space } from '@/src/theme';
 
-function Field({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
-  if (!value) return null;
+// One read-only field: small ink2 label above the value (same layout as the
+// grouped InputField), optional trailing badge. Selectable so a dealer can
+// copy their GST number or address.
+function FieldRow({ label, value, trailing, tabular }: { label: string; value: string; trailing?: ReactNode; tabular?: boolean }) {
   return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Text style={[styles.fieldValue, mono && styles.mono]}>{value}</Text>
+    <View accessible accessibilityLabel={`${label}, ${value}`} style={styles.field}>
+      <View style={styles.fieldText}>
+        <Text style={styles.fieldLabel} maxFontSizeMultiplier={layout.maxFontScale}>
+          {label}
+        </Text>
+        <Text selectable style={[styles.fieldValue, tabular && styles.tabular]} maxFontSizeMultiplier={layout.maxFontScale}>
+          {value}
+        </Text>
+      </View>
+      {trailing}
     </View>
   );
 }
@@ -22,85 +34,94 @@ function Field({ label, value, mono }: { label: string; value?: string | null; m
 // links to the contact form instead of offering inline editing.
 export default function ProfileScreen() {
   const { user, dealer } = useAuth();
-  const initial = (dealer?.companyName ?? user?.name ?? '?').trim().charAt(0).toUpperCase() || '?';
+
+  const businessRows = [
+    dealer?.companyName && <FieldRow key="company" label="Company name" value={dealer.companyName} />,
+    dealer?.ownerName && <FieldRow key="owner" label="Owner name" value={dealer.ownerName} />,
+    dealer?.gstNumber && <FieldRow key="gst" label="GST number" value={dealer.gstNumber} tabular />,
+    dealer?.address && <FieldRow key="address" label="Address" value={dealer.address} />,
+    dealer?.city && <FieldRow key="city" label="City" value={dealer.city} />,
+    dealer?.state && <FieldRow key="state" label="State" value={dealer.state} />,
+    dealer?.pincode && <FieldRow key="pincode" label="Pincode" value={dealer.pincode} tabular />,
+  ];
+
+  const contactRows = [
+    user?.email && (
+      <FieldRow
+        key="email"
+        label="Email"
+        value={user.email}
+        trailing={<StatusBadge label={user.emailVerified ? 'Verified' : 'Not verified'} tone={user.emailVerified ? 'success' : 'warning'} />}
+      />
+    ),
+    dealer?.phone && (
+      <FieldRow
+        key="phone"
+        label="Phone"
+        value={dealer.phone}
+        tabular
+        trailing={user && <StatusBadge label={user.mobileVerified ? 'Verified' : 'Not verified'} tone={user.mobileVerified ? 'success' : 'warning'} />}
+      />
+    ),
+  ];
+
+  const needsEmail = !!user && !user.emailVerified;
+  const needsMobile = !!user && !user.mobileVerified;
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarLabel}>{initial}</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {dealer && (
+          <View style={styles.status}>
+            <StatusBadge label={dealerStatusLabel[dealer.status]} tone={dealerStatusBadgeTone[dealer.status]} />
           </View>
-          <Text accessibilityRole="header" aria-level={1} style={styles.company}>
-            {dealer?.companyName ?? user?.name}
-          </Text>
-          {!!dealer?.ownerName && <Text style={styles.owner}>{dealer.ownerName}</Text>}
-          {dealer && <Badge label={dealer.status} variant={dealerStatusVariant[dealer.status]} />}
+        )}
+
+        <GroupedList header="Business">{businessRows}</GroupedList>
+
+        <GroupedList header="Contact" footer="Contact support to edit your details.">
+          {contactRows}
+        </GroupedList>
+
+        {(needsEmail || needsMobile) && (
+          <GroupedList header="Verification">
+            {needsEmail && (
+              <ListRow label="Verify email" icon="mail" iconColor={colors.warning} onPress={() => router.push('/verify-email')} />
+            )}
+            {needsMobile && (
+              <ListRow
+                label="Verify mobile number"
+                icon="smartphone"
+                iconColor={colors.warning}
+                onPress={() => router.push('/verify-mobile')}
+              />
+            )}
+          </GroupedList>
+        )}
+
+        <View style={styles.support}>
+          <Button label="Contact support" variant="link" onPress={() => router.push('/contact')} />
         </View>
-
-        <Reveal>
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Business</Text>
-            <Field label="Company name" value={dealer?.companyName} />
-            <Field label="Owner name" value={dealer?.ownerName} />
-            <Field label="GST number" value={dealer?.gstNumber} mono />
-            <Field label="Address" value={dealer?.address} />
-            <Field label="City" value={dealer?.city} />
-            <Field label="State" value={dealer?.state} />
-            <Field label="Pincode" value={dealer?.pincode} mono />
-          </Card>
-        </Reveal>
-
-        <Reveal delay={80}>
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Contact and verification</Text>
-            <Field label="Email" value={user?.email} />
-            <View style={styles.verifyRow}>
-              <Text style={styles.fieldLabel}>Email</Text>
-              <Badge label={user?.emailVerified ? 'Verified' : 'Not verified'} variant={user?.emailVerified ? 'success' : 'neutral'} />
-            </View>
-            <Field label="Phone" value={dealer?.phone} />
-            <View style={styles.verifyRow}>
-              <Text style={styles.fieldLabel}>Mobile</Text>
-              <Badge label={user?.mobileVerified ? 'Verified' : 'Not verified'} variant={user?.mobileVerified ? 'success' : 'neutral'} />
-            </View>
-            {user && !user.emailVerified && (
-              <Button label="Verify email" variant="ghost" onPress={() => router.push('/verify-email')} />
-            )}
-            {user && !user.mobileVerified && (
-              <Button label="Verify mobile number" variant="ghost" onPress={() => router.push('/verify-mobile')} />
-            )}
-          </Card>
-        </Reveal>
-
-        <Reveal delay={160}>
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Need to change something?</Text>
-            <Text style={styles.note}>
-              Business details can only be updated by our team. Send us a message and we&apos;ll sort it out.
-            </Text>
-            <Button label="Contact support" variant="brand" onPress={() => router.push('/contact')} />
-          </Card>
-        </Reveal>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 16, gap: 16, paddingBottom: 32 },
-  hero: { alignItems: 'center', gap: 6, paddingVertical: 16 },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  avatarLabel: { fontFamily: fonts.display.bold, fontSize: 28, letterSpacing: -0.42, color: colors.white },
-  company: { fontFamily: fonts.display.bold, fontSize: 28, lineHeight: 31, letterSpacing: -0.42, color: colors.ink, textAlign: 'center' },
-  owner: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginBottom: 6 },
-  card: { gap: 12 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 21, lineHeight: 23, letterSpacing: -0.315, color: colors.ink },
-  field: { gap: 2 },
-  fieldLabel: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  fieldValue: { fontFamily: fonts.body.medium, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  mono: { fontVariant: ['tabular-nums'] },
-  verifyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  note: { fontFamily: fonts.body.regular, fontSize: 14, lineHeight: 20, letterSpacing: -0.224, color: colors.muted },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: screenPaddingX, paddingTop: space.xl, paddingBottom: space.x4, gap: sectionGap },
+  status: { alignItems: 'flex-start' },
+  field: {
+    minHeight: layout.rowMinHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: layout.rowInset,
+    paddingVertical: space.md,
+  },
+  fieldText: { flex: 1, gap: 2 },
+  fieldLabel: { ...font(400), fontSize: 12, lineHeight: 16, color: colors.ink2 },
+  fieldValue: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink },
+  tabular: { fontVariant: ['tabular-nums'] },
+  support: { alignItems: 'center', marginTop: -space.md },
 });

@@ -42,9 +42,9 @@
   --link-on-dark: 41 151 255; /* #2997ff */
 
   /* Status */
-  --success: 36 138 61;
-  --warning: 183 107 0;
-  --danger: 215 0 21;
+  --success: 0 128 9; /* #008009 */
+  --warning: 245 99 0; /* #f56300 */
+  --danger: 227 0 0; /* #e30000 */
 
   /* Shape and motion (used by web-only rules below) */
   --radius-card: 18px;
@@ -52,7 +52,7 @@
   --radius-pill: 999px;
   --motion-duration: 280ms;
   --motion-ease: cubic-bezier(0.4, 0, 0.6, 1);
-  --focus-ring: 0 0 0 4px rgba(0, 125, 250, 0.6);
+  --focus-ring: 0 0 0 4px rgba(0, 113, 227, 0.25);
 }
 
 /*

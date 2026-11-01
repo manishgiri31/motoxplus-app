@@ -1,16 +1,39 @@
-import { useCallback } from 'react';
+import { Feather } from '@expo/vector-icons';
+import { useCallback, type ComponentType } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { iconSizes } from '@/components/icons/iconSizes';
+import type { IconProps } from '@/components/icons/types';
 import { useFocusRing } from '@/hooks/use-focus-ring';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { colors, fonts, motion, radii } from '@/src/theme';
+import { alpha, colors, font, layout, motion, radii } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
-// brand: primary — solid blue pill (the only place the accent fills a surface).
-// ghost: secondary — blue outline pill.
-// solid: ink-filled pill, for the rare neutral call-to-action.
-export type ButtonVariant = 'solid' | 'brand' | 'ghost';
+// primary     blue pill, white text: the one main action on a screen.
+// secondary   blue outline pill.
+// destructive red text, no fill: sign out, delete, cancel order.
+// link        plain blue text with a trailing chevron.
+//
+// 'brand' / 'ghost' / 'solid' are the names the app has always used; they
+// keep working and map to primary / secondary / an ink-filled pill, so no
+// call site had to change.
+//
+// light: white pill with ink text, the primary action on a dark (ink) card.
+export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'link' | 'brand' | 'ghost' | 'solid' | 'light';
+
+type CanonicalVariant = 'primary' | 'secondary' | 'destructive' | 'link' | 'solid' | 'light';
+
+const ALIASES: Record<ButtonVariant, CanonicalVariant> = {
+  primary: 'primary',
+  secondary: 'secondary',
+  destructive: 'destructive',
+  link: 'link',
+  solid: 'solid',
+  light: 'light',
+  brand: 'primary',
+  ghost: 'secondary',
+};
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   label: string;
@@ -18,21 +41,39 @@ export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> 
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
+  /** Link variant only: hide the trailing chevron. */
+  hideChevron?: boolean;
+  /** Optional leading icon from components/icons, drawn at the inline size. */
+  icon?: ComponentType<IconProps>;
+  /** Icon colour; defaults to the label colour. */
+  iconColor?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// Interaction state driven through one shared value: 0 = rest, 1 = hover
-// (web / pointer devices), 2 = pressed. Colors interpolate between the three.
+// One shared value drives every interaction state: 0 rest, 1 hover (pointer
+// devices), 2 pressed. Background colors interpolate across the three.
 const REST = 0;
 const HOVER = 1;
 const PRESSED = 2;
 
-const GHOST_TINT = {
-  rest: 'rgba(0,113,227,0)',
-  hover: 'rgba(0,113,227,0.08)',
-  pressed: 'rgba(0,113,227,0.16)',
+const BACKGROUNDS: Record<CanonicalVariant, [string, string, string]> = {
+  primary: [colors.accent, colors.accentHover, colors.accentActive],
+  solid: [colors.ink, colors.black, colors.black],
+  light: [colors.white, colors.white, colors.lineSoft],
+  secondary: [alpha(colors.accent, 0), alpha(colors.accent, 0.08), alpha(colors.accent, 0.16)],
+  destructive: [alpha(colors.red, 0), alpha(colors.red, 0.08), alpha(colors.red, 0.16)],
+  link: [alpha(colors.link, 0), alpha(colors.link, 0.06), alpha(colors.link, 0.12)],
+};
+
+const LABEL_COLOR: Record<CanonicalVariant, string> = {
+  primary: colors.white,
+  solid: colors.white,
+  light: colors.ink,
+  secondary: colors.link,
+  destructive: colors.red,
+  link: colors.link,
 };
 
 export function Button({
@@ -41,6 +82,9 @@ export function Button({
   loading = false,
   disabled = false,
   fullWidth = false,
+  hideChevron = false,
+  icon: LeadingIcon,
+  iconColor,
   style,
   onPressIn,
   onPressOut,
@@ -50,10 +94,12 @@ export function Button({
   onHoverOut,
   ...pressableProps
 }: ButtonProps) {
+  const kind = ALIASES[variant];
   const reduceMotion = useReduceMotion();
   const focusRing = useFocusRing();
   const isDisabled = disabled || loading;
   const state = useSharedValue(REST);
+  const labelColor = LABEL_COLOR[kind];
 
   const goTo = useCallback(
     (next: number) => {
@@ -81,22 +127,16 @@ export function Button({
 
   const animatedStyle = useAnimatedStyle(() => {
     const inputs = [REST, HOVER, PRESSED];
-    const scale = interpolate(state.value, inputs, [1, 1, motion.pressScale]);
-    const backgroundColor =
-      variant === 'brand'
-        ? interpolateColor(state.value, inputs, [colors.accent, colors.accentHover, colors.accentActive])
-        : variant === 'solid'
-          ? interpolateColor(state.value, inputs, [colors.ink, colors.black, colors.black])
-          : interpolateColor(state.value, inputs, [GHOST_TINT.rest, GHOST_TINT.hover, GHOST_TINT.pressed]);
-
-    return { transform: [{ scale }], backgroundColor };
+    return {
+      transform: [{ scale: interpolate(state.value, inputs, [1, 1, motion.pressScale]) }],
+      backgroundColor: interpolateColor(state.value, inputs, BACKGROUNDS[kind]),
+    };
   });
-
-  const labelColor = variant === 'ghost' ? colors.link : colors.white;
 
   return (
     <AnimatedPressable
-      accessibilityRole="button"
+      accessibilityRole={kind === 'link' ? 'link' : 'button'}
+      accessibilityLabel={label}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPressIn={handlePressIn}
@@ -119,7 +159,8 @@ export function Button({
       }}
       style={[
         styles.base,
-        variant === 'ghost' && styles.ghostBorder,
+        kind === 'secondary' && styles.outline,
+        kind === 'link' && styles.link,
         fullWidth && styles.fullWidth,
         animatedStyle,
         focusRing.ringStyle,
@@ -132,7 +173,15 @@ export function Button({
         <ActivityIndicator size="small" color={labelColor} />
       ) : (
         <View style={styles.content}>
-          <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+          {LeadingIcon && (
+            <View style={styles.icon}>
+              <LeadingIcon size={iconSizes.inline} color={iconColor ?? labelColor} />
+            </View>
+          )}
+          <Text style={[styles.label, { color: labelColor }]} maxFontSizeMultiplier={1.2} numberOfLines={1}>
+            {label}
+          </Text>
+          {kind === 'link' && !hideChevron && <Feather name="chevron-right" size={18} color={labelColor} />}
         </View>
       )}
     </AnimatedPressable>
@@ -141,34 +190,21 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
-    minWidth: 44,
+    // 50pt tall pill. minHeight (not height) so larger Dynamic Type can grow it;
+    // it also means a caller's `height` can't shrink a button below 50.
+    minHeight: 50,
+    minWidth: layout.minTouchTarget,
     paddingHorizontal: 24,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
   },
-  ghostBorder: {
-    borderColor: colors.accent,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    // Weight lives in the font family (Inter_600SemiBold), not a fontWeight
-    // style — see src/theme's typography comment on custom-font synthesis.
-    fontFamily: fonts.body.semiBold,
-    fontSize: 17,
-    letterSpacing: -0.374,
-  },
+  outline: { borderWidth: 1, borderColor: colors.accent },
+  // Plain links hug their text; 44pt is the minimum touch target.
+  link: { minHeight: layout.minTouchTarget, paddingHorizontal: 8 },
+  fullWidth: { width: '100%' },
+  disabled: { opacity: 0.4 },
+  content: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  icon: { marginRight: 6 },
+  label: { ...font(600), fontSize: 17, lineHeight: 22, letterSpacing: -0.34 },
 });

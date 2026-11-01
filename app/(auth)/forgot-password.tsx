@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { BackHandler, KeyboardAvoidingView, Platform, StyleSheet, View, type TextInput } from 'react-native';
+import Animated, { type SharedValue } from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { authService } from '@/api/services/authService';
+import { getPasswordStrength } from '@/auth/passwordStrength';
 import {
   forgotPasswordRequestSchema,
   newPasswordSchema,
@@ -17,20 +18,35 @@ import {
   type NewPasswordFormValues,
   type OtpFormValues,
 } from '@/auth/validation';
-import { Input } from '@/components/ui';
-import { Button, OtpInput } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { OtpCodeEntry } from '@/src/components/auth/OtpCodeEntry';
+import { PasswordStrengthMeter } from '@/src/components/auth/PasswordStrengthMeter';
+import { ACTION_NAV_HEIGHT, ActionNavBar } from '@/src/components/ui/ActionNavBar';
+import { Button } from '@/src/components/ui/Button';
+import { GroupedList } from '@/src/components/ui/GroupedList';
+import { InputField } from '@/src/components/ui/InputField';
+import { LargeTitleHeader, useLargeTitleScroll } from '@/src/components/ui/LargeTitleHeader';
+import { StepStage } from '@/src/components/ui/StepStage';
+import { Toast } from '@/src/components/ui/Toast';
+import { screenPaddingX, space, colors } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
+import { maskContact } from '@/utils/maskContact';
 
 type Step = 'request' | 'otp' | 'reset';
+
+const STEPS: Step[] = ['request', 'otp', 'reset'];
 
 // OTP resend is capped at 1/hour/user server-side (docs/api.md §12) — this
 // client-side cooldown just prevents obviously-wasted taps in the meantime.
 const RESEND_COOLDOWN_SECONDS = 60;
 
+// Bottom bar = 8 top padding + 50pt button + 16 bottom padding.
+const BOTTOM_BAR_HEIGHT = 74;
+
 export default function ForgotPasswordScreen() {
   // The otp/reset steps carry a password-reset OTP and a new password.
   ScreenCapture.usePreventScreenCapture('forgot-password');
+  const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useLargeTitleScroll();
   const [step, setStep] = useState<Step>('request');
   const [userId, setUserId] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);
@@ -38,6 +54,12 @@ export default function ForgotPasswordScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  // Set once the password is changed: the success toast is showing and the
+  // screen leaves for login when it hides, so the flow can't be re-entered.
+  const [done, setDone] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const identifierRef = useRef<TextInput>(null);
+  const newPasswordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
 
   const requestForm = useForm<ForgotPasswordRequestValues>({
@@ -54,6 +76,12 @@ export default function ForgotPasswordScreen() {
     resolver: zodResolver(newPasswordSchema),
     defaultValues: { newPassword: '', confirmPassword: '' },
   });
+
+  const newPassword = resetForm.watch('newPassword');
+  const confirmPassword = resetForm.watch('confirmPassword');
+  const strength = getPasswordStrength(newPassword);
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canReset = strength.ok && confirmPassword.length > 0 && !mismatch;
 
   const submitRequest = async (values: ForgotPasswordRequestValues) => {
     setFormError(null);
@@ -94,6 +122,7 @@ export default function ForgotPasswordScreen() {
   };
 
   const goBack = () => {
+    if (done) return;
     setFormError(null);
     setResendMessage(null);
     if (step === 'otp') {
@@ -109,6 +138,7 @@ export default function ForgotPasswordScreen() {
   // screen (and losing userId/resetToken) once the dealer is past the first step.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (done) return true;
       if (step === 'request') return false;
       setFormError(null);
       setResendMessage(null);
@@ -116,13 +146,24 @@ export default function ForgotPasswordScreen() {
       return true;
     });
     return () => sub.remove();
-  }, [step]);
+  }, [step, done]);
 
   useEffect(() => {
     if (step !== 'otp' || resendCooldown <= 0) return;
     const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
     return () => clearTimeout(timer);
   }, [step, resendCooldown]);
+
+  // Every step is mounted at once on the sliding track, so focus is moved by
+  // hand: the OTP boxes take it through OtpInput's autoFocus prop, the text
+  // steps here. The inline title in the nav bar restarts from the top too.
+  useEffect(() => {
+    scrollY.value = 0;
+    const target = step === 'request' ? identifierRef : step === 'reset' ? newPasswordRef : null;
+    if (!target) return;
+    const t = setTimeout(() => target.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [step, scrollY]);
 
   const submitOtp = async (values: OtpFormValues) => {
     if (!userId) return;
@@ -141,108 +182,133 @@ export default function ForgotPasswordScreen() {
     setFormError(null);
     try {
       await authService.resetPassword({ userId, resetToken, newPassword: values.newPassword });
-      router.replace('/(auth)/login');
+      HapticService.success();
+      setDone(true);
+      setToast('Password updated. Sign in with your new password.');
     } catch (err) {
       setFormError(getErrorMessage(err));
     }
   };
 
+  const resetError =
+    (mismatch ? "Passwords don't match" : null) ??
+    resetForm.formState.errors.newPassword?.message ??
+    resetForm.formState.errors.confirmPassword?.message ??
+    (step === 'reset' ? formError : null);
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable
-          onPress={goBack}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </Pressable>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Reset password</Text>
-            <Text style={styles.subtitle}>
-              {step === 'request' && 'Enter your email or mobile number to receive a code.'}
-              {step === 'otp' && 'Enter the 6-digit code we sent you.'}
-              {step === 'reset' && 'Choose a new password for your account.'}
-            </Text>
-          </View>
-
-          {step === 'request' && (
-            <View style={styles.form}>
+        <StepStage index={STEPS.indexOf(step)}>
+          <Panel
+            title="Reset password"
+            subtitle="Enter the email or mobile number on your account and we'll send you a code."
+            scrollY={scrollY}
+            onScroll={onScroll}
+            action={
+              <Button
+                label="Send code"
+                variant="primary"
+                fullWidth
+                onPress={requestForm.handleSubmit(submitRequest)}
+                loading={requestForm.formState.isSubmitting}
+              />
+            }
+          >
+            <GroupedList
+              footer={requestForm.formState.errors.identifier?.message ?? (step === 'request' ? formError : null)}
+              footerTone="danger"
+            >
               <Controller
                 control={requestForm.control}
                 name="identifier"
                 render={({ field, fieldState }) => (
-                  <Input
+                  <InputField
+                    ref={identifierRef}
+                    variant="grouped"
                     label="Email or mobile number"
-                    autoFocus
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="username"
+                    keyboardType="email-address"
                     returnKeyType="go"
                     onSubmitEditing={requestForm.handleSubmit(submitRequest)}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
-                    error={fieldState.error?.message}
+                    invalid={!!fieldState.error || (step === 'request' && !!formError)}
                   />
                 )}
               />
-              {formError && <Text style={styles.error}>{formError}</Text>}
-              <Button
-                label="Send code"
-                variant="brand"
-                fullWidth
-                onPress={requestForm.handleSubmit(submitRequest)}
-                loading={requestForm.formState.isSubmitting}
-              />
-            </View>
-          )}
+            </GroupedList>
+          </Panel>
 
-          {step === 'otp' && (
-            <View style={styles.form}>
-              <Controller
-                control={otpForm.control}
-                name="otp"
-                render={({ field }) => <OtpInput value={field.value} onChange={field.onChange} autoFocus />}
-              />
-              {otpForm.formState.errors.otp && (
-                <Text style={styles.errorCentered}>{otpForm.formState.errors.otp.message}</Text>
-              )}
-              {resendMessage && <Text style={styles.success}>{resendMessage}</Text>}
-              {formError && <Text style={styles.error}>{formError}</Text>}
-              <Pressable onPress={resendOtp} disabled={resendCooldown > 0} hitSlop={10} accessibilityRole="button" accessibilityLabel="Resend code">
-                <Text style={[styles.resendText, { color: resendCooldown > 0 ? colors.muted : colors.link }]}>
-                  {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
-                </Text>
-              </Pressable>
+          <Panel
+            title="Enter the 6-digit code"
+            subtitle={identifier ? `We sent a code to ${maskContact(identifier.value, identifier.isMobile)}.` : undefined}
+            scrollY={scrollY}
+            onScroll={onScroll}
+            action={
               <Button
                 label="Verify code"
-                variant="brand"
+                variant="primary"
                 fullWidth
                 onPress={otpForm.handleSubmit(submitOtp)}
                 loading={otpForm.formState.isSubmitting}
               />
-            </View>
-          )}
+            }
+          >
+            <Controller
+              control={otpForm.control}
+              name="otp"
+              render={({ field }) => (
+                <OtpCodeEntry
+                  value={field.value}
+                  onChange={field.onChange}
+                  autoFocus={step === 'otp'}
+                  error={otpForm.formState.errors.otp?.message ?? (step === 'otp' ? formError : null)}
+                  message={resendMessage}
+                  resendSecondsLeft={resendCooldown}
+                  onResend={resendOtp}
+                />
+              )}
+            />
+          </Panel>
 
-          {step === 'reset' && (
-            <View style={styles.form}>
+          <Panel
+            title="Create a new password"
+            subtitle="Use at least 8 characters with a mix of letters and numbers."
+            scrollY={scrollY}
+            onScroll={onScroll}
+            action={
+              <Button
+                label="Reset password"
+                variant="primary"
+                fullWidth
+                disabled={!canReset || done}
+                onPress={resetForm.handleSubmit(submitReset)}
+                loading={resetForm.formState.isSubmitting}
+              />
+            }
+          >
+            <GroupedList footer={resetError} footerTone="danger">
               <Controller
                 control={resetForm.control}
                 name="newPassword"
                 render={({ field, fieldState }) => (
-                  <Input
+                  <InputField
+                    ref={newPasswordRef}
+                    variant="grouped"
                     label="New password"
-                    autoFocus
                     secureTextEntry
                     autoCapitalize="none"
+                    autoComplete="new-password"
                     returnKeyType="next"
                     onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
-                    error={fieldState.error?.message}
+                    invalid={!!fieldState.error}
                   />
                 )}
               />
@@ -250,47 +316,79 @@ export default function ForgotPasswordScreen() {
                 control={resetForm.control}
                 name="confirmPassword"
                 render={({ field, fieldState }) => (
-                  <Input
+                  <InputField
                     ref={confirmPasswordRef}
+                    variant="grouped"
                     label="Confirm new password"
                     secureTextEntry
                     autoCapitalize="none"
+                    autoComplete="new-password"
                     returnKeyType="go"
-                    onSubmitEditing={resetForm.handleSubmit(submitReset)}
+                    onSubmitEditing={canReset ? resetForm.handleSubmit(submitReset) : undefined}
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
-                    error={fieldState.error?.message}
+                    invalid={!!fieldState.error || mismatch}
                   />
                 )}
               />
-              {formError && <Text style={styles.error}>{formError}</Text>}
-              <Button
-                label="Reset password"
-                variant="brand"
-                fullWidth
-                onPress={resetForm.handleSubmit(submitReset)}
-                loading={resetForm.formState.isSubmitting}
-              />
-            </View>
-          )}
-        </ScrollView>
+            </GroupedList>
+            <PasswordStrengthMeter strength={strength} />
+          </Panel>
+        </StepStage>
       </KeyboardAvoidingView>
+
+      <ActionNavBar title="Reset password" onBack={goBack} scrollY={scrollY} />
+
+      {toast && (
+        <Toast
+          message={toast}
+          bottomOffset={insets.bottom + BOTTOM_BAR_HEIGHT + space.md}
+          onHide={() => {
+            setToast(null);
+            router.replace('/(auth)/login');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
+interface PanelProps {
+  title: string;
+  subtitle?: string;
+  scrollY: SharedValue<number>;
+  onScroll: ReturnType<typeof useLargeTitleScroll>['onScroll'];
+  /** The step's primary button, pinned above the keyboard / home indicator. */
+  action: ReactNode;
+  children: ReactNode;
+}
+
+// One step: large title, the step's fields, and the pinned primary action.
+function Panel({ title, subtitle, scrollY, onScroll, action, children }: PanelProps) {
+  return (
+    <View style={styles.flex}>
+      <Animated.ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        <LargeTitleHeader title={title} subtitle={subtitle} scrollY={scrollY} />
+        <View style={styles.form}>{children}</View>
+      </Animated.ScrollView>
+      <View style={styles.bottomBar}>{action}</View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
-  header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
-  form: { gap: 16 },
-  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
-  errorCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red, textAlign: 'center' },
-  success: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.success },
-  resendText: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, textAlign: 'center' },
+  // Clears the 44pt nav bar that overlays the top of the scroll view.
+  content: { paddingTop: ACTION_NAV_HEIGHT + space.xl, paddingBottom: space.xl, gap: space.xxl },
+  form: { paddingHorizontal: screenPaddingX, gap: space.md },
+  bottomBar: { paddingHorizontal: screenPaddingX, paddingTop: space.sm, paddingBottom: space.lg },
 });

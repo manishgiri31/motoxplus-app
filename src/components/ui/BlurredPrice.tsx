@@ -10,6 +10,8 @@ export interface BlurredPriceProps {
   price: number;
   isDealerApproved: boolean;
   onPressLogin?: () => void;
+  /** 17pt (product tiles) instead of the default 21pt. */
+  compact?: boolean;
 }
 
 // Redacts digits in-place so the layout matches the real price's width —
@@ -18,11 +20,11 @@ function redact(formatted: string): string {
   return formatted.replace(/[0-9]/g, '•');
 }
 
-export function BlurredPrice({ price, isDealerApproved, onPressLogin }: BlurredPriceProps) {
+export function BlurredPrice({ price, isDealerApproved, onPressLogin, compact = false }: BlurredPriceProps) {
   const formatted = formatCurrency(price);
 
   if (isDealerApproved) {
-    return <Text style={styles.realPrice}>{formatted}</Text>;
+    return <Text style={[styles.realPrice, compact && styles.compact]}>{formatted}</Text>;
   }
 
   const handlePress = () => {
@@ -36,7 +38,7 @@ export function BlurredPrice({ price, isDealerApproved, onPressLogin }: BlurredP
   return (
     <Pressable onPress={handlePress} accessibilityRole="button" accessibilityLabel="Login to view dealer price" style={styles.row}>
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Text style={styles.redacted} allowFontScaling={false}>
+        <Text style={[styles.redacted, compact && styles.compact]} allowFontScaling={false}>
           {redact(formatted)}
         </Text>
       </View>
@@ -58,6 +60,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     letterSpacing: 1,
   },
+  compact: { fontSize: 17, letterSpacing: -0.34 },
   realPrice: {
     fontFamily: fonts.display.bold,
     fontSize: 21, letterSpacing: -0.315,

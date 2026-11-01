@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { getErrorMessage } from '@/api/errors';
 import { queryKeys } from '@/api/queryKeys';
 import { paymentService } from '@/api/services/paymentService';
-import type { Order } from '@/api/types';
+import type { Order, PaymentType } from '@/api/types';
 import { useAuth } from '@/auth/useAuth';
 import { colors } from '@/src/theme';
 import { normalizeMobileNumber } from '@/utils/format';
@@ -45,6 +45,12 @@ export interface RazorpayResult {
    * The screen must tell the dealer NOT to pay again and to contact support.
    */
   paidButUnconfirmed: boolean;
+  /**
+   * Set the moment Razorpay reports success. Once true, nothing after it
+   * (verify failure, dismissed sheet) may be presented as "cancelled" or offer
+   * another payment method — the money may already be captured.
+   */
+  paymentCompleted: boolean;
 }
 
 const INITIAL: RazorpayResult = {
@@ -52,6 +58,7 @@ const INITIAL: RazorpayResult = {
   error: null,
   invoiceNumber: null,
   paidButUnconfirmed: false,
+  paymentCompleted: false,
 };
 
 // react-native-razorpay's error `code` for a user-dismissed checkout.
@@ -71,7 +78,10 @@ export function useRazorpayPayment() {
   }, []);
 
   const pay = useCallback(
-    async (order: Pick<Order, 'id' | 'orderNumber' | 'amountDue'>) => {
+    async (
+      order: Pick<Order, 'id' | 'orderNumber' | 'amountDue'>,
+      paymentType?: Exclude<PaymentType, 'COD'>
+    ) => {
       if (inFlight.current) return;
       inFlight.current = true;
       setState({ ...INITIAL, phase: 'preparing' });
@@ -79,7 +89,12 @@ export function useRazorpayPayment() {
       try {
         // 1. Backend creates the Razorpay order and the pending Payment row.
         //    amount/currency/keyId all come from the server — never the client.
-        const rzpOrder = await paymentService.createRazorpayOrder(order.id);
+        const rzpOrder = await paymentService.createRazorpayOrder(order.id, paymentType);
+        // The server may have switched Full <-> 20% Advance — refresh the
+        // order so the amount on screen matches what Razorpay will charge.
+        if (paymentType) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(order.id) });
+        }
 
         // 2. Open the native checkout sheet.
         setState((s) => ({ ...s, phase: 'opening' }));
@@ -133,12 +148,13 @@ export function useRazorpayPayment() {
             phase: 'failed',
             error: 'Payment response was incomplete. If money was debited, contact support before retrying.',
             paidButUnconfirmed: true,
+            paymentCompleted: true,
           });
           HapticService.error();
           return;
         }
 
-        setState((s) => ({ ...s, phase: 'verifying' }));
+        setState((s) => ({ ...s, phase: 'verifying', paymentCompleted: true }));
         try {
           const { invoiceNumber } = await paymentService.verify({
             razorpayOrderId: paid.razorpay_order_id,
@@ -155,7 +171,7 @@ export function useRazorpayPayment() {
           queryClient.invalidateQueries({ queryKey: queryKeys.orders.tracking(order.id) });
 
           inFlight.current = false;
-          setState({ ...INITIAL, phase: 'verified', invoiceNumber });
+          setState({ ...INITIAL, phase: 'verified', invoiceNumber, paymentCompleted: true });
           HapticService.success();
         } catch (verifyError) {
           // Money is very likely already captured. A 409 means stock ran out
@@ -167,6 +183,7 @@ export function useRazorpayPayment() {
             ...INITIAL,
             phase: 'failed',
             paidButUnconfirmed: true,
+            paymentCompleted: true,
             error: is409
               ? getErrorMessage(verifyError)
               : `We couldn't confirm your payment for order ${order.orderNumber}. Your payment is safe — please contact support with this order number and do not pay again.`,

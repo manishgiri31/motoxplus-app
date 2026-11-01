@@ -36,14 +36,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#FBFAF8",
-          "dark": {
-            "image": "./assets/images/splash-icon.png",
-            "backgroundColor": "#0A0A0A"
-          }
+          "backgroundColor": "#FFFFFF"
         }
       ],
       "expo-secure-store",
@@ -51,7 +44,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/android-icon-monochrome.png",
-          "color": "#D01F25",
+          "color": "#0071E3",
           "defaultChannel": "orders",
           "enableBackgroundRemoteNotifications": false
         }

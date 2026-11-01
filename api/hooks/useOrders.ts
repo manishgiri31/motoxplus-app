@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '../queryKeys';
 import { orderService } from '../services/orderService';
@@ -8,6 +8,18 @@ export function useOrders(page = 1) {
   return useQuery({
     queryKey: queryKeys.orders.list(page),
     queryFn: () => orderService.list(page),
+  });
+}
+
+// The same GET /orders?page=N request as useOrders, walked page by page for the
+// Orders tab's infinite scroll.
+export function useInfiniteOrders() {
+  return useInfiniteQuery({
+    queryKey: queryKeys.orders.infinite(),
+    queryFn: ({ pageParam }) => orderService.list(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) =>
+      last.orders.length > 0 && last.page * last.pageSize < last.total ? last.page + 1 : undefined,
   });
 }
 

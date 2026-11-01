@@ -1,5 +1,5 @@
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import type { TextStyle } from 'react-native';
+import { Platform, type TextStyle } from 'react-native';
 
 import { motion } from './motion';
 
@@ -13,17 +13,23 @@ import { motion } from './motion';
 // the accent lives under `accent*` / `link*`.
 export const colors = {
   // Surfaces
+  bg: '#FFFFFF', // screen background (alias of paper)
+  bgAlt: '#F5F5F7', // grouped lists and cards (alias of card)
   paper: '#FFFFFF', // page background
   white: '#FFFFFF', // sheets, inputs, anything that must stay white on a grey card
   card: '#F5F5F7', // alt sections and cards
   black: '#000000',
   dark: '#161617', // dark sections (pairs with black)
+  inkSurface: '#1D1D1F', // dark cards (vehicle picker, promo banner)
 
   // Text
   ink: '#1D1D1F',
+  ink2: '#6E6E73', // secondary text (alias of muted)
+  ink3: '#86868B', // tertiary text and placeholders (alias of subtle)
   muted: '#6E6E73',
   subtle: '#86868B',
   onDark: '#F5F5F7',
+  onDarkMuted: '#A1A1A6', // secondary text on the ink (#1D1D1F) card
 
   // Borders
   line: '#D2D2D7',
@@ -40,14 +46,14 @@ export const colors = {
   linkOnDark: '#2997FF',
 
   // Focus ring (matches web :focus-visible in global.css)
-  focusRing: 'rgba(0,125,250,0.6)',
+  focusRing: 'rgba(0,113,227,0.25)', // accent @ 25%
 
   // Status
-  red: '#D70015',
-  redPressed: '#B8000F',
+  red: '#E30000', // danger: errors and destructive actions only
+  redPressed: '#BF0000',
   redSoft: '#FFF0F1',
-  warning: '#BF4800', // eyebrow / "few left" highlight
-  success: '#248A3D',
+  warning: '#F56300',
+  success: '#008009',
   successSoft: '#EAF6EE',
   infoSoft: '#E8F2FC',
 } as const;
@@ -58,11 +64,18 @@ export const radii = {
   lg: 20, // sheets
   input: 12,
   card: 18,
+  tile: 7, // 28px leading-icon tile in a list row
   pill: 999,
 } as const;
 
 // 4px base grid: xs, sm, md, lg, xl, 2xl, 3xl, 4xl.
 export const spacing = [4, 8, 12, 16, 24, 32, 48, 64] as const;
+
+// Named spacing scale for the app screens: 4, 8, 12, 16, 20, 24, 32, 40, 48.
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, x3: 32, x4: 40, x5: 48 } as const;
+// Screens pad 20px horizontally and separate sections by 32px.
+export const screenPaddingX = space.xl;
+export const sectionGap = space.x3;
 
 // Vertical rhythm between page sections, and the breakpoints used to switch
 // between the phone and wide layouts (useWindowDimensions().width >= value).
@@ -72,6 +85,10 @@ export const layout = {
   breakpoints: { phone: 734, tablet: 834, desktop: 1068 },
   contentMaxWidth: 1260,
   minTouchTarget: 44,
+  rowMinHeight: 52, // grouped-list row
+  rowInset: 16, // horizontal padding inside a grouped row, and the separator inset
+  // Dynamic Type is honoured up to 120% so fixed-height chrome doesn't break.
+  maxFontScale: 1.2,
 } as const;
 
 // Type scale (px): 12, 14, 17, 21, 28, 40, 56, 80.
@@ -175,6 +192,49 @@ export const typography = {
   },
 } as const satisfies Record<string, Variant>;
 
+// ---------------------------------------------------------------------------
+// Platform fonts. iOS uses the system font (SF Pro, resolved by the OS: no font
+// files are bundled), selected by fontWeight. Android and web use Inter, where
+// each weight is its own family. Spread the result into a text style:
+//   { ...font(600), fontSize: 17 }
+// Never combine this with a hardcoded fontFamily / `fonts.*` entry.
+const INTER_BY_WEIGHT = {
+  400: 'Inter_400Regular',
+  500: 'Inter_500Medium',
+  600: 'Inter_600SemiBold',
+  700: 'Inter_700Bold',
+} as const;
+
+export type FontWeight = keyof typeof INTER_BY_WEIGHT;
+
+export function font(weight: FontWeight): Pick<TextStyle, 'fontFamily' | 'fontWeight'> {
+  if (Platform.OS === 'ios') return { fontWeight: String(weight) as TextStyle['fontWeight'] };
+  return { fontFamily: INTER_BY_WEIGHT[weight] };
+}
+
+// Ready-made text styles for the new components. Sizes follow the scale above;
+// letter-spacing is -0.02em on sizes >= 17 and 0 below that. Headings are 600,
+// body copy 400.
+export const textStyles = {
+  largeTitle: { ...font(600), fontSize: 34, lineHeight: 41, letterSpacing: -0.68, color: colors.ink },
+  title: { ...font(600), fontSize: 28, lineHeight: 34, letterSpacing: -0.56, color: colors.ink },
+  cardTitle: { ...font(600), fontSize: 21, lineHeight: 25, letterSpacing: -0.42, color: colors.ink },
+  headline: { ...font(600), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink },
+  body: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink },
+  callout: { ...font(400), fontSize: 14, lineHeight: 20, letterSpacing: 0, color: colors.ink2 },
+  calloutStrong: { ...font(600), fontSize: 14, lineHeight: 20, letterSpacing: 0, color: colors.ink },
+  caption: { ...font(400), fontSize: 12, lineHeight: 16, letterSpacing: 0, color: colors.ink2 },
+} as const satisfies Record<string, TextStyle>;
+
+/** "#RRGGBB" + opacity -> rgba(...). Used for tints such as accent @ 12%. */
+export function alpha(hex: string, opacity: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${opacity})`;
+}
+
 export type TypographyVariant = keyof typeof typography;
 export type ThemeColor = keyof typeof colors;
 
@@ -184,6 +244,7 @@ export const theme = {
   colors,
   radii,
   spacing,
+  space,
   layout,
   typeScale,
   tracking,

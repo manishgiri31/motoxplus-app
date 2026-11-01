@@ -1,99 +1,29 @@
-import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { memo, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import Animated, { SlideOutRight } from 'react-native-reanimated';
+import { useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import Animated, { FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAddToCart } from '@/api/hooks/useCart';
-import { useProduct } from '@/api/hooks/useProducts';
-import { Image } from '@/components/ui';
-import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
-import { BlurredPrice, Button, EmptyState, SkeletonListRow, Toast } from '@/src/components/ui';
-import { colors, fonts, radii } from '@/src/theme';
-import { useWishlistHasHydrated, useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
+import { useAuth } from '@/auth/useAuth';
+import { useGridColumns } from '@/hooks/use-grid-columns';
+import { WishlistTile } from '@/src/components/account/WishlistTile';
+import { EmptyState } from '@/src/components/ui/EmptyState';
+import { SkeletonProductCard } from '@/src/components/ui/Skeleton';
+import { Toast } from '@/src/components/ui/Toast';
+import { colors, motion, screenPaddingX, space } from '@/src/theme';
+import { useWishlistHasHydrated, useWishlistStore } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
-import { getImageSource } from '@/utils/image';
-import { isOutOfStock } from '@/utils/stock';
 
-const WishlistRow = memo(function WishlistRow({
-  item,
-  isDealerApproved,
-  onNotify,
-}: {
-  item: WishlistItem;
-  isDealerApproved: boolean;
-  onNotify: (message: string) => void;
-}) {
-  const remove = useWishlistStore((s) => s.remove);
-  const productQuery = useProduct(item.productId);
-  const addToCart = useAddToCart();
-
-  return (
-    // Plain View (not Pressable) at the row level: Pressable defaults
-    // accessible={true}, which on iOS VoiceOver collapses the whole subtree
-    // into one focus stop — the Remove and Add buttons below would become
-    // unreachable by swipe navigation if they were nested inside an
-    // accessible "navigate to product" Pressable instead of siblings of it.
-    <Animated.View exiting={SlideOutRight.duration(200)} style={styles.row}>
-      <Pressable
-        onPress={() => router.push(`/product/${item.productId}`)}
-        style={styles.rowMain}
-        accessibilityRole="button"
-        accessibilityLabel={item.name}
-      >
-        <Image source={getImageSource(item.imageUrl)} style={styles.image} cachePolicy="memory-disk" recyclingKey={item.productId} />
-        <View style={styles.rowText}>
-          <Text style={styles.brand}>{item.brand}</Text>
-          <Text style={styles.name} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <BlurredPrice price={item.price} isDealerApproved={isDealerApproved} />
-        </View>
-      </Pressable>
-      <View style={styles.rowActions}>
-        <Pressable
-          onPress={() => {
-            HapticService.medium();
-            remove(item.productId);
-            onNotify('Removed from wishlist');
-          }}
-          hitSlop={13}
-          accessibilityRole="button"
-          accessibilityLabel="Remove from wishlist"
-        >
-          <Feather name="trash-2" size={18} color={colors.red} />
-        </Pressable>
-        <Button
-          label="Add"
-          variant="ghost"
-          disabled={!productQuery.data || isOutOfStock(productQuery.data)}
-          loading={addToCart.isPending}
-          style={styles.addButton}
-          onPress={() => {
-            if (!productQuery.data) return;
-            HapticService.light();
-            addToCart.mutate(
-              {
-                payload: { productId: item.productId, quantity: productQuery.data.moq },
-                product: productQuery.data,
-              },
-              { onSuccess: () => onNotify('Added to cart') }
-            );
-          }}
-        />
-      </View>
-    </Animated.View>
-  );
-});
+const GRID_GAP = space.md;
 
 export default function WishlistScreen() {
   const items = useWishlistStore((s) => s.items);
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.addedAt - a.addedAt), [items]);
   const hasHydrated = useWishlistHasHydrated();
   const queryClient = useQueryClient();
+  const columns = useGridColumns();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { user, dealer } = useAuth();
@@ -101,8 +31,8 @@ export default function WishlistScreen() {
 
   // The wishlist itself is a device-local list (see stores/wishlistStore.ts)
   // with no server endpoint to refetch — what's actually stale here is each
-  // row's live product data (price/stock), fetched independently per row via
-  // useProduct. Invalidating that query family refetches every mounted row
+  // tile's live product data (price/stock), fetched independently per tile via
+  // useProduct. Invalidating that query family refetches every mounted tile
   // through the same hook they already use, rather than inventing a new
   // fetch path.
   const onRefresh = async () => {
@@ -119,9 +49,13 @@ export default function WishlistScreen() {
   if (!hasHydrated) {
     return (
       <SafeAreaView style={styles.screen} edges={['bottom']}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <SkeletonListRow key={i} />
-        ))}
+        <View style={styles.skeletonGrid}>
+          {Array.from({ length: columns * 2 }).map((_, i) => (
+            <View key={i} style={[styles.skeletonCell, { width: `${100 / columns}%` }]}>
+              <SkeletonProductCard />
+            </View>
+          ))}
+        </View>
       </SafeAreaView>
     );
   }
@@ -129,10 +63,18 @@ export default function WishlistScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <FlatList
+        // FlatList can't change numColumns in place.
+        key={columns}
+        numColumns={columns}
         data={sortedItems}
         keyExtractor={(item) => item.productId}
-        renderItem={({ item }) => <WishlistRow item={item} isDealerApproved={isDealerApproved} onNotify={setToastMessage} />}
-        contentContainerStyle={sortedItems.length === 0 ? styles.emptyContent : undefined}
+        renderItem={({ item }) => (
+          <Animated.View exiting={FadeOut.duration(motion.duration.fast)} style={[styles.cell, { width: `${100 / columns}%` }]}>
+            <WishlistTile item={item} isDealerApproved={isDealerApproved} onNotify={setToastMessage} />
+          </Animated.View>
+        )}
+        contentContainerStyle={sortedItems.length === 0 ? styles.emptyContent : styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.link} colors={[colors.link]} />}
         ListEmptyComponent={
           <EmptyState
@@ -150,14 +92,16 @@ export default function WishlistScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { flex: 1, backgroundColor: colors.bg },
   emptyContent: { flexGrow: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
-  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  image: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.card },
-  rowText: { flex: 1, gap: 4 },
-  brand: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textTransform: 'uppercase' },
-  name: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  rowActions: { alignItems: 'flex-end', gap: 8 },
-  addButton: { height: 36, paddingHorizontal: 16 },
+  // Cells carry half the gap each so the outer edge lands on the 20px screen margin.
+  listContent: { paddingHorizontal: screenPaddingX - GRID_GAP / 2, paddingTop: space.xl, paddingBottom: space.x5 },
+  cell: { paddingHorizontal: GRID_GAP / 2, paddingBottom: GRID_GAP },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: screenPaddingX - GRID_GAP / 2,
+    paddingTop: space.xl,
+  },
+  skeletonCell: { paddingHorizontal: GRID_GAP / 2, paddingBottom: GRID_GAP },
 });

@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { dealerService } from '@/api/services/dealerService';
 import { getErrorMessage } from '@/api/errors';
+import { dealerService } from '@/api/services/dealerService';
 import { useAuth } from '@/auth/useAuth';
-import { Input } from '@/components/ui';
-import { Button } from '@/src/components/ui';
-import { colors, fonts, radii } from '@/src/theme';
+import { PasswordConfirmSheet } from '@/src/components/account/PasswordConfirmSheet';
+import { GroupedList, ListRow } from '@/src/components/ui/GroupedList';
+import { colors, screenPaddingX, sectionGap, space } from '@/src/theme';
 
 // The Appearance (System/Light/Dark) picker that used to live here is hidden
 // — the app is locked to light mode for now (app.json's userInterfaceStyle,
@@ -69,69 +69,40 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <Button label="Sign out" variant="ghost" fullWidth onPress={logout} />
-          <Button label="Delete account" variant="brand" fullWidth onPress={confirmDeleteAccount} style={styles.deleteButton} />
-        </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <GroupedList header="Account">
+          <ListRow label="Sign out" icon="log-out" iconColor={colors.ink2} onPress={logout} />
+        </GroupedList>
+
+        {/* Pushed to the bottom of the screen when the content is short. */}
+        <View style={styles.spacer} />
+
+        <GroupedList footer="Permanently deletes your dealer account, orders and invoices. This cannot be undone.">
+          <ListRow label="Delete account" centered destructive onPress={confirmDeleteAccount} />
+        </GroupedList>
       </ScrollView>
 
-      <Modal visible={confirmVisible} animationType="fade" transparent onRequestClose={closeConfirm}>
-        <View style={styles.modalContainer}>
-          <Pressable style={styles.modalBackdrop} onPress={closeConfirm} accessibilityRole="button" accessibilityLabel="Close" />
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirm your password</Text>
-            <Text style={styles.modalSubtitle}>
-              For your security, re-enter your password to permanently delete this account.
-            </Text>
-            <Input
-              label="Password"
-              secureTextEntry
-              autoFocus
-              autoCapitalize="none"
-              autoComplete="password"
-              returnKeyType="go"
-              onSubmitEditing={handleDelete}
-              value={password}
-              onChangeText={(v) => {
-                setPassword(v);
-                if (deleteError) setDeleteError(null);
-              }}
-              error={deleteError ?? undefined}
-            />
-            <Button
-              label="Delete account"
-              variant="brand"
-              fullWidth
-              loading={deleting}
-              onPress={handleDelete}
-              style={styles.modalDeleteButton}
-            />
-            <Button label="Cancel" variant="ghost" fullWidth onPress={closeConfirm} disabled={deleting} />
-          </View>
-        </View>
-      </Modal>
+      <PasswordConfirmSheet
+        visible={confirmVisible}
+        title="Confirm your password"
+        message="For your security, re-enter your password to permanently delete this account."
+        confirmLabel="Delete account"
+        password={password}
+        onPasswordChange={(v) => {
+          setPassword(v);
+          if (deleteError) setDeleteError(null);
+        }}
+        error={deleteError}
+        loading={deleting}
+        onConfirm={handleDelete}
+        onClose={closeConfirm}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 16, gap: 32 },
-  section: { gap: 12 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  deleteButton: { marginTop: 4 },
-  modalContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
-  modalCard: {
-    width: '100%',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: 20,
-    gap: 16,
-  },
-  modalTitle: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
-  modalSubtitle: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, marginTop: -8 },
-  modalDeleteButton: { marginTop: 4 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { flexGrow: 1, paddingHorizontal: screenPaddingX, paddingTop: space.xl, paddingBottom: space.x4 },
+  spacer: { flexGrow: 1, minHeight: sectionGap },
 });

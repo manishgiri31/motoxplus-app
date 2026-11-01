@@ -1,31 +1,77 @@
-import { Feather } from '@expo/vector-icons';
-import { useLocalSearchParams, useNavigation, router } from 'expo-router';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { Stack, useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, ScrollView, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Animated, { FadeIn, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
 import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct, useProducts } from '@/api/hooks/useProducts';
 import { ProductGallery } from '@/components/ProductGallery';
-import { Badge, PriceTag, ProductCard, ProductDetailSkeleton } from '@/components/ui';
 import { usePulseAnimation } from '@/hooks/use-pulse-animation';
-import { BlurredPrice, Button, ErrorState, Eyebrow, MonoLabel, Reveal, Stepper, Toast } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
+import { ProductDetailSkeleton } from '@/src/components/catalog/ProductDetailSkeleton';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  FLOATING_NAV_HEIGHT,
+  FloatingNavBar,
+  GroupedList,
+  ListRow,
+  NavBarBackground,
+  SegmentedControl,
+  StatusBadge,
+  Stepper,
+  Toast,
+  type SegmentedOption,
+} from '@/src/components/ui';
+import { colors, font, motion, screenPaddingX, sectionGap, textStyles } from '@/src/theme';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { isFewLeft, isOutOfStock, stockLabel } from '@/utils/stock';
 
-function SpecChip({ label, value }: { label: string; value: string }) {
+type Tab = 'details' | 'compatible' | 'reviews';
+
+const TABS: readonly SegmentedOption<Tab>[] = [
+  { value: 'details', label: 'Details' },
+  { value: 'compatible', label: 'Compatible' },
+  { value: 'reviews', label: 'Reviews' },
+];
+
+// Vehicles are free-form "Make Model Variant" strings; the first word is the make.
+const COLLAPSED_VEHICLE_COUNT = 6;
+
+function groupByMake(vehicles: string[]): { make: string; models: string[] }[] {
+  const groups = new Map<string, string[]>();
+  for (const vehicle of vehicles) {
+    const [make, ...rest] = vehicle.trim().split(/\s+/);
+    const models = groups.get(make) ?? [];
+    models.push(rest.length > 0 ? rest.join(' ') : vehicle);
+    groups.set(make, models);
+  }
+  return Array.from(groups, ([make, models]) => ({ make, models }));
+}
+
+function SpecCapsule({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.specChip}>
-      <Text style={styles.specChipLabel}>{label}</Text>
-      <MonoLabel color="ink">{value}</MonoLabel>
+    <View style={styles.capsule}>
+      <Text style={styles.capsuleLabel} maxFontSizeMultiplier={1.2}>
+        {label}
+        <Text style={styles.capsuleValue}>{`  ${value}`}</Text>
+      </Text>
     </View>
   );
+}
+
+function goBack() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/');
 }
 
 export default function ProductDetailScreen() {
@@ -34,6 +80,10 @@ export default function ProductDetailScreen() {
   const productQuery = useProduct(id);
   const product = productQuery.data;
   const insets = useSafeAreaInsets();
+  // The gallery is square, so scroll offsets that matter (nav bar going solid,
+  // the name passing under it) are fractions of the screen width.
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReduceMotion();
 
   const { user, dealer } = useAuth();
   const isDealerApproved = canAccessDealerApp(user, dealer);
@@ -45,9 +95,17 @@ export default function ProductDetailScreen() {
 
   const [quantity, setQuantity] = useState(1);
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
-  const [showBuyNow, setShowBuyNow] = useState(false);
+  // Re-adding while a toast is up restarts its 2.5s timer.
+  const [toastKey, setToastKey] = useState(0);
   const [vehiclesExpanded, setVehiclesExpanded] = useState(false);
+  const [tab, setTab] = useState<Tab>('details');
+  const [bottomBarHeight, setBottomBarHeight] = useState(0);
   const heartPulse = usePulseAnimation();
+
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   useEffect(() => {
     if (product) {
@@ -62,26 +120,35 @@ export default function ProductDetailScreen() {
   const relatedQuery = useProducts({ category: product?.category.slug, pageSize: 8 });
   const related = (relatedQuery.data?.products ?? []).filter((p) => p.id !== product?.id).slice(0, 6);
 
+  const navTop = insets.top + FLOATING_NAV_HEIGHT;
+
   if (productQuery.isLoading || !product) {
-    if (productQuery.isError) {
-      return (
-        <SafeAreaView style={styles.screen} edges={['bottom']}>
-          <ErrorState error={productQuery.error} onRetry={() => productQuery.refetch()} />
-        </SafeAreaView>
-      );
-    }
     return (
-      <SafeAreaView style={styles.screen} edges={['bottom']}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-          <ProductDetailSkeleton />
-        </ScrollView>
-      </SafeAreaView>
+      <View style={styles.screen}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {productQuery.isError ? (
+          <View style={[styles.flex, { paddingTop: navTop }]}>
+            <ErrorState error={productQuery.error} onRetry={() => productQuery.refetch()} />
+          </View>
+        ) : (
+          <ScrollView scrollEnabled={false} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
+            <ProductDetailSkeleton topInset={navTop} />
+          </ScrollView>
+        )}
+        <FloatingNavBar onBack={goBack} />
+      </View>
     );
   }
 
   const outOfStock = isOutOfStock(product);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
-  const visibleVehicles = vehiclesExpanded ? product.compatibility : product.compatibility.slice(0, 4);
+  const visibleVehicles = vehiclesExpanded ? product.compatibility : product.compatibility.slice(0, COLLAPSED_VEHICLE_COUNT);
+  const showMrp = product.mrp != null && product.mrp > product.price;
+  const addLabel = outOfStock
+    ? 'Out of stock'
+    : isDealerApproved
+      ? `Add to cart · ${formatCurrency(product.price * quantity)}`
+      : 'Add to cart';
 
   const handleAddToCart = () => {
     HapticService.light();
@@ -90,7 +157,7 @@ export default function ProductDetailScreen() {
       {
         onSuccess: () => {
           setAddedMessage(`Added ${product.name} × ${quantity} to cart`);
-          setShowBuyNow(true);
+          setToastKey((k) => k + 1);
         },
         onError: () => Alert.alert('Could not add to cart', 'Please try again.'),
       }
@@ -99,7 +166,7 @@ export default function ProductDetailScreen() {
 
   const handleBuyNow = () => {
     HapticService.light();
-    setShowBuyNow(false);
+    setAddedMessage(null);
     router.push('/checkout');
   };
 
@@ -109,120 +176,165 @@ export default function ProductDetailScreen() {
     });
   };
 
+  const handleToggleWishlist = () => {
+    HapticService.light();
+    heartPulse.pulse();
+    toggleWishlist({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      mrp: product.mrp,
+      imageUrl: primaryImage?.imageUrl ?? null,
+      brand: product.brand,
+    });
+  };
+
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-        <ProductGallery images={product.productImages ?? []} />
+    <View style={styles.screen}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-        <View style={styles.content}>
-          <View style={styles.titleRow}>
-            <View style={styles.titleCol}>
-              <Eyebrow>{product.category.name}</Eyebrow>
-              <Text style={styles.name}>{product.name}</Text>
-              <MonoLabel>{`Part #${product.partNumber}`}</MonoLabel>
-            </View>
-            <View style={styles.actions}>
-              <Pressable onPress={handleShare} hitSlop={12} accessibilityRole="button" accessibilityLabel="Share product">
-                <Feather name="share-2" size={22} color={colors.ink} />
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  HapticService.light();
-                  heartPulse.pulse();
-                  toggleWishlist({
-                    productId: product.id,
-                    name: product.name,
-                    price: product.price,
-                    mrp: product.mrp,
-                    imageUrl: primaryImage?.imageUrl ?? null,
-                    brand: product.brand,
-                  });
-                }}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-              >
-                <Animated.View style={heartPulse.style}>
-                  <Feather name="heart" size={22} color={wishlisted ? colors.red : colors.ink} />
-                </Animated.View>
-              </Pressable>
-            </View>
-          </View>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomBarHeight + sectionGap }}
+      >
+        <ProductGallery images={product.productImages ?? []} topInset={navTop} />
 
-          {isDealerApproved && (
-            <View>
-              <PriceTag price={product.price} mrp={product.mrp} size="lg" />
-              <Text style={styles.gstNote}>Dealer price · GST {product.gstRate}% extra</Text>
-            </View>
-          )}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow} maxFontSizeMultiplier={1.2}>
+            {product.category.name}
+          </Text>
+          <Text accessibilityRole="header" style={styles.name} maxFontSizeMultiplier={1.2}>
+            {product.name}
+          </Text>
+          <Text style={styles.partNumber} maxFontSizeMultiplier={1.2}>{`Part #${product.partNumber}`}</Text>
+        </View>
 
-          <View style={styles.badgeRow}>
-            <Badge label={stockLabel(product)} tone={outOfStock ? 'danger' : isFewLeft(product) ? 'warning' : 'success'} />
-            {product.warranty && product.warranty !== 'No Warranty' && <Badge label={product.warranty} tone="neutral" />}
-          </View>
-
-          <View style={styles.specRow}>
-            <SpecChip label="Part No." value={product.partNumber} />
-            <SpecChip label="HSN" value={product.hsnCode} />
-            <SpecChip label="MOQ" value={String(product.moq)} />
-            <SpecChip label="GST" value={`${product.gstRate}%`} />
-          </View>
-
-          {product.compatibility.length > 0 && (
-            <Reveal style={styles.section}>
-              <Text style={styles.sectionTitle}>Compatible vehicles</Text>
-              {visibleVehicles.map((v, i) => (
-                <View key={v} style={[styles.vehicleRow, i !== visibleVehicles.length - 1 && styles.vehicleRowDivider]}>
-                  <Feather name="check" size={16} color={colors.link} />
-                  <Text style={styles.vehicleLabel}>{v}</Text>
-                </View>
-              ))}
-              {product.compatibility.length > 4 && (
-                <Pressable onPress={() => setVehiclesExpanded((v) => !v)} style={styles.expandRow} accessibilityRole="button">
-                  <Text style={styles.expandLabel}>
-                    {vehiclesExpanded ? 'Show less' : `Show all ${product.compatibility.length}`}
+        <View style={styles.priceBlock}>
+          {isDealerApproved ? (
+            <>
+              <View style={styles.priceRow}>
+                <Text style={styles.price} maxFontSizeMultiplier={1.2}>
+                  {formatCurrency(product.price)}
+                </Text>
+                {showMrp && (
+                  <Text style={styles.mrp} maxFontSizeMultiplier={1.2}>
+                    {formatCurrency(product.mrp as number)}
                   </Text>
-                  <Feather name={vehiclesExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted} />
-                </Pressable>
-              )}
-            </Reveal>
+                )}
+              </View>
+              <Text style={styles.gstNote} maxFontSizeMultiplier={1.2}>{`Dealer price · GST ${product.gstRate}% extra`}</Text>
+            </>
+          ) : (
+            <Button label="Login to see dealer price" variant="link" onPress={() => router.push('/(auth)/login')} />
           )}
+        </View>
 
-          {product.description && (
-            <Reveal style={styles.section}>
-              <Text style={styles.sectionTitle}>Description</Text>
-              <Text style={styles.description}>{product.description}</Text>
-            </Reveal>
-          )}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipScroller}
+          contentContainerStyle={styles.chipRow}
+        >
+          <StatusBadge label={stockLabel(product)} tone={outOfStock ? 'danger' : isFewLeft(product) ? 'warning' : 'success'} />
+          {product.warranty && product.warranty !== 'No Warranty' && <StatusBadge label={product.warranty} tone="neutral" />}
+          <SpecCapsule label="Part No." value={product.partNumber} />
+          <SpecCapsule label="HSN" value={product.hsnCode} />
+          <SpecCapsule label="MOQ" value={String(product.moq)} />
+          <SpecCapsule label="GST" value={`${product.gstRate}%`} />
+        </ScrollView>
 
-          <Reveal style={styles.section}>
-            <Text style={styles.sectionTitle}>Reviews</Text>
-            <Text style={styles.description}>No reviews yet.</Text>
-          </Reveal>
+        <View style={styles.tabs}>
+          <SegmentedControl options={TABS} value={tab} onChange={setTab} />
+
+          <Animated.View key={tab} entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.fast).easing(motion.easing)}>
+            {tab === 'details' &&
+              (product.description ? (
+                <Text style={styles.description} maxFontSizeMultiplier={1.2}>
+                  {product.description}
+                </Text>
+              ) : (
+                <Text style={styles.mutedLine} maxFontSizeMultiplier={1.2}>
+                  No description available.
+                </Text>
+              ))}
+
+            {tab === 'compatible' &&
+              (product.compatibility.length > 0 ? (
+                <View style={styles.compatible}>
+                  {groupByMake(visibleVehicles).map((group) => (
+                    <GroupedList key={group.make} header={group.make}>
+                      {group.models.map((model, i) => (
+                        <ListRow key={`${model}-${i}`} label={model} accessibilityLabel={`${group.make} ${model}`} />
+                      ))}
+                    </GroupedList>
+                  ))}
+                  {product.compatibility.length > COLLAPSED_VEHICLE_COUNT && (
+                    <Button
+                      label={vehiclesExpanded ? 'Show less' : `Show all ${product.compatibility.length}`}
+                      variant="link"
+                      hideChevron
+                      onPress={() => setVehiclesExpanded((v) => !v)}
+                      style={styles.expand}
+                    />
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.mutedLine} maxFontSizeMultiplier={1.2}>
+                  No compatible vehicles listed.
+                </Text>
+              ))}
+
+            {tab === 'reviews' && <EmptyState icon="star" title="No reviews yet" style={styles.reviews} />}
+          </Animated.View>
         </View>
 
         {related.length > 0 && (
-          <View style={styles.relatedSection}>
-            <Text style={styles.sectionTitle}>{`More from ${product.category.name}`}</Text>
+          <View style={styles.related}>
+            <Text accessibilityRole="header" style={styles.relatedTitle} maxFontSizeMultiplier={1.2}>{`More from ${product.category.name}`}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedRow}>
               {related.map((p) => (
                 <View key={p.id} style={styles.relatedItem}>
-                  <ProductCard product={p} onPress={(item) => router.push(`/product/${item.id}`)} />
+                  <CatalogProductCard product={p} />
                 </View>
               ))}
             </ScrollView>
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
-        <View style={styles.bottomPrice}>
-          <BlurredPrice price={product.price} isDealerApproved={isDealerApproved} />
-        </View>
-        <Stepper value={quantity} moq={product.moq} onChange={setQuantity} disabled={outOfStock} />
+      <FloatingNavBar
+        title={product.name}
+        onBack={goBack}
+        scrollY={scrollY}
+        solidRange={[width * 0.4, width * 0.75]}
+        titleRange={[width, width + 60]}
+        actions={[
+          { label: 'Share product', onPress: handleShare, icon: <Feather name="share" size={20} color={colors.ink} /> },
+          {
+            label: wishlisted ? 'Remove from wishlist' : 'Add to wishlist',
+            onPress: handleToggleWishlist,
+            selected: wishlisted,
+            icon: (
+              <Animated.View style={heartPulse.style}>
+                <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={22} color={colors.ink} />
+              </Animated.View>
+            ),
+          },
+        ]}
+      />
+
+      <View
+        onLayout={(e) => setBottomBarHeight(e.nativeEvent.layout.height)}
+        style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}
+      >
+        <NavBarBackground />
+        <View style={styles.bottomHairline} />
+        <Stepper value={quantity} moq={product.moq} onChange={setQuantity} disabled={outOfStock} label={product.name} />
         <Button
-          label={outOfStock ? 'Out of stock' : 'Add to cart'}
-          variant="brand"
+          label={addLabel}
+          variant="primary"
           onPress={handleAddToCart}
           loading={addToCart.isPending}
           disabled={outOfStock}
@@ -230,59 +342,71 @@ export default function ProductDetailScreen() {
         />
       </View>
 
-      {showBuyNow && (
-        <View style={styles.buyNowWrap}>
-          <Button label="Buy Now" variant="solid" onPress={handleBuyNow} />
-        </View>
+      {addedMessage && (
+        <Toast
+          key={toastKey}
+          message={addedMessage}
+          onHide={() => setAddedMessage(null)}
+          action={{ label: 'Buy Now', onPress: handleBuyNow }}
+          bottomOffset={bottomBarHeight + 12}
+        />
       )}
-
-      {addedMessage && <Toast message={addedMessage} onHide={() => setAddedMessage(null)} />}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 16, gap: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  titleCol: { flex: 1, gap: 6 },
-  name: { fontFamily: fonts.display.bold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
-  actions: { flexDirection: 'row', gap: 16 },
-  gstNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, marginTop: 4 },
-  badgeRow: { flexDirection: 'row', gap: 8 },
-  specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  specChip: {
-    flexBasis: '47%',
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  specChipLabel: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textTransform: 'uppercase' },
-  section: { gap: 8 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  vehicleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  vehicleRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.line },
-  vehicleLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  expandRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12 },
-  expandLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  description: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, lineHeight: 20, color: colors.muted },
-  relatedSection: { gap: 12, marginTop: 8 },
-  relatedRow: { paddingHorizontal: 16, gap: 12 },
-  relatedItem: { width: 160 },
+  flex: { flex: 1 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+
+  header: { alignItems: 'center', gap: 4, paddingHorizontal: screenPaddingX, marginTop: 8 },
+  eyebrow: { ...textStyles.caption, ...font(600), textAlign: 'center' },
+  name: { ...textStyles.title, textAlign: 'center' },
+  partNumber: { ...textStyles.callout, textAlign: 'center' },
+
+  priceBlock: { alignItems: 'center', gap: 4, marginTop: 20, paddingHorizontal: screenPaddingX },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 },
+  price: { ...textStyles.title },
+  mrp: { ...textStyles.callout, color: colors.ink3, textDecorationLine: 'line-through' },
+  gstNote: { ...textStyles.caption },
+
+  chipScroller: { marginTop: 20, flexGrow: 0 },
+  // flexGrow + center: the row centers when it fits and scrolls when it doesn't.
+  chipRow: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: screenPaddingX },
+  capsule: { height: 28, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.bgAlt },
+  capsuleLabel: { ...textStyles.caption },
+  capsuleValue: { ...textStyles.caption, ...font(600), color: colors.ink },
+
+  tabs: { marginTop: sectionGap, paddingHorizontal: screenPaddingX, gap: 20 },
+  description: { ...textStyles.body, lineHeight: 25 },
+  mutedLine: { ...textStyles.body, color: colors.ink2 },
+  compatible: { gap: 20 },
+  expand: { alignSelf: 'center' },
+  reviews: { flex: 0, paddingVertical: 32 },
+
+  related: { marginTop: sectionGap, gap: 16 },
+  relatedTitle: { ...textStyles.cardTitle, paddingHorizontal: screenPaddingX },
+  relatedRow: { paddingHorizontal: screenPaddingX, gap: 12 },
+  relatedItem: { width: 180 },
+
   bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: screenPaddingX,
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.card,
   },
-  bottomPrice: { flexShrink: 1 },
+  bottomHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.line,
+  },
   addButton: { flex: 1 },
-  buyNowWrap: { position: 'absolute', bottom: 96, right: 16 },
 });

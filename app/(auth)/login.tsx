@@ -3,17 +3,15 @@ import * as Linking from 'expo-linking';
 import { Link, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { DEALER_APPLICATION_URL, DealerAccessDeniedError } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
-import { Input } from '@/components/ui';
-import { Button } from '@/src/components/ui';
-import { PageHeader } from '@/src/components/ui/PageHeader';
-import { colors, fonts } from '@/src/theme';
+import { Button, GroupedList, InputField, LargeTitleHeader } from '@/src/components/ui';
+import { colors, font, screenPaddingX, space } from '@/src/theme';
 import { logger } from '@/utils/logger';
 import { runConnectivityDiagnostics } from '@/utils/networkDiagnostics';
 
@@ -21,6 +19,20 @@ export default function LoginScreen() {
   const { login, accessDenied } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // The secondary actions below the Sign in button step aside while the
+  // keyboard is open, so the form and the primary action always fit.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // AuthProvider sets accessDenied both from a failed login attempt and from
   // a rejected cold-start session restore — this is the single place that
@@ -34,7 +46,7 @@ export default function LoginScreen() {
   const {
     control,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { identifier: '', password: '' },
@@ -77,101 +89,108 @@ export default function LoginScreen() {
     }
   };
 
+  // One message under the group: a field's own validation error first, else
+  // the failed-sign-in message from the server.
+  const message = errors.identifier?.message ?? errors.password?.message ?? formError;
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <PageHeader
-            align="center"
-            eyebrow="MotoXPlus Dealer"
-            title="Welcome back"
-            subtitle="Sign in to manage your business"
-            style={styles.header}
-          />
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <LargeTitleHeader title="Welcome back" />
 
           <View style={styles.form}>
-            <Controller
-              control={control}
-              name="identifier"
-              render={({ field, fieldState }) => (
-                <Input
-                  label="Email or mobile number"
-                  autoFocus
-                  autoCapitalize="none"
-                  autoComplete="username"
-                  keyboardType="email-address"
-                  returnKeyType="next"
-                  onSubmitEditing={() => passwordRef.current?.focus()}
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="password"
-              render={({ field, fieldState }) => (
-                <Input
-                  ref={passwordRef}
-                  label="Password"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  returnKeyType="go"
-                  onSubmitEditing={handleSubmit(onSubmit)}
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                />
-              )}
-            />
+            <GroupedList footer={message} footerTone="danger">
+              <Controller
+                control={control}
+                name="identifier"
+                render={({ field, fieldState }) => (
+                  <InputField
+                    variant="grouped"
+                    label="Email or mobile number"
+                    autoFocus
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="username"
+                    keyboardType="email-address"
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={!!fieldState.error}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="password"
+                render={({ field, fieldState }) => (
+                  <InputField
+                    ref={passwordRef}
+                    variant="grouped"
+                    label="Password"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    returnKeyType="go"
+                    onSubmitEditing={handleSubmit(onSubmit)}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    // A rejected sign-in marks the password row too, not just validation errors.
+                    invalid={!!fieldState.error || !!formError}
+                  />
+                )}
+              />
+            </GroupedList>
 
-            {formError && <Text style={styles.error}>{formError}</Text>}
-
-            <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
-              <Text style={styles.forgotLabel}>Forgot password?</Text>
+            <Link href="/(auth)/forgot-password" asChild>
+              <Pressable accessibilityRole="link" accessibilityLabel="Forgot password" hitSlop={8} style={styles.forgotLink}>
+                <Text style={styles.forgotLabel} maxFontSizeMultiplier={1.2}>
+                  Forgot password?
+                </Text>
+              </Pressable>
             </Link>
-
-            <Button label="Sign in" variant="brand" fullWidth onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Need a dealer account?</Text>
-            <Link href="/(auth)/register" style={styles.applyLink}>
-              <Text style={styles.applyLabel}>Create a dealer account</Text>
-            </Link>
-            <Pressable
-              onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}
-              hitSlop={10}
-              accessibilityRole="link"
-              accessibilityLabel="Apply on MotoXPlus Website"
-            >
-              <Text style={styles.footerNote}>or apply on the MotoXPlus website</Text>
-            </Pressable>
           </View>
         </ScrollView>
+
+        {/* Pinned to the bottom: the primary action, then the two ways to get an account. */}
+        <View style={styles.bottomBar}>
+          <Button label="Sign in" variant="primary" fullWidth onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+          {!keyboardVisible && (
+            <>
+              <Button
+                label="Create a dealer account"
+                variant="secondary"
+                fullWidth
+                onPress={() => router.push('/(auth)/register')}
+              />
+              <Button
+                label="Apply on website"
+                variant="link"
+                onPress={() => Linking.openURL(DEALER_APPLICATION_URL)}
+              />
+            </>
+          )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
-  header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 40, letterSpacing: -0.6, lineHeight: 44, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
-  form: { gap: 16 },
-  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
-  forgotLink: { alignSelf: 'flex-end' },
-  forgotLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  footer: { alignItems: 'center', gap: 4 },
-  footerText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  applyLink: { paddingVertical: 4 },
-  applyLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.link },
-  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textAlign: 'center' },
+  // 80pt of air above the title; LargeTitleHeader brings its own 20pt side padding.
+  content: { paddingTop: 80, paddingBottom: space.xxl, gap: space.x3 },
+  form: { paddingHorizontal: screenPaddingX, gap: space.sm },
+  forgotLink: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: space.sm },
+  forgotLabel: { ...font(400), fontSize: 14, lineHeight: 20, color: colors.link },
+  bottomBar: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: space.sm, gap: space.sm, alignItems: 'center' },
 });

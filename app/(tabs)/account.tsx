@@ -1,38 +1,22 @@
-import { Feather } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
 import { useAuth } from '@/auth/useAuth';
-import { Avatar, Badge } from '@/components/ui';
 import { webOrigin } from '@/config/env';
-import { dealerStatusTone } from '@/constants/dealerStatus';
-import { Button, Card, Footer, Reveal } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
-import { PageHeader } from '@/src/components/ui/PageHeader';
+import { DealerProfileCard } from '@/src/components/account/DealerProfileCard';
+import { GroupedList, ListRow } from '@/src/components/ui/GroupedList';
+import { CompactTitleBar, LargeTitleHeader, useLargeTitleScroll } from '@/src/components/ui/LargeTitleHeader';
+import { colors, screenPaddingX, sectionGap, space, textStyles } from '@/src/theme';
 
-interface MenuRowProps {
-  icon: React.ComponentProps<typeof Feather>['name'];
-  label: string;
-  onPress: () => void;
-  destructive?: boolean;
-}
-
-function MenuRow({ icon, label, onPress, destructive }: MenuRowProps) {
-  return (
-    <Pressable onPress={onPress} style={styles.menuRow} accessibilityRole="button" accessibilityLabel={label}>
-      <View style={styles.menuRowLeft}>
-        <Feather name={icon} size={18} color={destructive ? colors.red : colors.ink} />
-        <Text style={[styles.menuLabel, destructive && styles.menuLabelDestructive]}>{label}</Text>
-      </View>
-      <Feather name="chevron-right" size={18} color={colors.line} />
-    </Pressable>
-  );
-}
+const LEGAL_LINE = `© ${new Date().getFullYear()} MotoXPlus. All rights reserved.`;
 
 export default function AccountScreen() {
+  const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useLargeTitleScroll();
   const { user, dealer, logout, logoutAllDevices } = useAuth();
   const { data: dealerAccount } = useDealerAccount();
 
@@ -51,103 +35,67 @@ export default function AccountScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <PageHeader title="Account" />
+    <View style={styles.screen}>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.sm }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <LargeTitleHeader title="Account" scrollY={scrollY} numberOfLines={1} />
 
-        <Card style={styles.profileCard}>
-          <View style={styles.profileRow}>
-            <Avatar name={user?.name ?? dealer?.ownerName ?? '?'} size={56} />
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{user?.name ?? dealerAccount?.ownerName}</Text>
-              <Text style={styles.profileEmail}>{user?.email}</Text>
-            </View>
-          </View>
-          {dealer && (
-            <View style={styles.companyRow}>
-              <Text style={styles.companyName}>{dealer.companyName}</Text>
-              <Badge label={dealer.status} tone={dealerStatusTone[dealer.status]} />
-            </View>
-          )}
-          {user && !user.emailVerified && (
-            <Pressable
-              onPress={() => router.push('/verify-email')}
-              style={styles.nagRow}
-              accessibilityRole="button"
-              accessibilityLabel="Verify email"
-            >
-              <Text style={styles.nagText}>
-                Your email isn&apos;t verified — verify it now, ordering is blocked until you do.
-              </Text>
-              <Feather name="chevron-right" size={16} color={colors.link} />
-            </Pressable>
-          )}
-          {user && !user.mobileVerified && (
-            <Pressable
-              onPress={() => router.push('/verify-mobile')}
-              style={styles.nagRow}
-              accessibilityRole="button"
-              accessibilityLabel="Verify mobile number"
-            >
-              <Text style={styles.nagText}>
-                Your mobile number isn&apos;t verified — verify it now, ordering is blocked until you do.
-              </Text>
-              <Feather name="chevron-right" size={16} color={colors.link} />
-            </Pressable>
-          )}
-        </Card>
+        <View style={styles.section}>
+          <DealerProfileCard user={user} dealer={dealer} ownerName={dealerAccount?.ownerName} />
 
-        <Reveal style={styles.menuGroup}>
-          <MenuRow icon="user" label="Profile" onPress={() => router.push('/profile')} />
-          <MenuRow icon="folder" label="Documents" onPress={() => router.push('/documents')} />
-          <MenuRow icon="heart" label="Wishlist" onPress={() => router.push('/wishlist')} />
-          <MenuRow icon="bell" label="Notifications" onPress={() => router.push('/notifications')} />
-          <MenuRow icon="mail" label="Change email" onPress={() => router.push('/change-email')} />
-          <MenuRow icon="monitor" label="Active sessions" onPress={() => router.push('/sessions')} />
-          <MenuRow icon="settings" label="Settings" onPress={() => router.push('/settings')} />
-        </Reveal>
+          <GroupedList>
+            <ListRow label="Profile" icon="user" iconColor={colors.link} onPress={() => router.push('/profile')} />
+            <ListRow label="Documents" icon="folder" iconColor={colors.warning} onPress={() => router.push('/documents')} />
+            <ListRow label="Wishlist" icon="heart" iconColor={colors.success} onPress={() => router.push('/wishlist')} />
+            <ListRow label="Notifications" icon="bell" iconColor={colors.ink2} onPress={() => router.push('/notifications')} />
+          </GroupedList>
 
-        <Reveal style={styles.menuGroup} delay={80}>
-          <MenuRow icon="mail" label="Contact support" onPress={() => router.push('/contact')} />
-          <MenuRow icon="shield" label="Privacy policy" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/privacy`)} />
-          <MenuRow icon="file-text" label="Terms of service" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/terms`)} />
-        </Reveal>
+          <GroupedList>
+            <ListRow label="Change email" icon="mail" iconColor={colors.link} onPress={() => router.push('/change-email')} />
+            <ListRow label="Active sessions" icon="smartphone" iconColor={colors.success} onPress={() => router.push('/sessions')} />
+            <ListRow label="Settings" icon="settings" iconColor={colors.ink2} onPress={() => router.push('/settings')} />
+          </GroupedList>
 
-        <View style={styles.signOutGroup}>
-          <Button label="Sign out" variant="ghost" onPress={confirmLogout} style={styles.signOutButton} />
-          <Button label="Sign out of all devices" variant="ghost" onPress={confirmLogoutAll} style={styles.signOutButton} />
+          <GroupedList>
+            <ListRow label="Contact support" icon="headphones" iconColor={colors.link} onPress={() => router.push('/contact')} />
+            <ListRow
+              label="Privacy policy"
+              icon="lock"
+              iconColor={colors.ink2}
+              onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/privacy`)}
+            />
+            <ListRow
+              label="Terms"
+              icon="file-text"
+              iconColor={colors.ink2}
+              onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/terms`)}
+            />
+          </GroupedList>
+
+          <GroupedList>
+            <ListRow label="Sign out" centered destructive onPress={confirmLogout} />
+            <ListRow label="Sign out of all devices" centered destructive onPress={confirmLogoutAll} />
+          </GroupedList>
         </View>
-      </ScrollView>
-      <Footer />
-    </SafeAreaView>
+
+        <Text style={styles.legal} maxFontSizeMultiplier={1.2}>
+          {LEGAL_LINE}
+        </Text>
+      </Animated.ScrollView>
+      <CompactTitleBar title="Account" scrollY={scrollY} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 16, gap: 24, paddingBottom: 32 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
-  profileCard: { gap: 12 },
-  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  profileInfo: { flex: 1, gap: 2 },
-  profileName: { fontFamily: fonts.body.semiBold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  profileEmail: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  companyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  companyName: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  nagRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  nagText: { flex: 1, fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.red },
-  menuGroup: { borderTopWidth: 1, borderTopColor: colors.line },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  menuRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuLabel: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  menuLabelDestructive: { color: colors.red },
-  signOutGroup: { gap: 12 },
-  signOutButton: { alignSelf: 'stretch' },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingBottom: space.x4 },
+  // The header pads itself by the screen margin; the rest of the content
+  // matches it and groups sit a section-gap apart.
+  section: { paddingHorizontal: screenPaddingX, marginTop: space.xl, gap: sectionGap },
+  legal: { ...textStyles.caption, color: colors.ink3, textAlign: 'center', marginTop: sectionGap, paddingHorizontal: screenPaddingX },
 });

@@ -1,26 +1,20 @@
-import { Feather } from '@expo/vector-icons';
-import { FlashList } from '@shopify/flash-list';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { Product } from '@/api/types';
 import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts } from '@/api/hooks/useProducts';
-import { useGridColumns } from '@/hooks/use-grid-columns';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
-import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
-import { Button, ErrorState, SkeletonProductCard } from '@/src/components/ui';
-import { colors, fonts, radii } from '@/src/theme';
+import { CatalogGridScreen } from '@/src/components/catalog/CatalogGridScreen';
+import { ErrorState } from '@/src/components/ui';
+import { colors } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { sortProducts } from '@/utils/sortProducts';
 import { isOutOfStock } from '@/utils/stock';
 
 export default function CategoryProductsScreen() {
-  const columns = useGridColumns();
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const navigation = useNavigation();
   const categoriesQuery = useCategories();
   const selectedVehicle = useVehicleStore((s) => s.selectedVehicle);
 
@@ -32,10 +26,7 @@ export default function CategoryProductsScreen() {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const category = categoriesQuery.data?.find((c) => c.slug === slug);
-
-  useEffect(() => {
-    navigation.setOptions({ title: category?.name ?? (slug ? slug.replace(/-/g, ' ') : 'Category') });
-  }, [navigation, slug, category]);
+  const title = category?.name ?? (slug ? slug.replace(/-/g, ' ') : 'Category');
 
   const products = useMemo(() => {
     let list = fetchedProducts;
@@ -64,68 +55,26 @@ export default function CategoryProductsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <View style={styles.toolbar}>
-        <View style={styles.searchRow}>
-          <Feather name="search" size={16} color={colors.muted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search part number or name"
-            placeholderTextColor={colors.muted}
-            style={styles.searchInput}
-            autoCapitalize="characters"
-            autoCorrect={false}
-          />
-        </View>
-        <Pressable
-          onPress={() => setFilterSheetOpen(true)}
-          style={styles.filterButton}
-          accessibilityRole="button"
-          accessibilityLabel="Filter and sort"
-        >
-          <Feather name="sliders" size={16} color={colors.ink} />
-        </Pressable>
-      </View>
-
-      {query.isLoading ? (
-        <View style={styles.grid}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <View key={i} style={styles.skeletonCell}>
-              <SkeletonProductCard />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <FlashList
-          data={products}
-          keyExtractor={(item: Product) => item.id}
-          numColumns={columns}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }: { item: Product }) => (
-            <View style={styles.cell}>
-              <CatalogProductCard product={item} vehicle={selectedVehicle} />
-            </View>
-          )}
-          onEndReachedThreshold={0.4}
-          onEndReached={() => {
-            if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage();
-          }}
-          onRefresh={() => query.refetch()}
-          refreshing={query.isRefetching}
-          ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.link} /> : null}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No products found</Text>
-              <Text style={styles.emptyMessage}>
-                {hasActiveFilters ? 'Try adjusting your search or filters.' : 'No products in this category yet.'}
-              </Text>
-              {hasActiveFilters && <Button label="Clear filters" variant="ghost" onPress={clearFilters} style={styles.emptyButton} />}
-            </View>
-          }
-        />
-      )}
-
+    <CatalogGridScreen
+      title={title}
+      searchValue={search}
+      onSearchChange={setSearch}
+      onFilterPress={() => setFilterSheetOpen(true)}
+      filterActive={filters.inStockOnly || filters.sort !== 'default'}
+      products={products}
+      loading={query.isLoading}
+      vehicle={selectedVehicle}
+      onEndReached={() => {
+        if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage();
+      }}
+      isFetchingNextPage={query.isFetchingNextPage}
+      onRefresh={() => query.refetch()}
+      refreshing={query.isRefetching}
+      emptyTitle="No products found"
+      emptyMessage={hasActiveFilters ? 'Try adjusting your search or filters.' : 'No products in this category yet.'}
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={clearFilters}
+    >
       <CatalogFilterSheet
         visible={filterSheetOpen}
         categories={undefined}
@@ -133,45 +82,10 @@ export default function CategoryProductsScreen() {
         onApply={setFilters}
         onClose={() => setFilterSheetOpen(false)}
       />
-    </SafeAreaView>
+    </CatalogGridScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
-  searchRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 44,
-    borderRadius: radii.md,
-    paddingHorizontal: 12,
-    backgroundColor: colors.card,
-  },
-  searchInput: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8 },
-  // FlashList's numColumns already sizes each item to half the list width —
-  // the cell only adds the inter-column gutter. A maxWidth here would clamp
-  // the card to a quarter of the screen and make its content overflow.
-  cell: { flex: 1, paddingHorizontal: 8, paddingBottom: 16 },
-  // The loading skeleton is a plain flex-wrap grid (no FlashList), so it does
-  // need an explicit half-width per item.
-  skeletonCell: { width: '50%', paddingHorizontal: 8, paddingBottom: 16 },
-  listContent: { paddingHorizontal: 8, paddingBottom: 16 },
-  footer: { paddingVertical: 16 },
-  empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 64, gap: 8 },
-  emptyTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  emptyMessage: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center' },
-  emptyButton: { marginTop: 12 },
+  screen: { flex: 1, backgroundColor: colors.bg },
 });

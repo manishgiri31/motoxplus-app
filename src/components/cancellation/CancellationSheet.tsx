@@ -2,15 +2,15 @@ import { Feather } from '@expo/vector-icons';
 import { isAxiosError } from 'axios';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCancellationPreview, useCancelOrder } from '@/api/hooks/useCancellation';
 import { getErrorMessage } from '@/api/errors';
 import type { CancelOrderResponse, CancelReasonCode } from '@/api/types';
 import { webOrigin } from '@/config/env';
-import { Button, MonoLabel } from '@/src/components/ui';
-import { colors, fonts, radii } from '@/src/theme';
+import { useFocusRing } from '@/hooks/use-focus-ring';
+import { Button, GroupedList, Sheet, Skeleton } from '@/src/components/ui';
+import { colors, font, radii, space, textStyles } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
@@ -33,7 +33,6 @@ export interface CancellationSheetProps {
 // endpoint — see api/services/cancellationService.ts. Every number shown
 // here comes from that response; nothing is recomputed client-side.
 export function CancellationSheet({ visible, orderId, onClose, onCancelled }: CancellationSheetProps) {
-  const insets = useSafeAreaInsets();
   const preview = useCancellationPreview(orderId, visible);
   const cancelOrder = useCancelOrder(orderId);
   const [reasonCode, setReasonCode] = useState<CancelReasonCode | null>(null);
@@ -64,137 +63,154 @@ export function CancellationSheet({ visible, orderId, onClose, onCancelled }: Ca
     );
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.container}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>Cancel order</Text>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-              <Feather name="x" size={20} color={colors.ink} />
-            </Pressable>
-          </View>
+  const openSupport = () => WebBrowser.openBrowserAsync(`${webOrigin}/contact`);
+  const errorText = staleNotice ?? (cancelOrder.isError ? getErrorMessage(cancelOrder.error, 'Could not cancel this order') : null);
 
-          {preview.isLoading && (
-            <View style={styles.loading}>
-              <ActivityIndicator color={colors.ink} />
-            </View>
-          )}
-
-          {preview.isError && (
-            <View style={styles.blocked}>
-              <Text style={styles.blockedText}>
-                {getErrorMessage(preview.error, "Cancellation isn't available for this order right now.")}
-              </Text>
-              <Button label="Contact support" variant="ghost" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)} />
-            </View>
-          )}
-
-          {data && !allowed && (
-            <View style={styles.blocked}>
-              <Text style={styles.blockedText}>{data.reason}</Text>
-              <Button label="Contact support" variant="ghost" onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/contact`)} />
-            </View>
-          )}
-
-          {data && allowed && (
-            <>
-              <View style={styles.breakdown}>
-                <BreakdownRow label="Order total" value={formatCurrency(data.grandTotal)} />
-                <BreakdownRow label="Amount paid" value={formatCurrency(data.amountPaid)} />
-                <BreakdownRow
-                  label={`Cancellation charge (${data.chargePercent}%)`}
-                  value={data.waived ? 'Waived' : formatCurrency(data.chargeAmount)}
-                  accent={!data.waived}
-                />
-                <View style={styles.refundRow}>
-                  <Text style={styles.refundLabel}>Refund amount</Text>
-                  <Text style={styles.refundValue}>{formatCurrency(data.refundAmount)}</Text>
-                </View>
-              </View>
-
-              {staleNotice && <Text style={styles.staleNotice}>{staleNotice}</Text>}
-
-              <Text style={styles.reasonTitle}>Reason (optional)</Text>
-              <View style={styles.reasonList}>
-                {REASONS.map((r) => (
-                  <Pressable
-                    key={r.code}
-                    onPress={() => setReasonCode(r.code)}
-                    style={[styles.reasonChip, reasonCode === r.code && styles.reasonChipActive]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: reasonCode === r.code }}
-                  >
-                    <Text style={[styles.reasonLabel, reasonCode === r.code && styles.reasonLabelActive]}>{r.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {cancelOrder.isError && !staleNotice && (
-                <Text style={styles.errorText}>{getErrorMessage(cancelOrder.error, 'Could not cancel this order')}</Text>
-              )}
-
-              <Button
-                label={
-                  data.waived || data.chargeAmount === 0
-                    ? 'Cancel order'
-                    : `Cancel & accept ${formatCurrency(data.chargeAmount)} charge`
-                }
-                variant="brand"
-                fullWidth
-                loading={cancelOrder.isPending}
-                onPress={handleCancel}
-                style={styles.confirmButton}
-              />
-            </>
-          )}
-        </View>
+  const footer =
+    data && allowed ? (
+      <View style={styles.footer}>
+        {!!errorText && (
+          <Text style={styles.errorText} accessibilityLiveRegion="polite" maxFontSizeMultiplier={1.2}>
+            {errorText}
+          </Text>
+        )}
+        <Button
+          label="Confirm cancellation"
+          variant="destructive"
+          fullWidth
+          loading={cancelOrder.isPending}
+          onPress={handleCancel}
+        />
       </View>
-    </Modal>
+    ) : undefined;
+
+  return (
+    <Sheet visible={visible} onClose={onClose} title="Cancel order" detents={[0.6, 0.9]} scrollable footer={footer}>
+      {preview.isLoading && (
+        <View style={styles.skeletons}>
+          <Skeleton height={5 * 52} radius={radii.card} />
+          <Skeleton height={3 * 52} radius={radii.card} />
+        </View>
+      )}
+
+      {preview.isError && (
+        <Blocked
+          message={getErrorMessage(preview.error, "Cancellation isn't available for this order right now.")}
+          onContact={openSupport}
+        />
+      )}
+
+      {data && !allowed && <Blocked message={data.reason} onContact={openSupport} />}
+
+      {data && allowed && (
+        <>
+          <GroupedList header="Reason (optional)">
+            {REASONS.map((r) => (
+              <ReasonRow
+                key={r.code}
+                label={r.label}
+                selected={reasonCode === r.code}
+                onPress={() => setReasonCode(r.code)}
+              />
+            ))}
+          </GroupedList>
+
+          <GroupedList header="Fee preview">
+            <FeeRow label="Order total" value={formatCurrency(data.grandTotal)} />
+            <FeeRow label="Amount paid" value={formatCurrency(data.amountPaid)} />
+            <FeeRow
+              label={`Cancellation charge (${data.chargePercent}%)`}
+              value={data.waived ? 'Waived' : formatCurrency(data.chargeAmount)}
+              danger={!data.waived && data.chargeAmount > 0}
+            />
+          </GroupedList>
+
+          <GroupedList
+            header="Refund"
+            footer={
+              data.refundAmount > 0
+                ? `A refund of ${formatCurrency(data.refundAmount)} is initiated as soon as you confirm.`
+                : data.amountPaid === 0
+                  ? 'No payment has been collected on this order, so there is nothing to refund.'
+                  : null
+            }
+          >
+            <FeeRow label="Refund amount" value={formatCurrency(data.refundAmount)} bold />
+          </GroupedList>
+        </>
+      )}
+    </Sheet>
   );
 }
 
-function BreakdownRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Blocked({ message, onContact }: { message: string; onContact: () => void }) {
   return (
-    <View style={styles.breakdownRow}>
-      <Text style={styles.breakdownLabel}>{label}</Text>
-      <MonoLabel color={accent ? 'red' : 'ink'}>{value}</MonoLabel>
+    <View style={styles.blocked}>
+      <Text style={styles.blockedText} maxFontSizeMultiplier={1.2}>
+        {message}
+      </Text>
+      <Button label="Contact support" variant="secondary" onPress={onContact} />
+    </View>
+  );
+}
+
+// Radio row: the selected one gets the accent tick.
+function ReasonRow({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const focusRing = useFocusRing();
+  return (
+    <Pressable
+      onPress={() => {
+        HapticService.light();
+        onPress();
+      }}
+      onFocus={focusRing.onFocus}
+      onBlur={focusRing.onBlur}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected, checked: selected }}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed, focusRing.ringStyle]}
+    >
+      <Text style={[styles.rowLabel, selected && styles.rowBold]} maxFontSizeMultiplier={1.2}>
+        {label}
+      </Text>
+      {selected && <Feather name="check" size={20} color={colors.accent} />}
+    </Pressable>
+  );
+}
+
+function FeeRow({ label, value, bold, danger }: { label: string; value: string; bold?: boolean; danger?: boolean }) {
+  return (
+    <View style={styles.row} accessible accessibilityLabel={`${label}, ${value}`}>
+      <Text style={[styles.rowLabel, bold && styles.rowBold]} maxFontSizeMultiplier={1.2}>
+        {label}
+      </Text>
+      <Text
+        style={[styles.rowValue, bold && styles.rowBold, danger && { color: colors.red }]}
+        maxFontSizeMultiplier={1.2}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
-  sheet: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    maxHeight: '85%',
-    paddingTop: 8,
-    paddingHorizontal: 20,
+  skeletons: { gap: space.xxl },
+  blocked: { gap: space.lg, alignItems: 'flex-start' },
+  blockedText: { ...textStyles.callout },
+  footer: { gap: space.md },
+  errorText: { ...font(400), fontSize: 14, lineHeight: 20, color: colors.red },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.lg,
+    minHeight: 52,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
   },
-  handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line, marginVertical: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
-  loading: { paddingVertical: 32, alignItems: 'center' },
-  blocked: { paddingVertical: 16, gap: 12 },
-  blockedText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  breakdown: { gap: 8, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
-  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  breakdownLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, flexShrink: 1, paddingRight: 12 },
-  refundRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 },
-  refundLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  refundValue: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  staleNotice: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.red, marginTop: 8 },
-  reasonTitle: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink, marginTop: 16, marginBottom: 8 },
-  reasonList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reasonChip: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.pill, paddingHorizontal: 12, paddingVertical: 8 },
-  reasonChipActive: { borderColor: colors.ink, backgroundColor: colors.card },
-  reasonLabel: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.ink },
-  reasonLabelActive: { color: colors.ink },
-  errorText: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.red, marginTop: 12 },
-  confirmButton: { marginTop: 16 },
+  pressed: { opacity: 0.6 },
+  rowLabel: { flexShrink: 1, ...textStyles.body },
+  rowValue: { ...textStyles.body, fontVariant: ['tabular-nums'] },
+  rowBold: { ...font(600) },
 });

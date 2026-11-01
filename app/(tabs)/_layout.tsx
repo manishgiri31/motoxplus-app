@@ -1,11 +1,24 @@
-import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { CartTabIcon } from '@/components/CartTabIcon';
 import { HapticTab } from '@/components/haptic-tab';
+import { House } from '@/components/icons/House';
+import { LayoutGrid } from '@/components/icons/LayoutGrid';
+import { Package } from '@/components/icons/Package';
+import { UserRound } from '@/components/icons/UserRound';
+import { iconSizes, iconStroke } from '@/components/icons/iconSizes';
 import { NavBarBackground } from '@/src/components/ui/NavBarBackground';
 import { colors, fonts } from '@/src/theme';
+
+// iOS: translucent white + blur. Web: CSS backdrop blur (both via NavBarBackground).
+// Android: solid white — expo-blur isn't stable there in SDK 54.
+function TabBarBackground() {
+  if (Platform.OS === 'android') {
+    return <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.white }]} />;
+  }
+  return <NavBarBackground />;
+}
 
 export default function TabLayout() {
   return (
@@ -13,14 +26,15 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        // Nav links are 12px; active goes to pure black, inactive stays secondary grey.
-        tabBarActiveTintColor: colors.black,
-        tabBarInactiveTintColor: colors.muted,
+        // Selected = accent, unselected = ink3. These tints also colour the labels
+        // and are the `color` handed to each tabBarIcon below.
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.ink3,
         tabBarLabelStyle: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12 },
-        tabBarBackground: () => <NavBarBackground />,
+        tabBarBackground: () => <TabBarBackground />,
         tabBarStyle: {
           backgroundColor: 'transparent',
-          borderTopColor: colors.lineSoft,
+          borderTopColor: colors.line,
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
         },
@@ -35,35 +49,43 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <House size={iconSizes.tabBar} color={color} strokeWidth={focused ? iconStroke.selected : iconStroke.default} />
+          ),
         }}
       />
       <Tabs.Screen
         name="categories"
         options={{
           title: 'Categories',
-          tabBarIcon: ({ color, size }) => <Feather name="grid" size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <LayoutGrid size={iconSizes.tabBar} color={color} strokeWidth={focused ? iconStroke.selected : iconStroke.default} />
+          ),
         }}
       />
       <Tabs.Screen
         name="cart"
         options={{
           title: 'Cart',
-          tabBarIcon: ({ color, size }) => <CartTabIcon color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => <CartTabIcon color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="orders"
         options={{
           title: 'Orders',
-          tabBarIcon: ({ color, size }) => <Feather name="package" size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Package size={iconSizes.tabBar} color={color} strokeWidth={focused ? iconStroke.selected : iconStroke.default} />
+          ),
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: 'Account',
-          tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <UserRound size={iconSizes.tabBar} color={color} strokeWidth={focused ? iconStroke.selected : iconStroke.default} />
+          ),
         }}
       />
     </Tabs>

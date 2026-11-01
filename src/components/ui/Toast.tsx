@@ -12,11 +12,14 @@ export interface ToastProps {
   durationMs?: number;
   /** Optional trailing action (e.g. "Undo") — omit for a plain message pill. */
   action?: { label: string; onPress: () => void };
+  /** Distance from the bottom edge. Defaults to just above the tab bar; pass the
+   * height of a sticky bottom bar on screens that have one instead. */
+  bottomOffset?: number;
 }
 
 // Controlled component, mirroring the existing SuccessToast pattern — the
 // caller owns the message state and renders <Toast /> conditionally.
-export function Toast({ message, onHide, durationMs = 1800, action }: ToastProps) {
+export function Toast({ message, onHide, durationMs = 2500, action, bottomOffset }: ToastProps) {
   const reduceMotion = useReduceMotion();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
@@ -46,15 +49,24 @@ export function Toast({ message, onHide, durationMs = 1800, action }: ToastProps
   return (
     <Animated.View
       pointerEvents={action ? 'box-none' : 'none'}
-      style={[styles.container, { bottom: 32 + insets.bottom }, animatedStyle]}
+      style={[styles.container, { bottom: bottomOffset ?? 32 + insets.bottom }, animatedStyle]}
     >
-      <Animated.View style={[styles.pill, action && styles.pillWithAction]}>
+      <Animated.View accessibilityLiveRegion="polite" style={[styles.pill, action && styles.pillWithAction]}>
         <Text style={styles.label} numberOfLines={2}>
           {message}
         </Text>
         {action && (
-          <Pressable onPress={action.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={action.label}>
-            <Text style={styles.actionLabel}>{action.label}</Text>
+          <Pressable
+            onPress={action.onPress}
+            // The pill is 44pt tall; slop makes the action itself a 44pt target.
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            style={({ pressed }) => pressed && { opacity: 0.6 }}
+          >
+            <Text style={styles.actionLabel} maxFontSizeMultiplier={1.2}>
+              {action.label}
+            </Text>
           </Pressable>
         )}
       </Animated.View>

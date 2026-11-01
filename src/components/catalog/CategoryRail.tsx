@@ -1,24 +1,21 @@
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Category } from '@/api/types';
 import { useFocusRing } from '@/hooks/use-focus-ring';
-import { colors, fonts, layout } from '@/src/theme';
-import { categoryIcon } from '@/utils/categoryIcon';
+import { colors, layout, screenPaddingX, textStyles } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
-// "Shop by" row: a horizontally scrolling strip of icon discs with a label
-// underneath, the way the store this design follows lists its product families.
-// `tone` picks the disc color so it reads on either a white or a grey band.
-export const CategoryRail = memo(function CategoryRail({
-  categories,
-  tone = 'light',
-}: {
-  categories: Category[];
-  tone?: 'light' | 'alt';
-}) {
+import { Skeleton } from '../ui/Skeleton';
+import { CategoryGlyph } from './CategoryGlyph';
+
+const DISC = 64;
+const ITEM_WIDTH = 76;
+
+// "Shop by" row: a horizontally scrolling strip of 64pt icon discs with a 12pt
+// label underneath. Discs are bgAlt, so the rail sits on the white page.
+export const CategoryRail = memo(function CategoryRail({ categories }: { categories: Category[] }) {
   if (categories.length === 0) return null;
   return (
     <ScrollView
@@ -28,13 +25,27 @@ export const CategoryRail = memo(function CategoryRail({
       accessibilityRole="list"
     >
       {categories.map((category) => (
-        <CategoryItem key={category.id} category={category} tone={tone} />
+        <CategoryItem key={category.id} category={category} />
       ))}
     </ScrollView>
   );
 });
 
-function CategoryItem({ category, tone }: { category: Category; tone: 'light' | 'alt' }) {
+/** Same footprint as the real rail: discs and a label line. */
+export function CategoryRailSkeleton() {
+  return (
+    <View style={[styles.content, styles.skeletonRow]}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <View key={i} style={styles.item}>
+          <Skeleton width={DISC} height={DISC} radius={DISC / 2} />
+          <Skeleton width={48} height={12} radius={6} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function CategoryItem({ category }: { category: Category }) {
   const focusRing = useFocusRing();
   return (
     <Pressable
@@ -50,17 +61,10 @@ function CategoryItem({ category, tone }: { category: Category; tone: 'light' | 
     >
       {({ pressed }) => (
         <>
-          <View
-            style={[
-              styles.disc,
-              { backgroundColor: tone === 'alt' ? colors.white : colors.card },
-              pressed && styles.discPressed,
-              focusRing.ringStyle,
-            ]}
-          >
-            <Feather name={categoryIcon(category.name)} size={26} color={colors.ink} />
+          <View style={[styles.disc, pressed && styles.pressed, focusRing.ringStyle]}>
+            <CategoryGlyph name={category.name} size={26} color={colors.ink} />
           </View>
-          <Text style={styles.label} numberOfLines={2}>
+          <Text style={styles.label} numberOfLines={2} maxFontSizeMultiplier={1.2}>
             {category.name}
           </Text>
         </>
@@ -70,16 +74,10 @@ function CategoryItem({ category, tone }: { category: Category; tone: 'light' | 
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, gap: 8 },
-  item: { width: 88, alignItems: 'center', gap: 8, paddingVertical: 4, minHeight: layout.minTouchTarget },
-  disc: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  discPressed: { transform: [{ scale: 0.96 }], opacity: 0.85 },
-  label: {
-    fontFamily: fonts.body.medium,
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: -0.12,
-    color: colors.ink,
-    textAlign: 'center',
-  },
+  content: { paddingHorizontal: screenPaddingX, gap: 8 },
+  skeletonRow: { flexDirection: 'row', overflow: 'hidden' },
+  item: { width: ITEM_WIDTH, alignItems: 'center', gap: 8, minHeight: layout.minTouchTarget },
+  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, backgroundColor: colors.bgAlt, alignItems: 'center', justifyContent: 'center' },
+  pressed: { opacity: 0.6 },
+  label: { ...textStyles.caption, color: colors.ink, textAlign: 'center' },
 });

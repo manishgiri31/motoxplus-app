@@ -1,10 +1,13 @@
-import { Feather } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, fonts, radii } from '@/src/theme';
+import { ChevronRight } from '@/components/icons/ChevronRight';
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+import { colors, screenPaddingX, textStyles } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
+
+import { SearchBar } from '../ui/SearchBar';
+import { Sheet } from '../ui/Sheet';
 
 export interface VehiclePickerOption {
   id: string;
@@ -19,11 +22,10 @@ export interface VehiclePickerSheetProps {
   onClose: () => void;
 }
 
-// Modal-based bottom sheet — @gorhom/bottom-sheet isn't a project dependency,
-// this is the documented fallback.
+// Searchable list of options in a bottom sheet (opens at 50%, drags to 90%).
 export function VehiclePickerSheet({ visible, title, options, onSelect, onClose }: VehiclePickerSheetProps) {
-  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
+  const keyboardHeight = useKeyboardHeight();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -31,104 +33,74 @@ export function VehiclePickerSheet({ visible, title, options, onSelect, onClose 
     return options.filter((o) => o.label.toLowerCase().includes(q));
   }, [options, query]);
 
+  const close = () => {
+    setQuery('');
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.container}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-              <Feather name="x" size={20} color={colors.ink} />
+    <Sheet visible={visible} onClose={close} title={title}>
+      <View style={styles.fill}>
+        <SearchBar
+          value={query}
+          onChangeText={setQuery}
+          placeholder={`Search ${title.toLowerCase()}`}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.search}
+        />
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{ paddingBottom: keyboardHeight + 24 }}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => {
+                HapticService.light();
+                setQuery('');
+                onSelect(item);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            >
+              <Text style={styles.rowLabel} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+                {item.label}
+              </Text>
+              <ChevronRight size={18} color={colors.ink3} />
             </Pressable>
-          </View>
-          <View style={styles.searchRow}>
-            <Feather name="search" size={16} color={colors.muted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={`Search ${title.toLowerCase()}`}
-              placeholderTextColor={colors.muted}
-              style={styles.searchInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            keyboardShouldPersistTaps="handled"
-            style={styles.list}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  HapticService.light();
-                  onSelect(item);
-                }}
-                style={styles.row}
-                accessibilityRole="button"
-                accessibilityLabel={item.label}
-              >
-                <Text style={styles.rowLabel}>{item.label}</Text>
-                <Feather name="chevron-right" size={16} color={colors.muted} />
-              </Pressable>
-            )}
-            ListEmptyComponent={<Text style={styles.empty}>No matches</Text>}
-          />
-        </View>
+          )}
+          ItemSeparatorComponent={Separator}
+          ListEmptyComponent={
+            <Text style={styles.empty} maxFontSizeMultiplier={1.2}>
+              No matches
+            </Text>
+          }
+        />
       </View>
-    </Modal>
+    </Sheet>
   );
 }
 
+function Separator() {
+  return <View style={styles.separator} />;
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,24,26,0.4)' },
-  sheet: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    maxHeight: '80%',
-    paddingTop: 8,
-    paddingHorizontal: 20,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.line,
-    marginVertical: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    paddingHorizontal: 12,
-    height: 44,
-    marginBottom: 8,
-  },
-  searchInput: { flex: 1, fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  list: { maxHeight: 360 },
+  fill: { flex: 1 },
+  search: { marginHorizontal: screenPaddingX, marginBottom: 8 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    gap: 12,
+    minHeight: 52,
+    paddingHorizontal: screenPaddingX,
+    paddingVertical: 8,
   },
-  rowLabel: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  empty: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted, textAlign: 'center', paddingVertical: 24 },
+  pressed: { opacity: 0.6 },
+  rowLabel: { flex: 1, ...textStyles.body },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginLeft: screenPaddingX },
+  empty: { ...textStyles.callout, textAlign: 'center', paddingVertical: 32 },
 });

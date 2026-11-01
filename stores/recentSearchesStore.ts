@@ -9,6 +9,7 @@ const MAX_ITEMS = 10;
 interface RecentSearchesState {
   queries: string[];
   record: (query: string) => void;
+  remove: (query: string) => void;
   clear: () => void;
 }
 
@@ -27,6 +28,8 @@ export const useRecentSearchesStore = create<RecentSearchesState>()(
           ].slice(0, MAX_ITEMS),
         }));
       },
+
+      remove: (query) => set((state) => ({ queries: state.queries.filter((q) => q !== query) })),
 
       clear: () => set({ queries: [] }),
     }),

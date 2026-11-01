@@ -1,23 +1,24 @@
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useVehicleTaxonomy } from '@/api/hooks/useVehicles';
 import type { VehicleTaxonomyVariant } from '@/api/types';
+import { Bike } from '@/components/icons/Bike';
+import { ChevronRight } from '@/components/icons/ChevronRight';
+import { iconSizes } from '@/components/icons/iconSizes';
+import { useFocusRing } from '@/hooks/use-focus-ring';
+import { alpha, colors, font, radii, textStyles } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { HapticService } from '@/utils/haptics';
 
-import { colors, fonts, radii } from '@/src/theme';
-import { Button } from '../ui';
+import { Button } from '../ui/Button';
+import { Skeleton } from '../ui/Skeleton';
 import { VehiclePickerSheet, type VehiclePickerOption } from './VehiclePickerSheet';
 
 type Step = 'brand' | 'model' | 'variant' | null;
 
-// Muted-on-dark tones — theme.colors.muted is calibrated for the paper
-// background, not the dark panel, so this card needs its own light-gray tier.
-const MUTED_ON_DARK = '#9A9DA3';
-const MUTED_ON_DARK_LABEL = '#7C7F85';
+const ON_DARK_HAIRLINE = alpha(colors.white, 0.16);
 
 function formatVariantLabel(variant: VehicleTaxonomyVariant): string {
   const yearPart = variant.yearFrom
@@ -28,6 +29,8 @@ function formatVariantLabel(variant: VehicleTaxonomyVariant): string {
   return [yearPart, variant.generationName, variant.name].filter(Boolean).join(' · ') || variant.name;
 }
 
+// Dark ink card on the home screen: pick Brand, Model and Year · Variant (each
+// row opens a sheet), then jump to the compatible parts.
 export function VehiclePickerCard() {
   const setSelectedVehicle = useVehicleStore((s) => s.setSelectedVehicle);
   const stored = useVehicleStore((s) => s.selectedVehicle);
@@ -82,48 +85,62 @@ export function VehiclePickerCard() {
     });
   };
 
+  const header = (
+    <View style={styles.header}>
+      <Bike size={28} color={colors.white} />
+      <Text style={styles.title} accessibilityRole="header" maxFontSizeMultiplier={1.2}>
+        Shop by vehicle
+      </Text>
+    </View>
+  );
+
   if (taxonomy.isLoading) {
     return (
-      <View style={[styles.card, styles.centered]}>
-        <ActivityIndicator color="#FFFFFF" />
+      <View style={styles.card} accessibilityLabel="Loading vehicles" accessibilityLiveRegion="polite">
+        {header}
+        <View style={styles.skeletonRows}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width="45%" height={17} radius={6} style={styles.skeletonOnDark} />
+            </View>
+          ))}
+        </View>
+        <Skeleton height={50} radius={radii.pill} style={styles.skeletonOnDark} />
       </View>
     );
   }
 
   if (taxonomy.isError) {
     return (
-      <View style={[styles.card, styles.centered]}>
-        <Text style={styles.errorText}>Couldn&apos;t load the vehicle list.</Text>
-        <Button label="Retry" variant="brand" onPress={() => taxonomy.refetch()} style={styles.retryButton} />
+      <View style={styles.card}>
+        {header}
+        <View style={styles.error} accessibilityLiveRegion="polite">
+          <Text style={styles.errorText} maxFontSizeMultiplier={1.2}>
+            Couldn&apos;t load vehicles
+          </Text>
+          <Button label="Retry" variant="light" onPress={() => taxonomy.refetch()} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.card}>
-      <View style={styles.labelRow}>
-        <View style={styles.dot} />
-        <Text style={styles.label}>SEARCH BY VEHICLE</Text>
+      {header}
+
+      <View>
+        <SelectorRow title="Brand" value={brand?.name} onPress={() => setOpenStep('brand')} />
+        <SelectorRow title="Model" value={model?.name} disabled={!brand} onPress={() => setOpenStep('model')} />
+        <SelectorRow
+          title="Year · Variant"
+          value={variant ? formatVariantLabel(variant) : undefined}
+          disabled={!model}
+          onPress={() => setOpenStep('variant')}
+          last
+        />
       </View>
 
-      <SelectorRow title="Brand" value={brand?.name} onPress={() => setOpenStep('brand')} />
-      <SelectorRow title="Model" value={model?.name} disabled={!brand} onPress={() => setOpenStep('model')} />
-      <SelectorRow
-        title="Year · Variant"
-        value={variant ? formatVariantLabel(variant) : undefined}
-        disabled={!model}
-        onPress={() => setOpenStep('variant')}
-        last
-      />
-
-      <Button
-        label="Show compatible parts"
-        variant="brand"
-        fullWidth
-        disabled={!canSubmit}
-        onPress={handleSubmit}
-        style={styles.submit}
-      />
+      <Button label="Show compatible parts" variant="light" fullWidth disabled={!canSubmit} onPress={handleSubmit} />
 
       <VehiclePickerSheet
         visible={openStep === 'brand'}
@@ -175,55 +192,60 @@ function SelectorRow({
   onPress: () => void;
   last?: boolean;
 }) {
+  const focusRing = useFocusRing();
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
+      onFocus={focusRing.onFocus}
+      onBlur={focusRing.onBlur}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={`${title}${value ? `, ${value}` : ', not selected'}`}
-      style={[rowStyles.row, !last && rowStyles.divider, disabled && rowStyles.disabled]}
+      accessibilityState={{ disabled: !!disabled }}
+      style={({ pressed }) => [
+        rowStyles.row,
+        !last && rowStyles.divider,
+        disabled && rowStyles.disabled,
+        pressed && rowStyles.pressed,
+        focusRing.ringStyle,
+      ]}
     >
-      <View>
-        <Text style={rowStyles.title}>{title}</Text>
-        <Text style={rowStyles.value}>{value ?? 'Select'}</Text>
+      <View style={rowStyles.text}>
+        <Text style={rowStyles.title} maxFontSizeMultiplier={1.2}>
+          {title}
+        </Text>
+        <Text style={rowStyles.value} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          {value ?? 'Select'}
+        </Text>
       </View>
-      <Feather name="chevron-right" size={18} color={MUTED_ON_DARK} />
+      <ChevronRight size={iconSizes.inline} color={colors.onDarkMuted} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.dark,
-    borderRadius: radii.lg,
+    gap: 16,
     padding: 20,
+    marginHorizontal: 20,
+    borderRadius: radii.card,
+    backgroundColor: colors.inkSurface,
   },
-  centered: { minHeight: 160, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: MUTED_ON_DARK, textAlign: 'center' },
-  retryButton: { minWidth: 120 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.linkOnDark },
-  label: {
-    fontFamily: fonts.mono.medium,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-  },
-  submit: { marginTop: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { ...textStyles.cardTitle, color: colors.white },
+  error: { alignItems: 'center', gap: 12, paddingVertical: 12 },
+  errorText: { ...textStyles.callout, color: colors.onDarkMuted },
+  skeletonRows: { gap: 4 },
+  skeletonRow: { height: 56, justifyContent: 'center' },
+  skeletonOnDark: { backgroundColor: alpha(colors.white, 0.12) },
 });
 
 const rowStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
-  divider: { borderBottomWidth: 1, borderBottomColor: colors.darkBorder },
-  disabled: { opacity: 0.5 },
-  title: {
-    fontFamily: fonts.mono.regular,
-    fontSize: 12,
-    color: MUTED_ON_DARK_LABEL,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 2,
-  },
-  value: { fontFamily: fonts.body.medium, fontSize: 17, letterSpacing: -0.374, color: '#FFFFFF' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 8 },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ON_DARK_HAIRLINE },
+  disabled: { opacity: 0.4 },
+  pressed: { opacity: 0.6 },
+  text: { flex: 1, gap: 2 },
+  title: { ...textStyles.caption, color: colors.onDarkMuted },
+  value: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.white },
 });

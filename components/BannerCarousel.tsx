@@ -1,22 +1,18 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 
-import { colors, fonts, layout, radii } from '@/src/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { alpha, colors, font, radii, screenPaddingX, textStyles } from '@/src/theme';
 
-const AUTO_SCROLL_INTERVAL_MS = 5000;
-// Large enough that no realistic session of manual swiping (forward or
-// backward) or 5s auto-advances runs off either end — the "infinite loop"
-// is really a very long straight line, not a true ring, which avoids the
-// jarring position-reset jump that wrapping-index approaches need.
-const LOOP_MULTIPLIER = 200;
+const AUTO_ADVANCE_MS = 5000;
 
 export interface BannerSlide {
   id: string;
@@ -24,133 +20,105 @@ export interface BannerSlide {
   title: string;
 }
 
-function BannerCard({ slide, width }: { slide: BannerSlide; width: number }) {
-  return (
-    <View style={{ width }}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-        <Text style={styles.title}>{slide.title}</Text>
-      </View>
-    </View>
-  );
-}
-
+// Promo carousel: one 18pt-radius dark card per page, page dots below. It
+// advances every 5s, pauses while a finger is on it (the 5s window restarts on
+// release), and does not auto-advance at all when Reduce Motion is on.
 export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
-  // Live window width (not a module-level snapshot) so pages stay one screen
-  // wide after rotation / resize, capped at the content column on wide screens.
-  const { width: windowWidth } = useWindowDimensions();
-  const SCREEN_WIDTH = Math.min(windowWidth, layout.contentMaxWidth);
+  const reduceMotion = useReduceMotion();
   const count = slides.length;
-  const startIndex = Math.floor(LOOP_MULTIPLIER / 2) * count;
-  const listRef = useRef<FlatList>(null);
-  const currentIndex = useRef(startIndex);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [activeDot, setActiveDot] = useState(0);
-  const virtualData = useMemo(() => Array.from({ length: count * LOOP_MULTIPLIER }), [count]);
+  const scrollRef = useRef<ScrollView>(null);
+  const [pageWidth, setPageWidth] = useState(0);
+  const [active, setActive] = useState(0);
+  const activeRef = useRef(0);
+  const touching = useRef(false);
+  // Bumped whenever the user lets go, which rebuilds the timer.
+  const [restart, setRestart] = useState(0);
 
-  // currentIndex only ever grows on auto-advance, and can also be walked to
-  // either edge by enough manual swipes — either way, calling scrollToIndex
-  // with an index outside virtualData eventually throws an uncaught
-  // invariant violation (reachable in any session left open ~25min+, see
-  // BUGS-APP.md finding #2). Once the live position gets within this many
-  // slides of either end of the synthetic array, silently re-center (no
-  // animation) to the equivalent position in the middle band before it can
-  // go out of bounds.
-  const RECENTER_MARGIN = count * 10;
-
-  const recenterIfNeeded = (index: number) => {
-    if (index > RECENTER_MARGIN && index < virtualData.length - RECENTER_MARGIN) {
-      return index;
-    }
-    const recentered = startIndex + (((index % count) + count) % count);
-    currentIndex.current = recentered;
-    listRef.current?.scrollToIndex({ index: recentered, animated: false });
-    return recentered;
-  };
-
-  const stopAutoScroll = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const startAutoScroll = () => {
-    stopAutoScroll();
-    if (count <= 1) return;
-    timerRef.current = setInterval(() => {
-      const safeIndex = recenterIfNeeded(currentIndex.current);
-      const next = safeIndex + 1;
-      currentIndex.current = next;
-      listRef.current?.scrollToIndex({ index: next, animated: true });
-    }, AUTO_SCROLL_INTERVAL_MS);
-  };
-
-  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    currentIndex.current = index;
-    setActiveDot(((index % count) + count) % count);
-    recenterIfNeeded(index);
-    // Re-arm on every settle, whether the scroll was a manual swipe or one
-    // of our own auto-advances, so the interval always restarts a fresh 5s
-    // window from "the last time the carousel actually moved."
-    startAutoScroll();
-  };
+  useEffect(() => {
+    if (reduceMotion || count < 2 || pageWidth === 0) return;
+    const timer = setInterval(() => {
+      if (touching.current) return;
+      const next = (activeRef.current + 1) % count;
+      activeRef.current = next;
+      setActive(next);
+      scrollRef.current?.scrollTo({ x: next * pageWidth, animated: true });
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(timer);
+  }, [reduceMotion, count, pageWidth, restart]);
 
   if (count === 0) return null;
 
-  if (count === 1) {
-    return (
-      <View style={styles.singleWrap}>
-        <BannerCard slide={slides[0]} width={SCREEN_WIDTH} />
-      </View>
-    );
-  }
+  const onLayout = (e: LayoutChangeEvent) => setPageWidth(e.nativeEvent.layout.width);
+
+  const onSettle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (pageWidth === 0) return;
+    const index = Math.min(count - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / pageWidth)));
+    activeRef.current = index;
+    setActive(index);
+  };
+
+  const release = () => {
+    touching.current = false;
+    setRestart((n) => n + 1);
+  };
 
   return (
-    <View style={styles.wrap}>
-      <FlatList
-        ref={listRef}
-        data={virtualData}
-        keyExtractor={(_, i) => String(i)}
+    <View onLayout={onLayout} style={styles.wrap}>
+      <ScrollView
+        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        initialScrollIndex={startIndex}
-        getItemLayout={(_, i) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * i, index: i })}
-        renderItem={({ index }) => <BannerCard slide={slides[index % count]} width={SCREEN_WIDTH} />}
-        onScrollBeginDrag={stopAutoScroll}
-        onMomentumScrollEnd={onMomentumScrollEnd}
-        onLayout={startAutoScroll}
-      />
-      <View style={styles.dots}>
-        {slides.map((slide, i) => (
-          <View key={slide.id} style={[styles.dot, i === activeDot && styles.dotActive]} />
+        onTouchStart={() => {
+          touching.current = true;
+        }}
+        onTouchEnd={release}
+        onTouchCancel={release}
+        onMomentumScrollEnd={onSettle}
+        scrollEventThrottle={16}
+      >
+        {slides.map((slide) => (
+          <View key={slide.id} style={{ width: pageWidth || '100%', paddingHorizontal: screenPaddingX }}>
+            <View
+              style={styles.card}
+              accessible
+              accessibilityLabel={`${slide.eyebrow}. ${slide.title.replace(/\n/g, ' ')}`}
+            >
+              <Text style={styles.eyebrow} maxFontSizeMultiplier={1.2}>
+                {slide.eyebrow}
+              </Text>
+              <Text style={styles.title} maxFontSizeMultiplier={1.2}>
+                {slide.title}
+              </Text>
+            </View>
+          </View>
         ))}
-      </View>
+      </ScrollView>
+
+      {count > 1 && (
+        <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {slides.map((slide, i) => (
+            <View key={slide.id} style={[styles.dot, i === active && styles.dotActive]} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: { gap: 12 },
   card: {
-    marginHorizontal: 16,
+    minHeight: 168,
+    justifyContent: 'flex-end',
+    gap: 8,
+    padding: 24,
     borderRadius: radii.card,
-    backgroundColor: colors.dark,
-    paddingHorizontal: 24,
-    paddingVertical: 48,
-    alignItems: 'center',
+    backgroundColor: colors.inkSurface,
   },
-  eyebrow: {
-    fontFamily: fonts.mono.medium,
-    fontSize: 12,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.linkOnDark,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  title: { fontFamily: fonts.display.bold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.onDark, textAlign: 'center' },
-  singleWrap: { marginBottom: 24 },
-  wrap: { marginBottom: 24, gap: 8 },
-  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.darkBorder },
-  dotActive: { width: 16, backgroundColor: colors.onDark },
+  eyebrow: { ...textStyles.caption, ...font(600), color: colors.onDarkMuted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  title: { ...textStyles.title, color: colors.white },
+  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: alpha(colors.ink, 0.2) },
+  dotActive: { backgroundColor: colors.ink },
 });

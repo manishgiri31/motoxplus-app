@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { router, Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useForm } from 'react-hook-form';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
 import { useCart } from '@/api/hooks/useCart';
@@ -14,24 +16,27 @@ import { getErrorMessage } from '@/api/errors';
 import type { PaymentType, ShippingServiceabilityResponse } from '@/api/types';
 import { checkoutSchema, type CheckoutFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
-import { Input } from '@/components/ui';
-import { Button } from '@/src/components/ui';
+import { CheckoutBottomBar } from '@/src/components/checkout/CheckoutBottomBar';
+import { CheckoutField } from '@/src/components/checkout/CheckoutField';
+import { FormSkeleton } from '@/src/components/checkout/FormSkeleton';
+import { InlineBanner } from '@/src/components/checkout/InlineBanner';
+import { PaymentOptionRow } from '@/src/components/checkout/PaymentOptionRow';
 import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
-import { colors, fonts, radii } from '@/src/theme';
+import { ResultLayout } from '@/src/components/checkout/ResultLayout';
+import { ScreenTopBar, TOP_BAR_HEIGHT } from '@/src/components/checkout/ScreenTopBar';
+import { SummaryRow } from '@/src/components/checkout/SummaryRow';
+import { Button } from '@/src/components/ui/Button';
+import { GroupedList } from '@/src/components/ui/GroupedList';
+import { LargeTitleHeader, useLargeTitleScroll } from '@/src/components/ui/LargeTitleHeader';
+import { colors, font, screenPaddingX, sectionGap, space } from '@/src/theme';
 import { webOrigin } from '@/config/env';
 import { calculateCartTotals } from '@/utils/cartTotals';
 import { formatCurrency, normalizeMobileNumber } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const paymentOptions: { label: string; value: PaymentType; hint: string }[] = [
-  { label: 'Cash on Delivery', value: 'COD', hint: 'Pay the full amount when your order arrives' },
-  {
-    label: 'Pay 20% advance',
-    value: 'ADVANCE_20',
-    hint: 'Pay 20% now via Razorpay — balance 80% on delivery',
-  },
-  { label: 'Pay in full', value: 'FULL_100', hint: 'Pay 100% now — card, UPI or netbanking via Razorpay' },
-];
+// Dealer orders are prepaid only — the backend rejects COD at creation, so
+// exactly these two Razorpay options are offered.
+type OnlinePaymentType = Exclude<PaymentType, 'COD'>;
 
 export default function CheckoutScreen() {
   const { dealer } = useAuth();
@@ -39,10 +44,12 @@ export default function CheckoutScreen() {
   const { data: cart, isLoading: isCartLoading } = useCart();
   const { summary: dealerSummary } = useDealerSummary();
   const createOrder = useCreateOrder();
+  const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useLargeTitleScroll();
 
-  const [paymentType, setPaymentType] = useState<PaymentType>('FULL_100');
+  const [paymentType, setPaymentType] = useState<OnlinePaymentType>('FULL_100');
   const [formError, setFormError] = useState<string | null>(null);
-  const [serviceability, setServiceability] = useState<ShippingServiceabilityResponse | null>(null);
+  const [barHeight, setBarHeight] = useState(0);
 
   const items = cart?.items ?? [];
   const freeItemCount = items.filter((i) => i.isSchemeItem).reduce((sum, i) => sum + i.quantity, 0);
@@ -52,6 +59,20 @@ export default function CheckoutScreen() {
     const amountDue = paymentType === 'ADVANCE_20' ? base.grandTotal * 0.2 : base.grandTotal;
     return { ...base, amountDue };
   }, [cart, paymentType]);
+
+  const advanceAmount = totals.grandTotal * 0.2;
+  const paymentOptions: { label: string; value: OnlinePaymentType; hint: string }[] = [
+    {
+      label: 'Full Payment via Razorpay',
+      value: 'FULL_100',
+      hint: 'Pay 100% now · priority dispatch',
+    },
+    {
+      label: '20% Advance via Razorpay',
+      value: 'ADVANCE_20',
+      hint: `Pay ${formatCurrency(advanceAmount)} now · remaining 80% (${formatCurrency(totals.grandTotal - advanceAmount)}) in cash on delivery · standard dispatch`,
+    },
+  ];
 
   // Advisory only — the backend is the authority on credit and will reject
   // the order server-side if it actually enforces the limit. This just
@@ -102,10 +123,11 @@ export default function CheckoutScreen() {
   const watchedPincode = watch('deliveryPincode');
 
   const handleServiceabilityResult = (result: ShippingServiceabilityResponse | null) => {
-    setServiceability(result);
     // Auto-fill City from the pincode lookup when the dealer hasn't typed one
     // (the Delhivery response has no full state name, only a code — so State
-    // stays manual). Mirrors the web checkout's PincodeChecker behavior.
+    // stays manual). Mirrors the web checkout's PincodeChecker behavior. The
+    // "outside courier coverage" notice itself is the caption PincodeServiceability
+    // renders under the pincode field.
     if (result?.city && !getValues('deliveryCity')?.trim()) {
       setValue('deliveryCity', result.city, { shouldValidate: true });
     }
@@ -114,15 +136,10 @@ export default function CheckoutScreen() {
   const onSubmit = async (values: CheckoutFormValues) => {
     setFormError(null);
     try {
-      const { order, isCOD } = await createOrder.mutateAsync({ ...values, paymentType });
+      const { order } = await createOrder.mutateAsync({ ...values, paymentType });
       HapticService.success();
 
-      if (isCOD) {
-        router.replace({ pathname: '/order-placed', params: { orderId: order.id, orderNumber: order.orderNumber } });
-        return;
-      }
-
-      // Prepaid (FULL_100 / ADVANCE_20): order is PENDING until paid. Hand off
+      // Order is PENDING until paid. Hand off
       // to the native Razorpay checkout screen (create Razorpay order → SDK →
       // server-side verify). See app/order/[id]/pay.tsx.
       router.replace(`/order/${order.id}/pay`);
@@ -137,205 +154,150 @@ export default function CheckoutScreen() {
 
   const onInvalid = () => HapticService.error();
 
-  if (isCartLoading) {
-    return (
-      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
-        <ActivityIndicator color={colors.ink} />
-      </SafeAreaView>
-    );
-  }
+  const topInset = insets.top + TOP_BAR_HEIGHT;
 
-  if (items.length === 0) {
+  if (!isCartLoading && items.length === 0) {
     return (
-      <SafeAreaView style={[styles.screen, styles.center]} edges={['bottom']}>
-        <Text style={styles.emptyText}>Your cart is empty.</Text>
-      </SafeAreaView>
+      <View style={styles.screen}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ResultLayout
+          icon={<Feather name="shopping-bag" size={48} color={colors.ink3} />}
+          title="Your cart is empty"
+          actions={<Button label="Browse products" variant="primary" fullWidth onPress={() => router.replace('/(tabs)')} />}
+        />
+        <ScreenTopBar title="Checkout" scrollY={scrollY} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom']}>
+    <View style={styles.screen}>
+      <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.sectionTitle}>Delivery address</Text>
-          <Controller
-            control={control}
-            name="deliveryName"
-            render={({ field, fieldState }) => (
-              <Input label="Contact name" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-            )}
-          />
-          <Controller
-            control={control}
-            name="deliveryPhone"
-            render={({ field, fieldState }) => (
-              <Input label="Phone" keyboardType="phone-pad" maxLength={10} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-            )}
-          />
-          <Controller
-            control={control}
-            name="deliveryAddress"
-            render={({ field, fieldState }) => (
-              <Input label="Address" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} multiline numberOfLines={2} />
-            )}
-          />
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <Controller
-                control={control}
-                name="deliveryCity"
-                render={({ field, fieldState }) => (
-                  <Input label="City" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-                )}
-              />
-            </View>
-            <View style={styles.flex}>
-              <Controller
-                control={control}
-                name="deliveryState"
-                render={({ field, fieldState }) => (
-                  <Input label="State" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-                )}
-              />
-            </View>
-          </View>
-          <Controller
-            control={control}
-            name="deliveryPincode"
-            render={({ field, fieldState }) => (
-              <Input label="Pincode" keyboardType="number-pad" maxLength={6} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-            )}
-          />
-          <PincodeServiceability pincode={watchedPincode} onResult={handleServiceabilityResult} />
-          <Controller
-            control={control}
-            name="notes"
-            render={({ field }) => <Input label="Order notes (optional)" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} />}
-          />
+        <Animated.ScrollView
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: topInset, paddingBottom: barHeight + sectionGap },
+          ]}
+        >
+          <LargeTitleHeader title="Checkout" />
 
-          <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Payment method</Text>
-          <View style={styles.paymentList}>
-            {paymentOptions.map((opt) => {
-              const selected = paymentType === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => setPaymentType(opt.value)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  accessibilityLabel={opt.label}
-                  accessibilityHint={opt.hint}
-                  style={[styles.paymentCard, selected && styles.paymentCardSelected]}
+          {isCartLoading ? (
+            <View style={styles.body}>
+              <FormSkeleton />
+            </View>
+          ) : (
+            <View style={styles.body}>
+              <GroupedList header="Delivery address">
+                <CheckoutField control={control} name="deliveryName" label="Contact name" textContentType="name" />
+                <CheckoutField
+                  control={control}
+                  name="deliveryPhone"
+                  label="Phone"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  textContentType="telephoneNumber"
+                />
+                <CheckoutField control={control} name="deliveryAddress" label="Address" multiline numberOfLines={2} />
+                <View style={styles.splitRow}>
+                  <CheckoutField control={control} name="deliveryCity" label="City" containerStyle={styles.half} />
+                  <View style={styles.verticalSeparator} />
+                  <CheckoutField control={control} name="deliveryState" label="State" containerStyle={styles.half} />
+                </View>
+                <CheckoutField
+                  control={control}
+                  name="deliveryPincode"
+                  label="Pincode"
+                  keyboardType="number-pad"
+                  maxLength={6}
                 >
-                  <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
-                  <View style={styles.paymentText}>
-                    <Text style={styles.paymentLabel}>{opt.label}</Text>
-                    <Text style={styles.paymentHint}>{opt.hint}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+                  <PincodeServiceability pincode={watchedPincode} onResult={handleServiceabilityResult} />
+                </CheckoutField>
+                <CheckoutField control={control} name="notes" label="Order notes (optional)" />
+              </GroupedList>
 
-          <Pressable
-            onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/cancellation-policy`)}
-            accessibilityRole="link"
-            accessibilityLabel="Cancellation policy"
-          >
-            <Text style={styles.policyLine}>
-              Cancellation: 2% charge before dispatch · 20% after · not cancellable once delivered.{' '}
-              <Text style={styles.policyLink}>View policy</Text>
-            </Text>
-          </Pressable>
+              <GroupedList header="Payment method">
+                {paymentOptions.map((opt) => (
+                  <PaymentOptionRow
+                    key={opt.value}
+                    label={opt.label}
+                    hint={opt.hint}
+                    selected={paymentType === opt.value}
+                    onSelect={() => setPaymentType(opt.value)}
+                  />
+                ))}
+              </GroupedList>
 
-          <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Order summary</Text>
-          <View style={styles.summary}>
-            <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
-            <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
-            {freeItemCount > 0 && <SummaryRow label="GST Benefit" value={`${freeItemCount} free item${freeItemCount > 1 ? 's' : ''}`} />}
-            <SummaryRow label="Delivery charges" value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)} />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatCurrency(totals.grandTotal)}</Text>
-            </View>
-            {paymentType === 'ADVANCE_20' && <SummaryRow label="Due now (20%)" value={formatCurrency(totals.amountDue)} accent />}
-          </View>
+              <GroupedList header="Order summary">
+                <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
+                <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
+                {freeItemCount > 0 && (
+                  <SummaryRow
+                    label="GST Benefit"
+                    value={`${freeItemCount} free item${freeItemCount > 1 ? 's' : ''}`}
+                    tone="success"
+                  />
+                )}
+                <SummaryRow
+                  label="Delivery charges"
+                  value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}
+                />
+                <SummaryRow label="Total" value={formatCurrency(totals.grandTotal)} strong />
+                {paymentType === 'ADVANCE_20' && (
+                  <SummaryRow label="Due now (20%)" value={formatCurrency(totals.amountDue)} strong />
+                )}
+              </GroupedList>
 
-          {creditWarning && (
-            <View style={styles.creditWarning}>
-              <Text style={styles.creditWarningText}>{creditWarning}</Text>
+              <Pressable
+                onPress={() => WebBrowser.openBrowserAsync(`${webOrigin}/cancellation-policy`)}
+                accessibilityRole="link"
+                accessibilityLabel="Cancellation policy. 2% charge before dispatch, 20% after, not cancellable once delivered."
+                style={styles.footnoteLink}
+              >
+                <Text style={styles.footnote} maxFontSizeMultiplier={1.2}>
+                  Cancellation: 2% charge before dispatch · 20% after · not cancellable once delivered.{' '}
+                  <Text style={styles.footnoteAction}>View policy</Text>
+                </Text>
+              </Pressable>
             </View>
           )}
+        </Animated.ScrollView>
 
-          {serviceability && !serviceability.serviceable && watchedPincode?.trim().length === 6 && (
-            <View style={styles.creditWarning}>
-              <Text style={styles.creditWarningText}>
-                Pincode {watchedPincode} may be outside standard courier coverage. Your order will still be placed and
-                our team will arrange delivery.
-              </Text>
-            </View>
-          )}
-
-          {formError && <Text style={styles.error}>{formError}</Text>}
-
-          <Button
-            label={paymentType === 'COD' ? 'Place order' : 'Place order & pay'}
-            variant="brand"
-            fullWidth
-            onPress={handleSubmit(onSubmit, onInvalid)}
-            loading={isSubmitting || createOrder.isPending}
-          />
-        </ScrollView>
+        {!isCartLoading && (
+          <CheckoutBottomBar onHeightChange={setBarHeight}>
+            {creditWarning && <InlineBanner title="Credit limit" message={creditWarning} />}
+            {formError && <InlineBanner title="Could not place order" message={formError} />}
+            <Button
+              label="Place order & pay"
+              variant="primary"
+              fullWidth
+              onPress={handleSubmit(onSubmit, onInvalid)}
+              loading={isSubmitting || createOrder.isPending}
+            />
+          </CheckoutBottomBar>
+        )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-}
-
-function SummaryRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <View style={styles.summaryRow}>
-      <Text style={[styles.summaryLabel, accent && styles.accent]}>{label}</Text>
-      <Text style={[styles.summaryValue, accent && styles.accent]}>{value}</Text>
+      <ScreenTopBar title="Checkout" scrollY={scrollY} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  content: { padding: 16, gap: 16 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  sectionSpacing: { marginTop: 8 },
-  row: { flexDirection: 'row', gap: 12 },
-  paymentList: { gap: 12 },
-  paymentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: radii.md,
-    backgroundColor: colors.card,
+  content: { gap: sectionGap },
+  body: { paddingHorizontal: screenPaddingX, gap: sectionGap },
+  splitRow: { flexDirection: 'row', alignItems: 'stretch' },
+  half: { flex: 1 },
+  verticalSeparator: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: colors.line,
+    marginVertical: space.sm,
   },
-  paymentCardSelected: { borderColor: colors.ink, backgroundColor: colors.paper },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  radioSelected: { borderColor: colors.ink },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.ink },
-  paymentText: { flex: 1 },
-  paymentLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  paymentHint: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, marginTop: 2 },
-  policyLine: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, lineHeight: 16 },
-  policyLink: { fontFamily: fonts.body.semiBold, color: colors.link },
-  summary: { gap: 8 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryLabel: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.muted },
-  summaryValue: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  accent: { color: colors.link, fontFamily: fonts.body.semiBold },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.line },
-  totalLabel: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  totalValue: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink },
-  creditWarning: { padding: 12, borderRadius: radii.md, backgroundColor: colors.redSoft },
-  creditWarningText: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.red },
-  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
+  footnoteLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.lg, marginTop: -space.lg },
+  footnote: { ...font(400), fontSize: 13, lineHeight: 18, color: colors.ink2 },
+  footnoteAction: { ...font(600), color: colors.link },
 });

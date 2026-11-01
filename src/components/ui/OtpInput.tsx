@@ -1,30 +1,61 @@
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, fonts, radii } from '@/src/theme';
+import { colors, font, radii } from '@/src/theme';
 
 export interface OtpInputProps {
   length?: number;
   value: string;
   onChange: (value: string) => void;
+  /** Focuses the input on mount and again whenever this flips to true; flipping to false blurs it. */
   autoFocus?: boolean;
+  /** Red boxes, for a rejected or invalid code. */
+  error?: boolean;
+  accessibilityLabel?: string;
 }
 
-// Single hidden TextInput drives real keyboard/paste behavior; the boxes are
-// a purely visual projection of its value, active box gets the red focus border.
-export function OtpInput({ length = 6, value, onChange, autoFocus }: OtpInputProps) {
+// One invisible TextInput stretched over the row drives the real keyboard,
+// auto-advance and paste (long-press shows the system Paste menu, one-time-code
+// autofill fills it); the boxes are a visual projection of its value. Taps land
+// on the input itself, so VoiceOver / TalkBack get a real, full-size text field
+// and the six boxes stay out of the accessibility tree.
+export function OtpInput({
+  length = 6,
+  value,
+  onChange,
+  autoFocus,
+  error = false,
+  accessibilityLabel = `${length}-digit code`,
+}: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
   const digits = value.split('');
 
+  useEffect(() => {
+    if (autoFocus === undefined) return;
+    if (autoFocus) inputRef.current?.focus();
+    else inputRef.current?.blur();
+  }, [autoFocus]);
+
   return (
-    <Pressable onPress={() => inputRef.current?.focus()} accessibilityRole="none">
-      <View style={styles.row}>
+    <View style={styles.wrap}>
+      <View style={styles.row} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         {Array.from({ length }).map((_, i) => {
-          const active = focused && i === digits.length;
+          const active = focused && i === Math.min(digits.length, length - 1);
           return (
-            <View key={i} style={[styles.box, active && styles.boxActive]}>
-              <Text style={styles.digit}>{digits[i] ?? ''}</Text>
+            <View
+              key={i}
+              style={[
+                styles.box,
+                active && styles.boxActive,
+                error && styles.boxError,
+                // Accent border + 4px ring on the box being typed into.
+                active && !error && { boxShadow: `0 0 0 4px ${colors.focusRing}` },
+              ]}
+            >
+              <Text style={styles.digit} maxFontSizeMultiplier={1.2}>
+                {digits[i] ?? ''}
+              </Text>
             </View>
           );
         })}
@@ -32,36 +63,45 @@ export function OtpInput({ length = 6, value, onChange, autoFocus }: OtpInputPro
       <TextInput
         ref={inputRef}
         value={value}
+        // No maxLength: a pasted "123 456" must reach this handler whole so the
+        // separator can be dropped before the slice.
         onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, length))}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         keyboardType="number-pad"
-        maxLength={length}
         autoFocus={autoFocus}
         textContentType="oneTimeCode"
         autoComplete="sms-otp"
         importantForAutofill="yes"
         autoCorrect={false}
+        caretHidden
+        selectionColor="transparent"
         style={styles.hiddenInput}
-        accessibilityLabel="One-time passcode"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={`${digits.length} of ${length} digits entered`}
       />
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: { width: '100%' },
   row: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  // 52x60 at full width; on narrow phones the boxes shrink (never below 44pt).
   box: {
-    width: 44,
-    height: 52,
+    flex: 1,
+    minWidth: 44,
+    maxWidth: 52,
+    height: 60,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radii.sm,
+    borderRadius: radii.input,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.bg,
   },
-  boxActive: { borderColor: colors.accent, borderWidth: 2 },
-  digit: { fontFamily: fonts.mono.medium, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
-  hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
+  boxActive: { borderColor: colors.accent },
+  boxError: { borderColor: colors.red },
+  digit: { ...font(600), fontSize: 28, lineHeight: 34, letterSpacing: -0.56, color: colors.ink },
+  hiddenInput: { ...StyleSheet.absoluteFillObject, opacity: 0, color: 'transparent' },
 });

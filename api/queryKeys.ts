@@ -14,6 +14,8 @@ export const queryKeys = {
   },
   orders: {
     list: (page: number) => ['orders', 'list', page] as const,
+    // Under 'list' so invalidating ['orders', 'list'] (after placing an order) refreshes it too.
+    infinite: () => ['orders', 'list', 'infinite'] as const,
     detail: (id: string) => ['orders', 'detail', id] as const,
     tracking: (id: string) => ['orders', 'tracking', id] as const,
     all: () => ['orders', 'all'] as const,

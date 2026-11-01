@@ -11,7 +11,8 @@ import { getErrorMessage } from '@/api/errors';
 import { authService } from '@/api/services/authService';
 import { otpSchema, type OtpFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
-import { Button, OtpInput } from '@/src/components/ui';
+import { OtpCodeEntry } from '@/src/components/auth/OtpCodeEntry';
+import { Button } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
@@ -110,24 +111,19 @@ export default function VerifyEmailScreen() {
             <Controller
               control={otpForm.control}
               name="otp"
-              render={({ field }) => <OtpInput value={field.value} onChange={field.onChange} autoFocus />}
+              render={({ field }) => (
+                <OtpCodeEntry
+                  value={field.value}
+                  onChange={field.onChange}
+                  autoFocus
+                  error={otpForm.formState.errors.otp?.message ?? formError ?? sendError}
+                  message={resendMessage}
+                  resendSecondsLeft={resendCooldown}
+                  onResend={resend}
+                  resendDisabled={sending}
+                />
+              )}
             />
-            {otpForm.formState.errors.otp && (
-              <Text style={styles.errorCentered}>{otpForm.formState.errors.otp.message}</Text>
-            )}
-            {resendMessage && <Text style={styles.successCentered}>{resendMessage}</Text>}
-            {(formError || sendError) && <Text style={styles.errorCentered}>{formError ?? sendError}</Text>}
-            <Pressable
-              onPress={resend}
-              disabled={resendCooldown > 0 || sending}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Resend code"
-            >
-              <Text style={[styles.resendText, { color: resendCooldown > 0 ? colors.muted : colors.link }]}>
-                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
-              </Text>
-            </Pressable>
             <Button
               label="Verify email"
               variant="brand"
@@ -151,7 +147,4 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
   subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
   form: { gap: 16 },
-  errorCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red, textAlign: 'center' },
-  successCentered: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.success, textAlign: 'center' },
-  resendText: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, textAlign: 'center' },
 });
