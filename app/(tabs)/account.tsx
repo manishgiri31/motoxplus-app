@@ -11,6 +11,7 @@ import { webOrigin } from '@/config/env';
 import { dealerStatusTone } from '@/constants/dealerStatus';
 import { Button, Card, Footer, Reveal } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
+import { PageHeader } from '@/src/components/ui/PageHeader';
 
 interface MenuRowProps {
   icon: React.ComponentProps<typeof Feather>['name'];
@@ -52,7 +53,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Account</Text>
+        <PageHeader title="Account" />
 
         <Card style={styles.profileCard}>
           <View style={styles.profileRow}>

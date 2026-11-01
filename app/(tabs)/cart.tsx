@@ -16,6 +16,7 @@ import { SchemeBenefitCard } from '@/src/components/cart/SchemeBenefitCard';
 import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
 import { Button, Stepper, Toast } from '@/src/components/ui';
 import { colors, fonts, radii } from '@/src/theme';
+import { PageHeader } from '@/src/components/ui/PageHeader';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { calculateCartTotals, FREE_DELIVERY_THRESHOLD, splitCartItems } from '@/utils/cartTotals';
 import { formatCurrency } from '@/utils/format';
@@ -179,7 +180,7 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
-        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Cart</Text>
+        <PageHeader title="Cart" />
       </Animated.View>
 
       <FlatList

@@ -2,13 +2,14 @@ import { Feather } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrder } from '@/api/hooks/useOrders';
 import { webOrigin } from '@/config/env';
 import { useRazorpayPayment, type RazorpayPhase } from '@/hooks/useRazorpayPayment';
+import { CancellationSheet } from '@/src/components/cancellation/CancellationSheet';
 import { Button, Card, ErrorState, MonoLabel } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
@@ -30,6 +31,7 @@ export default function PayScreen() {
   const { data: order, isLoading, isError, error, refetch } = useOrder(id);
   const payment = useRazorpayPayment();
   const { phase } = payment;
+  const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
 
   // Card/UPI reference and amounts on screen — keep it out of screenshots and
   // the app-switcher snapshot while this screen is open.
@@ -67,13 +69,27 @@ export default function PayScreen() {
     order.paymentType === 'COD' || order.amountDue <= 0 || order.status !== 'PENDING';
 
   if (nothingToPay && phase !== 'verified') {
+    // The server is the source of truth: if Razorpay captured the payment (e.g.
+    // a UPI collect settled after the sheet was dismissed) the order is already
+    // past PENDING, so confirm it here rather than implying nothing happened.
+    const paymentReceived =
+      order.paymentType !== 'COD' && order.amountPaid > 0 && order.status !== 'PENDING' && order.status !== 'CANCELLED';
+    const cancelled = order.status === 'CANCELLED';
     return (
       <SafeAreaView style={styles.screen} edges={['bottom']}>
         <View style={styles.content}>
           <Card style={styles.centerCard}>
-            <Feather name="check-circle" size={40} color={colors.ink} />
-            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Nothing left to pay</Text>
-            <Text style={styles.muted}>This order has no pending amount.</Text>
+            <Feather name={cancelled ? 'x-circle' : 'check-circle'} size={40} color={colors.ink} />
+            <Text accessibilityRole="header" aria-level={1} style={styles.title}>
+              {paymentReceived ? 'Payment received' : cancelled ? 'Order cancelled' : 'Nothing left to pay'}
+            </Text>
+            <Text style={styles.muted}>
+              {paymentReceived
+                ? `We received ${formatCurrency(order.amountPaid)} for order #${order.orderNumber}. Your order is confirmed.`
+                : cancelled
+                  ? 'This order was cancelled, so no payment is needed.'
+                  : 'This order has no pending amount.'}
+            </Text>
             <Button label="Back to order" variant="brand" fullWidth onPress={() => router.replace(`/order/${order.id}`)} />
           </Card>
         </View>
@@ -127,13 +143,36 @@ export default function PayScreen() {
                 <Text style={styles.muted}>
                   {payment.error ??
                     (phase === 'cancelled'
-                      ? 'You closed the payment window before it finished.'
+                      ? `Payment for order #${order.orderNumber} was not completed and no money was taken. Your order is still unpaid — please choose how you’d like to proceed.`
                       : 'Something went wrong with the payment.')}
                 </Text>
               </Card>
             )}
 
-            {payment.paidButUnconfirmed ? (
+            {phase === 'cancelled' ? (
+              <>
+                <Button
+                  label={`Pay ${formatCurrency(order.amountDue)} with Razorpay`}
+                  variant="brand"
+                  fullWidth
+                  onPress={() => payment.pay(order)}
+                />
+                <Button
+                  label="Pay later"
+                  variant="ghost"
+                  fullWidth
+                  onPress={() => router.replace(`/order/${order.id}`)}
+                  style={styles.spaced}
+                />
+                <Button
+                  label="Cancel this order"
+                  variant="ghost"
+                  fullWidth
+                  onPress={() => setCancelSheetOpen(true)}
+                  style={styles.spaced}
+                />
+              </>
+            ) : payment.paidButUnconfirmed ? (
               <>
                 <Button
                   label="Contact support"
@@ -171,6 +210,16 @@ export default function PayScreen() {
           </>
         )}
       </ScrollView>
+
+      <CancellationSheet
+        visible={cancelSheetOpen}
+        orderId={order.id}
+        onClose={() => setCancelSheetOpen(false)}
+        onCancelled={() => {
+          setCancelSheetOpen(false);
+          router.replace(`/order/${order.id}`);
+        }}
+      />
     </SafeAreaView>
   );
 }

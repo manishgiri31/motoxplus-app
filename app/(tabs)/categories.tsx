@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import { useGridColumns } from '@/hooks/use-grid-columns';
 import { CategoryCard } from '@/src/components/catalog/CategoryCard';
 import { EmptyState, ErrorState, SkeletonProductCard } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
+import { PageHeader } from '@/src/components/ui/PageHeader';
 import { HapticService } from '@/utils/haptics';
 
 export default function CategoriesScreen() {
@@ -18,7 +19,7 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <Animated.View entering={FadeIn.duration(200)} style={styles.header}>
-        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Categories</Text>
+        <PageHeader title="Categories" subtitle="Browse the catalog by part type." />
       </Animated.View>
 
       {isError ? (

@@ -11,7 +11,8 @@ import { DEALER_APPLICATION_URL, DealerAccessDeniedError } from '@/auth/access';
 import { useAuth } from '@/auth/useAuth';
 import { loginSchema, type LoginFormValues } from '@/auth/validation';
 import { Input } from '@/components/ui';
-import { Button, Eyebrow } from '@/src/components/ui';
+import { Button } from '@/src/components/ui';
+import { PageHeader } from '@/src/components/ui/PageHeader';
 import { colors, fonts } from '@/src/theme';
 import { logger } from '@/utils/logger';
 import { runConnectivityDiagnostics } from '@/utils/networkDiagnostics';
@@ -80,11 +81,13 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Eyebrow>MotoXPlus Dealer</Eyebrow>
-            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to manage your business</Text>
-          </View>
+          <PageHeader
+            align="center"
+            eyebrow="MotoXPlus Dealer"
+            title="Welcome back"
+            subtitle="Sign in to manage your business"
+            style={styles.header}
+          />
 
           <View style={styles.form}>
             <Controller

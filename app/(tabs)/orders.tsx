@@ -8,6 +8,7 @@ import type { Order } from '@/api/types';
 import { orderStatusVariant } from '@/constants/orderStatus';
 import { Badge, Card, MonoLabel, SkeletonListRow } from '@/src/components/ui';
 import { colors, fonts } from '@/src/theme';
+import { PageHeader } from '@/src/components/ui/PageHeader';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
@@ -41,7 +42,7 @@ export default function OrdersScreen() {
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
         <View style={styles.header}>
-          <Text accessibilityRole="header" aria-level={1} style={styles.title}>Orders</Text>
+          <PageHeader title="Orders" subtitle="Track and revisit everything you have ordered." />
         </View>
         <View style={styles.listContent}>
           {Array.from({ length: 5 }).map((_, i) => (
@@ -63,7 +64,7 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Orders</Text>
+        <PageHeader title="Orders" subtitle="Track and revisit everything you have ordered." />
       </View>
 
       <FlatList

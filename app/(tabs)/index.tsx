@@ -12,11 +12,13 @@ import type { Category, Product } from '@/api/types';
 import { BannerCarousel, type BannerSlide } from '@/components/BannerCarousel';
 import { dealerStatusVariant } from '@/constants/dealerStatus';
 import { orderStatusVariant } from '@/constants/orderStatus';
+import { getErrorMessage } from '@/api/errors';
 import { useAuth } from '@/auth/useAuth';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { CategoryCard } from '@/src/components/catalog/CategoryCard';
+import { CategoryRail } from '@/src/components/catalog/CategoryRail';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
 import { Badge, Button, Reveal, Section, Skeleton, SkeletonProductCard } from '@/src/components/ui';
+import { PageHeader } from '@/src/components/ui/PageHeader';
 import { VehiclePickerCard } from '@/src/components/vehicle/VehiclePickerCard';
 import { colors, fonts, motion, radii } from '@/src/theme';
 import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
@@ -31,41 +33,33 @@ function entrance(reduceMotion: boolean, delayMs: number): BaseAnimationBuilder 
     : FadeInDown.duration(motion.duration.slow).easing(motion.easing).delay(delayMs);
 }
 
-function Avatar({ name, size = 48 }: { name: string; size?: number }) {
-  const initial = name.trim().charAt(0).toUpperCase() || '?';
-  return (
-    <View style={[avatarStyles.base, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[avatarStyles.label, { fontSize: size * 0.35 }]}>{initial}</Text>
-    </View>
-  );
-}
-
-const avatarStyles = StyleSheet.create({
-  base: { backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: fonts.display.bold, color: '#FFFFFF' },
-});
-
 const CategoryGrid = memo(function CategoryGrid({ categories }: { categories: Category[] }) {
   if (categories.length === 0) return null;
   return (
     <View style={categoryStyles.section}>
-      <Text style={categoryStyles.sectionTitle}>Browse by category</Text>
-      <View style={categoryStyles.grid}>
-        {categories.slice(0, 6).map((category) => (
-          <View key={category.id} style={categoryStyles.cell}>
-            <CategoryCard category={category} />
-          </View>
-        ))}
+      <View style={categoryStyles.titleRow}>
+        <Text style={categoryStyles.sectionTitle}>Shop by category</Text>
+        <Pressable
+          onPress={() => router.push('/(tabs)/categories')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="See all categories"
+          style={categoryStyles.seeAllHit}
+        >
+          <Text style={categoryStyles.seeAll}>See all</Text>
+        </Pressable>
       </View>
+      <CategoryRail categories={categories.slice(0, 12)} tone="alt" />
     </View>
   );
 });
 
 const categoryStyles = StyleSheet.create({
-  section: { marginBottom: 24 },
-  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, paddingHorizontal: 16, marginBottom: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12 },
-  cell: { width: '50%', padding: 4 },
+  section: { marginBottom: 24, gap: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  sectionTitle: { fontFamily: fonts.display.bold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
+  seeAllHit: { minHeight: 44, justifyContent: 'center' },
+  seeAll: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.link },
 });
 
 // No banner API exists on the backend — these are static, client-side
@@ -100,7 +94,14 @@ const ProductRail = memo(function ProductRail({ title, products }: { title: stri
   return (
     <Reveal style={railStyles.section}>
       <Text style={railStyles.title}>{title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={railStyles.scrollContent}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={railStyles.scrollContent}
+        snapToInterval={RAIL_CELL_WIDTH + RAIL_GAP}
+        snapToAlignment="start"
+        decelerationRate="fast"
+      >
         {products.map((product) => (
           <View key={product.id} style={railStyles.cell}>
             <CatalogProductCard product={product} />
@@ -126,11 +127,14 @@ function ProductRailSkeleton({ title }: { title: string }) {
   );
 }
 
+const RAIL_CELL_WIDTH = 200;
+const RAIL_GAP = 12;
+
 const railStyles = StyleSheet.create({
   section: { gap: 12, marginBottom: 24 },
-  title: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink, paddingHorizontal: 16 },
-  scrollContent: { paddingHorizontal: 16, gap: 12 },
-  cell: { width: 160 },
+  title: { fontFamily: fonts.display.bold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink, paddingHorizontal: 16 },
+  scrollContent: { paddingHorizontal: 16, gap: RAIL_GAP },
+  cell: { width: RAIL_CELL_WIDTH },
 });
 
 interface StatCardProps {
@@ -255,25 +259,19 @@ export default function HomeScreen() {
       >
         <Section tone="light" flushTop style={styles.heroBand}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Avatar name={displayName} size={48} />
-            <View style={styles.headerText}>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Text style={styles.name} numberOfLines={1}>
-                {displayName}
-              </Text>
-              {dealer?.companyName && (
-                <Text style={styles.company} numberOfLines={1}>
-                  {dealer.companyName}
-                </Text>
-              )}
-            </View>
-          </View>
+          <PageHeader
+            eyebrow={greeting}
+            title={displayName}
+            subtitle={dealer?.companyName}
+            numberOfLines={1}
+            style={styles.headerLeft}
+          />
           <Pressable
             onPress={() => router.push('/notifications')}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
+            style={styles.bell}
           >
             <Feather name="bell" size={22} color={colors.ink} />
           </Pressable>
@@ -378,6 +376,13 @@ export default function HomeScreen() {
         </Section>
 
         <Section tone="light">
+        {productsQuery.isError && (
+          <View style={styles.summaryError} accessibilityLiveRegion="polite">
+            <Text style={styles.summaryErrorText}>Couldn&apos;t load products.</Text>
+            <Text style={styles.productsErrorDetail}>{getErrorMessage(productsQuery.error)}</Text>
+            <Button label="Retry" variant="ghost" onPress={() => productsQuery.refetch()} />
+          </View>
+        )}
         {productsQuery.isLoading ? <ProductRailSkeleton title="Today's Offers" /> : <ProductRail title="Today's Offers" products={offers} />}
 
         {summaryQuery.isSuccess && summary.recentOrders.length > 0 && (
@@ -456,8 +461,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   content: { paddingBottom: 0 },
   heroBand: { paddingBottom: 24 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 12 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  headerLeft: { flex: 1, paddingRight: 12 },
+  bell: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1 },
   greeting: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   name: { fontFamily: fonts.display.bold, fontSize: 21, letterSpacing: -0.315, color: colors.ink },
@@ -496,6 +502,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.redSoft,
     gap: 8,
   },
+  productsErrorDetail: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
   summaryErrorText: { fontFamily: fonts.body.medium, fontSize: 14, letterSpacing: -0.224, color: colors.red },
   quickActions: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 24, gap: 8 },
   quickAction: {

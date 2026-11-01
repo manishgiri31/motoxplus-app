@@ -102,6 +102,11 @@ export function useRazorpayPayment() {
           });
         } catch (sdkError) {
           const err = sdkError as Partial<RazorpayErrorResponse>;
+          // The sheet closing doesn't prove nothing was charged (a UPI collect
+          // can settle after dismissal and the webhook then confirms the
+          // order). Re-pull the order so the screen shows the server's truth
+          // instead of a stale "cancelled".
+          queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(order.id) });
           if (err?.code === RAZORPAY_PAYMENT_CANCELLED) {
             inFlight.current = false;
             setState({ ...INITIAL, phase: 'cancelled' });

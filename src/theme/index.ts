@@ -46,6 +46,7 @@ export const colors = {
   red: '#D70015',
   redPressed: '#B8000F',
   redSoft: '#FFF0F1',
+  warning: '#BF4800', // eyebrow / "few left" highlight
   success: '#248A3D',
   successSoft: '#EAF6EE',
   infoSoft: '#E8F2FC',
