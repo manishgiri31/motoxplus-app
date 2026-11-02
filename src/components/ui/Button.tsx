@@ -20,9 +20,20 @@ import { HapticService } from '@/utils/haptics';
 // call site had to change.
 //
 // light: white pill with ink text, the primary action on a dark (ink) card.
-export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'link' | 'brand' | 'ghost' | 'solid' | 'light';
+// neutral: white pill, grey hairline border, ink text: the quiet second action
+// beside a primary one (the website's secondary button).
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'destructive'
+  | 'link'
+  | 'brand'
+  | 'ghost'
+  | 'solid'
+  | 'light'
+  | 'neutral';
 
-type CanonicalVariant = 'primary' | 'secondary' | 'destructive' | 'link' | 'solid' | 'light';
+type CanonicalVariant = 'primary' | 'secondary' | 'destructive' | 'link' | 'solid' | 'light' | 'neutral';
 
 const ALIASES: Record<ButtonVariant, CanonicalVariant> = {
   primary: 'primary',
@@ -31,6 +42,7 @@ const ALIASES: Record<ButtonVariant, CanonicalVariant> = {
   link: 'link',
   solid: 'solid',
   light: 'light',
+  neutral: 'neutral',
   brand: 'primary',
   ghost: 'secondary',
 };
@@ -62,6 +74,7 @@ const BACKGROUNDS: Record<CanonicalVariant, [string, string, string]> = {
   primary: [colors.accent, colors.accentHover, colors.accentActive],
   solid: [colors.ink, colors.black, colors.black],
   light: [colors.white, colors.white, colors.lineSoft],
+  neutral: [colors.white, colors.card, colors.lineSoft],
   secondary: [alpha(colors.accent, 0), alpha(colors.accent, 0.08), alpha(colors.accent, 0.16)],
   destructive: [alpha(colors.red, 0), alpha(colors.red, 0.08), alpha(colors.red, 0.16)],
   link: [alpha(colors.link, 0), alpha(colors.link, 0.06), alpha(colors.link, 0.12)],
@@ -71,6 +84,7 @@ const LABEL_COLOR: Record<CanonicalVariant, string> = {
   primary: colors.white,
   solid: colors.white,
   light: colors.ink,
+  neutral: colors.ink,
   secondary: colors.link,
   destructive: colors.red,
   link: colors.link,
@@ -160,6 +174,7 @@ export function Button({
       style={[
         styles.base,
         kind === 'secondary' && styles.outline,
+        kind === 'neutral' && styles.neutralOutline,
         kind === 'link' && styles.link,
         fullWidth && styles.fullWidth,
         animatedStyle,
@@ -200,6 +215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   outline: { borderWidth: 1, borderColor: colors.accent },
+  neutralOutline: { borderWidth: 1, borderColor: colors.line },
   // Plain links hug their text; 44pt is the minimum touch target.
   link: { minHeight: layout.minTouchTarget, paddingHorizontal: 8 },
   fullWidth: { width: '100%' },

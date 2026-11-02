@@ -4,7 +4,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState, type 
 import { Alert } from 'react-native';
 
 import { authService, type LoginPayload } from '@/api/services/authService';
-import type { AuthUser, Dealer } from '@/api/types';
+import type { AuthUser, Dealer, LoginOtpPayload, LoginResponse } from '@/api/types';
 import { registerPushToken, unregisterPushToken } from '@/hooks/use-push-notifications';
 import { canAccessDealerApp, DealerAccessDeniedError } from './access';
 import { onAuthFailure, onVerificationRequired } from './authEvents';
@@ -22,6 +22,7 @@ interface AuthContextValue {
   accessDenied: boolean;
   clearAccessDenied: () => void;
   login: (payload: LoginPayload) => Promise<void>;
+  loginWithOtp: (payload: LoginOtpPayload) => Promise<void>;
   logout: () => Promise<void>;
   logoutAllDevices: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -150,8 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [clearSession]);
 
-  const login = useCallback(async (payload: LoginPayload) => {
-    const res = await authService.login(payload);
+  // Shared tail of every sign-in method (password, one-time code): the same
+  // dealer gate, token persistence and push registration.
+  const completeLogin = useCallback(async (res: LoginResponse) => {
     if (!canAccessDealerApp(res.user, res.dealer)) {
       // Do not persist tokens for a disallowed account, even briefly.
       setAccessDenied(true);
@@ -167,6 +169,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pushTokenRef.current = token;
     });
   }, []);
+
+  const login = useCallback(
+    async (payload: LoginPayload) => completeLogin(await authService.login(payload)),
+    [completeLogin]
+  );
+
+  const loginWithOtp = useCallback(
+    async (payload: LoginOtpPayload) => completeLogin(await authService.loginWithOtp(payload)),
+    [completeLogin]
+  );
 
   const logout = useCallback(async () => {
     await authService.logout().catch(() => null);
@@ -202,11 +214,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessDenied,
       clearAccessDenied,
       login,
+      loginWithOtp,
       logout,
       logoutAllDevices,
       refreshUser,
     }),
-    [user, dealer, isLoading, accessDenied, clearAccessDenied, login, logout, logoutAllDevices, refreshUser]
+    [user, dealer, isLoading, accessDenied, clearAccessDenied, login, loginWithOtp, logout, logoutAllDevices, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

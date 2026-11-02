@@ -3,15 +3,17 @@ import { loginResponseSchema, meResponseSchema } from '../schemas';
 import type {
   ChangeEmailPayload,
   ChangeEmailResponse,
-  DealerRegisterPayload,
-  DealerRegisterResponse,
   ForgotPasswordPayload,
   ForgotPasswordResponse,
+  LoginOtpPayload,
   LoginResponse,
   MeResponse,
   MessageResponse,
+  RegisterPayload,
+  RegisterResponse,
   ResetPasswordPayload,
   SendEmailVerificationPayload,
+  SendLoginOtpPayload,
   SendMobileOtpPayload,
   SessionsResponse,
   VerifyEmailPayload,
@@ -36,11 +38,20 @@ export const authService = {
 
   me: () => apiClient.get<MeResponse>('/mobile/auth/me').then((r) => meResponseSchema.parse(r.data)),
 
-  // POST /dealer/register (docs/api.md §3) — full one-shot dealer signup.
-  // Response carries no tokens; the new account starts at dealer.status
-  // PENDING and needs admin approval before it can sign in.
-  register: (payload: DealerRegisterPayload) =>
-    apiClient.post<DealerRegisterResponse>('/dealer/register', payload).then((r) => r.data),
+  // Code sign-in, the website's "Send me a code" path. The send step is the
+  // website's own endpoint (it sets no cookies without an `otp`); the verify
+  // step needs a token-returning twin because the website's sets cookies only.
+  sendLoginOtp: (payload: SendLoginOtpPayload) =>
+    apiClient.post<MessageResponse>('/auth/login-otp', payload).then((r) => r.data),
+
+  loginWithOtp: (payload: LoginOtpPayload) =>
+    apiClient.post<LoginResponse>('/mobile/auth/login-otp', payload).then((r) => loginResponseSchema.parse(r.data)),
+
+  // POST /auth/register: the same endpoint the website's dealer signup posts
+  // to. Response carries no tokens; the account signs in after its email is
+  // verified (verifyEmail below, by userId).
+  register: (payload: RegisterPayload) =>
+    apiClient.post<RegisterResponse>('/auth/register', payload).then((r) => r.data),
 
   forgotPassword: (payload: ForgotPasswordPayload) =>
     apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', payload).then((r) => r.data),

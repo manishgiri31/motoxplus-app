@@ -1,12 +1,10 @@
 import type { AuthUser, Dealer } from '@/api/types';
 
 // Real dealer-application page on the marketing site — motoxplus-web:
-// src/app/(public)/become-dealer/page.tsx, which renders
-// <DealerRegistrationForm /> posting to the same POST /dealer/register
-// endpoint app/(auth)/register.tsx now calls directly. Kept as a secondary
-// path on the login screen for dealers who'd rather apply from a browser.
-// Keep this in sync if the website ever moves the route; never point it at
-// the bare homepage.
+// src/app/(public)/become-dealer/page.tsx. Offered from the Access Denied
+// screen for accounts that aren't dealers; dealers sign up in the app itself
+// (app/(auth)/register.tsx). Keep this in sync if the website ever moves the
+// route; never point it at the bare homepage.
 export const DEALER_APPLICATION_URL = 'https://motoxplus.com/become-dealer';
 
 export const DEALER_ACCESS_DENIED_MESSAGE =
@@ -39,13 +37,9 @@ export class DealerAccessDeniedError extends Error {
  * belongs in the dealer app, so every non-DEALER role is rejected even
  * though it authenticates successfully against the shared backend.
  *
- * Why ACTIVE still gates the app even though app/(auth)/register.tsx now
- * originates applications directly: a dealer application requires manual
- * admin review (see DealerStatus below) before the account is usable, and
- * the website back-office is the system of record for that review — a
- * freshly-registered account sits at PENDING regardless of which surface
- * created it, and this gate is what sends it to the Access Denied screen
- * until an admin flips it to ACTIVE.
+ * Why ACTIVE still gates the app: signup creates dealers as ACTIVE, but the
+ * back-office can move one to PENDING, SUSPENDED or REJECTED afterwards, and
+ * this gate is what sends such an account to the Access Denied screen.
  *
  * Why `dealer.status === 'ACTIVE'` specifically (not just role === DEALER):
  * a device can hold a still-valid JWT for a dealer whose status has since

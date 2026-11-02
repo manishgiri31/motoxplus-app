@@ -67,33 +67,47 @@ export interface RefreshResponse {
   refreshToken: string;
 }
 
-// Mirrors POST /api/dealer/register (docs/api.md §3) — the recommended
-// one-shot dealer signup endpoint. Optional fields left out entirely (not
-// sent as empty strings) when the dealer doesn't fill them in.
-export interface DealerRegisterPayload {
+// Mirrors POST /api/auth/register, the endpoint the website's dealer signup
+// posts to. The website form always sends every field except GST / PAN /
+// Aadhaar, and so must the app: /auth/register only creates the linked Dealer
+// record when company name, owner, phone, state and city are all present.
+// Optional fields are left out entirely (not sent as empty strings).
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
   companyName: string;
   ownerName: string;
-  phone: string;
-  email: string;
-  password: string;
+  address: string;
   state: string;
   city: string;
+  pincode: string;
   gstNumber?: string;
   panNumber?: string;
   aadhaarNumber?: string;
-  companyAddress?: string;
-  shopAddress?: string;
-  pincode?: string;
 }
 
-// Creates a role: DEALER user with a linked Dealer record at status:
-// PENDING — the account cannot sign in until an admin approves it (see
-// auth/access.ts#canAccessDealerApp). No accessToken/refreshToken here,
-// unlike login — registration does not start a session.
-export interface DealerRegisterResponse {
-  success: true;
+// Creates a role: DEALER user with a linked Dealer record, and emails a
+// 6-digit verification code. No accessToken/refreshToken here, unlike login:
+// registration does not start a session, so the email is verified by userId
+// (POST /auth/verify-email) before the first sign-in.
+export interface RegisterResponse {
+  message: string;
   userId: string;
   email: string;
+}
+
+// Step 1 of a code sign-in is POST /auth/login-otp; it answers with the same
+// generic "if this account is registered" message whether or not it exists.
+export interface SendLoginOtpPayload {
+  method: 'mobile' | 'email';
+  mobile?: string;
+  email?: string;
+}
+
+export interface LoginOtpPayload extends SendLoginOtpPayload {
+  otp: string;
 }
 
 export interface ForgotPasswordPayload {

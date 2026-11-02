@@ -57,6 +57,12 @@ Primary login for the app.
 - **Rate limit**: 10 requests/min per IP.
 - **Notes**: `dealer` is `null` if the user registered without completing dealer details (see registration below) — route the app to a "complete your dealer profile" step in that case. `dealer.status` will be `PENDING`/`ACTIVE`/etc.; the web app blocks unapproved dealers via middleware — **the API does not enforce this**, so the app must check `dealer.status` itself before allowing checkout.
 
+### Code sign-in (one-time code instead of a password)
+The sign-in screen's "Send me a code" path, same as the website.
+1. `POST /api/auth/login-otp` — send step. **Request**: `{ method: "mobile" | "email", mobile?: string, email?: string }`. **Response 200**: the same generic `{ message, expires }` whether or not the account exists. The code goes to WhatsApp (mobile) or email. Sets no cookies without an `otp`, so the app calls it directly.
+2. `POST /api/mobile/auth/login-otp` — verify step, the token-returning twin of the website's cookie-setting verify. **Request**: `{ method, mobile?, email?, otp }`. **Response 200**: identical to `POST /api/mobile/auth/login`.
+- **Errors**: `400` invalid or expired code (the same answer for an unknown account), `403` account disabled, `423` account locked, `429` rate limit.
+
 ### `GET /api/mobile/auth/me`
 - **Auth**: Bearer required.
 - **Response 200**: `{ user: { id, name, email, role, mobileVerified, isActive }, dealer: {...} | null }` (same dealer shape as login).
@@ -76,9 +82,9 @@ Full one-shot dealer signup (validated with Zod).
   - `panNumber`: `^[A-Z]{5}[0-9]{4}[A-Z]{1}$` if provided.
   - `aadhaarNumber`: 12 digits if provided (stored encrypted).
   - `password`: min 8 chars.
-- **Response 201**: `{ success: true, userId, email }`. Creates `role: "DEALER"` user **with** a linked `Dealer` record, `status: "PENDING"` (needs admin approval before ordering — reflected in `dealerStatus` from login/me). Sends a verification email with an OTP.
+- **Response 201**: `{ success: true, userId, email }`. Creates `role: "DEALER"` user **with** a linked `Dealer` record, `status: "ACTIVE"` (there is no admin approval step; ordering is gated on email + mobile verification). Sends a verification email with an OTP.
 - **Errors**: `400` validation / duplicate email / duplicate mobile / duplicate GST, `429` rate limit (5/min/IP).
-- **Note**: There is also `POST /api/auth/register`, a looser variant where company fields are optional (creates a `DEALER`-role user with **no** `Dealer` record if company info is omitted, leaving `dealer: null` forever — there's no follow-up "complete your profile" endpoint to attach one later). Use `/api/dealer/register` for the app; avoid `/api/auth/register` since it can strand a user without a Dealer record.
+- **Note**: There is also `POST /api/auth/register`, the endpoint the website's signup form posts to and the one the app's signup screen now uses, so the two surfaces behave the same. **Request**: `{ name, email, phone, password, companyName, ownerName, address, state, city, pincode, gstNumber?, panNumber?, aadhaarNumber? }`; **Response 201**: `{ message, userId, email }`. It enforces the full password policy (8+ chars with upper, lower and a digit). Its company fields are optional server-side — if company name, owner, phone, state or city is omitted it creates a `DEALER` user with **no** `Dealer` record and `dealer: null` forever (no follow-up endpoint attaches one) — so the client must always send them; the app's form requires every field except GST / PAN / Aadhaar. After signup the account verifies its email by `userId` (`POST /api/auth/verify-email`, no session needed), then signs in.
 
 ### `POST /api/auth/forgot-password`
 - **Request**: `{ email?: string, mobile?: string, method: "email" | "mobile" }`
