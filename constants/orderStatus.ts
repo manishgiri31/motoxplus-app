@@ -26,7 +26,7 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
   RETURNED: 'Returned',
 };
 
-// For StatusBadge (12% tint of the status color). Blue is reserved for primary
+// For StatusBadge (12% tint of the status color). The accent is reserved for primary
 // buttons and selected states, so in-flight statuses stay neutral grey.
 export const orderStatusBadgeTone: Record<OrderStatus, StatusTone> = {
   PENDING: 'warning',

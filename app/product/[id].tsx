@@ -32,6 +32,7 @@ import {
 import { colors, font, motion, screenPaddingX, sectionGap, textStyles } from '@/src/theme';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { groupCompatibility } from '@/utils/compatibility';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { isFewLeft, isOutOfStock, stockLabel } from '@/utils/stock';
@@ -44,19 +45,7 @@ const TABS: readonly SegmentedOption<Tab>[] = [
   { value: 'reviews', label: 'Reviews' },
 ];
 
-// Vehicles are free-form "Make Model Variant" strings; the first word is the make.
 const COLLAPSED_VEHICLE_COUNT = 6;
-
-function groupByMake(vehicles: string[]): { make: string; models: string[] }[] {
-  const groups = new Map<string, string[]>();
-  for (const vehicle of vehicles) {
-    const [make, ...rest] = vehicle.trim().split(/\s+/);
-    const models = groups.get(make) ?? [];
-    models.push(rest.length > 0 ? rest.join(' ') : vehicle);
-    groups.set(make, models);
-  }
-  return Array.from(groups, ([make, models]) => ({ make, models }));
-}
 
 function SpecCapsule({ label, value }: { label: string; value: string }) {
   return (
@@ -263,10 +252,14 @@ export default function ProductDetailScreen() {
             {tab === 'compatible' &&
               (product.compatibility.length > 0 ? (
                 <View style={styles.compatible}>
-                  {groupByMake(visibleVehicles).map((group) => (
-                    <GroupedList key={group.make} header={group.make}>
+                  {groupCompatibility(visibleVehicles).map((group, _, all) => (
+                    <GroupedList key={group.brand ?? 'other'} header={group.brand ?? (all.length > 1 ? 'Other' : undefined)}>
                       {group.models.map((model, i) => (
-                        <ListRow key={`${model}-${i}`} label={model} accessibilityLabel={`${group.make} ${model}`} />
+                        <ListRow
+                          key={`${model}-${i}`}
+                          label={model}
+                          accessibilityLabel={group.brand ? `${group.brand} ${model}` : model}
+                        />
                       ))}
                     </GroupedList>
                   ))}

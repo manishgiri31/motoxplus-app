@@ -1,18 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { authService } from '@/api/services/authService';
 import { emailSchema, type EmailFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
-import { Input } from '@/components/ui';
-import { Button } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { FormScreen } from '@/src/components/auth/FormScreen';
+import { Button, GroupedList, InputField } from '@/src/components/ui';
 
 export default function ChangeEmailScreen() {
   const { user, refreshUser } = useAuth();
@@ -36,71 +32,48 @@ export default function ChangeEmailScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </Pressable>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Change email</Text>
-            <Text style={styles.subtitle}>
-              Current email: {user?.email}. You&apos;ll need to verify the new address before you can order again.
-            </Text>
-          </View>
+  const message = form.formState.errors.email?.message ?? formError;
 
-          <View style={styles.form}>
-            <Controller
-              control={form.control}
-              name="email"
-              render={({ field, fieldState }) => (
-                <Input
-                  label="New email address"
-                  autoFocus
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                  returnKeyType="go"
-                  onSubmitEditing={form.handleSubmit(onSubmit)}
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                />
-              )}
+  return (
+    <FormScreen
+      navTitle="Change email"
+      title="Change email"
+      subtitle={`Current email: ${user?.email}. You'll need to verify the new address before you can order again.`}
+      onBack={() => router.back()}
+      action={
+        <Button
+          label="Save and verify"
+          variant="primary"
+          fullWidth
+          onPress={form.handleSubmit(onSubmit)}
+          loading={form.formState.isSubmitting}
+        />
+      }
+    >
+      <GroupedList footer={message} footerTone="danger">
+        <Controller
+          control={form.control}
+          name="email"
+          render={({ field, fieldState }) => (
+            <InputField
+              variant="grouped"
+              label="New email address"
+              autoFocus
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="go"
+              onSubmitEditing={form.handleSubmit(onSubmit)}
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              invalid={!!fieldState.error || !!formError}
             />
-            {formError && <Text style={styles.error}>{formError}</Text>}
-            <Button
-              label="Save and verify"
-              variant="brand"
-              fullWidth
-              onPress={form.handleSubmit(onSubmit)}
-              loading={form.formState.isSubmitting}
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          )}
+        />
+      </GroupedList>
+    </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  flex: { flex: 1 },
-  backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
-  header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
-  form: { gap: 16 },
-  error: { fontFamily: fonts.body.regular, fontSize: 14, letterSpacing: -0.224, color: colors.red },
-});

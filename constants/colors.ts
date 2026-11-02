@@ -1,8 +1,8 @@
 /**
  * Palette — clean product-store look: white / light grey / near-black, with a
- * single blue accent for primary buttons.
+ * single red accent for primary buttons.
  *
- * `palette` holds raw colors (gray ramp, accent blues). `semanticColors`
+ * `palette` holds raw colors (gray ramp, accent reds). `semanticColors`
  * mirrors the CSS custom properties defined in global.css (:root) exactly — keep these two in sync by hand.
  * global.css drives NativeWind className-based styling (bg-background,
  * text-text, ...); this file exists for the cases that need a plain color
@@ -24,9 +24,9 @@ export const palette = {
     800: '#2C2C2E',
     900: '#1D1D1F',
   },
-  blue: {
-    500: '#0071E3',
-    600: '#006EDB',
+  red: {
+    500: '#D01F25',
+    600: '#B5181E',
   },
 } as const;
 
@@ -40,7 +40,7 @@ export const semanticColors = {
     border: '#D2D2D7',
     text: '#1D1D1F',
     muted: '#6E6E73',
-    primary: '#0071E3',
+    primary: '#D01F25',
     primaryForeground: '#FFFFFF',
     secondary: '#1D1D1F',
     secondaryForeground: '#FFFFFF',

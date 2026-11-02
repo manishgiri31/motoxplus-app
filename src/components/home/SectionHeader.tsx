@@ -9,7 +9,7 @@ export interface SectionHeaderProps {
   onSeeAll?: () => void;
 }
 
-// 21pt section title with an optional blue "See all" link.
+// 21pt section title with an optional "See all" link in the link colour.
 export function SectionHeader({ title, onSeeAll }: SectionHeaderProps) {
   return (
     <View style={styles.row}>

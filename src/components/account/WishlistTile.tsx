@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   brand: { ...textStyles.caption },
   name: { ...textStyles.headline },
   price: { justifyContent: 'center', marginTop: space.xs, marginBottom: space.sm },
-  // Small secondary pill: blue outline, link-blue text.
+  // Small secondary pill: accent outline, link-colour text.
   add: {
     height: 36,
     borderRadius: radii.pill,

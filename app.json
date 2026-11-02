@@ -45,7 +45,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/android-icon-monochrome.png",
-          "color": "#0071E3",
+          "color": "#D01F25",
           "defaultChannel": "orders",
           "enableBackgroundRemoteNotifications": false
         }

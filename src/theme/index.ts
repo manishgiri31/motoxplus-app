@@ -4,8 +4,8 @@ import { Platform, type TextStyle } from 'react-native';
 import { motion } from './motion';
 
 // Design tokens. The look follows a clean, product-store aesthetic: white and
-// light-grey surfaces, near-black type, one blue accent reserved for primary
-// buttons, and links in a slightly deeper blue. global.css mirrors these values
+// light-grey surfaces, near-black type, one red accent reserved for primary
+// buttons, and links in a slightly deeper red. global.css mirrors these values
 // as CSS variables for NativeWind classNames and web — keep the two in sync.
 //
 // Key names are historical (the app shipped with a red brand), so `red*` now
@@ -37,16 +37,16 @@ export const colors = {
   darkBorder: '#333336',
 
   // Accent — primary buttons only
-  accent: '#0071E3',
-  accentHover: '#0077ED',
-  accentActive: '#006EDB',
+  accent: '#D01F25',
+  accentHover: '#DB2C32',
+  accentActive: '#B5181E',
 
   // Links and inline actions
-  link: '#0066CC',
-  linkOnDark: '#2997FF',
+  link: '#C2191F',
+  linkOnDark: '#FF6B70',
 
   // Focus ring (matches web :focus-visible in global.css)
-  focusRing: 'rgba(0,113,227,0.25)', // accent @ 25%
+  focusRing: 'rgba(208,31,37,0.25)', // accent @ 25%
 
   // Status
   red: '#E30000', // danger: errors and destructive actions only
@@ -55,7 +55,7 @@ export const colors = {
   warning: '#F56300',
   success: '#008009',
   successSoft: '#EAF6EE',
-  infoSoft: '#E8F2FC',
+  infoSoft: '#F5F5F7', // neutral: "info" no longer has a hue of its own
 } as const;
 
 export const radii = {

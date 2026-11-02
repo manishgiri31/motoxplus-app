@@ -16,7 +16,7 @@ export interface ButtonProps extends Omit<PressableProps, 'children'> {
 }
 
 const containerByVariant: Record<ButtonVariant, string> = {
-  // Press = scale 0.98 plus a darker fill; hover (web) lightens to the hover blue.
+  // Press = scale 0.98 plus a darker fill; hover (web) lightens to the hover red.
   primary: 'bg-primary hover:bg-primary-hover active:bg-primary-active active:scale-[0.98]',
   secondary: 'bg-secondary active:opacity-90 active:scale-[0.98]',
   outline: 'bg-transparent border border-primary hover:bg-primary/10 active:bg-primary/20 active:scale-[0.98]',

@@ -15,7 +15,7 @@ export interface EmptyStateProps {
   onAction?: () => void;
   /** Overrides the default full-height centered layout, e.g. `{ flex: 0 }` inside a scroll view. */
   style?: StyleProp<ViewStyle>;
-  /** Defaults to the filled blue pill; pass 'secondary' for the outline pill. */
+  /** Defaults to the filled red pill; pass 'secondary' for the outline pill. */
   actionVariant?: ButtonVariant;
 }
 

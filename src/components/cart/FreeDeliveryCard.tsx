@@ -30,7 +30,7 @@ export function FreeDeliveryCard({ taxedTotal }: FreeDeliveryCardProps) {
           {message}
         </Text>
       </View>
-      <ProgressBar progress={taxedTotal / FREE_DELIVERY_THRESHOLD} color={unlocked ? colors.success : colors.accent} />
+      <ProgressBar progress={taxedTotal / FREE_DELIVERY_THRESHOLD} color={unlocked ? colors.success : colors.ink} />
     </View>
   );
 }

@@ -15,7 +15,7 @@ const variantStyles: Record<BadgeVariant, { background: string; border?: string;
   neutral: { background: colors.paper, border: colors.line, text: colors.muted },
   brand: { background: colors.card, text: colors.ink },
   success: { background: colors.successSoft, text: colors.success },
-  info: { background: colors.infoSoft, text: colors.link },
+  info: { background: colors.infoSoft, text: colors.ink2 },
 };
 
 export function Badge({ label, variant = 'neutral' }: BadgeProps) {

@@ -1,19 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { authService } from '@/api/services/authService';
 import { otpSchema, type OtpFormValues } from '@/auth/validation';
 import { useAuth } from '@/auth/useAuth';
+import { FormScreen } from '@/src/components/auth/FormScreen';
 import { OtpCodeEntry } from '@/src/components/auth/OtpCodeEntry';
 import { Button } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
 // Server-enforced: 1/hour/user resend cap (see backend
@@ -86,65 +83,39 @@ export default function VerifyEmailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </Pressable>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Text accessibilityRole="header" aria-level={1} style={styles.title}>Verify your email</Text>
-            <Text style={styles.subtitle}>
-              {user?.email
-                ? `Enter the 6-digit code we sent to ${user.email}.`
-                : 'Enter the 6-digit code we sent you.'}
-            </Text>
-          </View>
-
-          <View style={styles.form}>
-            <Controller
-              control={otpForm.control}
-              name="otp"
-              render={({ field }) => (
-                <OtpCodeEntry
-                  value={field.value}
-                  onChange={field.onChange}
-                  autoFocus
-                  error={otpForm.formState.errors.otp?.message ?? formError ?? sendError}
-                  message={resendMessage}
-                  resendSecondsLeft={resendCooldown}
-                  onResend={resend}
-                  resendDisabled={sending}
-                />
-              )}
-            />
-            <Button
-              label="Verify email"
-              variant="brand"
-              fullWidth
-              onPress={otpForm.handleSubmit(submitOtp)}
-              loading={otpForm.formState.isSubmitting}
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <FormScreen
+      navTitle="Verify email"
+      title="Verify your email"
+      subtitle={
+        user?.email ? `Enter the 6-digit code we sent to ${user.email}.` : 'Enter the 6-digit code we sent you.'
+      }
+      onBack={() => router.back()}
+      action={
+        <Button
+          label="Verify email"
+          variant="primary"
+          fullWidth
+          onPress={otpForm.handleSubmit(submitOtp)}
+          loading={otpForm.formState.isSubmitting}
+        />
+      }
+    >
+      <Controller
+        control={otpForm.control}
+        name="otp"
+        render={({ field }) => (
+          <OtpCodeEntry
+            value={field.value}
+            onChange={field.onChange}
+            autoFocus
+            error={otpForm.formState.errors.otp?.message ?? formError ?? sendError}
+            message={resendMessage}
+            resendSecondsLeft={resendCooldown}
+            onResend={resend}
+            resendDisabled={sending}
+          />
+        )}
+      />
+    </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  flex: { flex: 1 },
-  backButton: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, padding: 4 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 32 },
-  header: { gap: 6 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, lineHeight: 31, color: colors.ink },
-  subtitle: { fontFamily: fonts.body.regular, fontSize: 17, letterSpacing: -0.374, color: colors.muted, marginTop: 4 },
-  form: { gap: 16 },
-});

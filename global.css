@@ -28,18 +28,18 @@
   --on-dark: 245 245 247; /* #f5f5f7 */
 
   /* Accent: primary buttons only */
-  --primary: 0 113 227; /* #0071e3 */
-  --primary-hover: 0 119 237; /* #0077ed */
-  --primary-active: 0 110 219; /* #006edb */
+  --primary: 208 31 37; /* #d01f25 */
+  --primary-hover: 219 44 50; /* #db2c32 */
+  --primary-active: 181 24 30; /* #b5181e */
   --primary-foreground: 255 255 255;
 
-  /* Secondary actions are ink-filled; the blue outline button is styled in Button */
+  /* Secondary actions are ink-filled; the red outline button is styled in Button */
   --secondary: 29 29 31;
   --secondary-foreground: 255 255 255;
 
   /* Links */
-  --link: 0 102 204; /* #0066cc */
-  --link-on-dark: 41 151 255; /* #2997ff */
+  --link: 194 25 31; /* #c2191f */
+  --link-on-dark: 255 107 112; /* #ff6b70 */
 
   /* Status */
   --success: 0 128 9; /* #008009 */
@@ -52,7 +52,7 @@
   --radius-pill: 999px;
   --motion-duration: 280ms;
   --motion-ease: cubic-bezier(0.4, 0, 0.6, 1);
-  --focus-ring: 0 0 0 4px rgba(0, 113, 227, 0.25);
+  --focus-ring: 0 0 0 4px rgba(208, 31, 37, 0.25);
 }
 
 /*

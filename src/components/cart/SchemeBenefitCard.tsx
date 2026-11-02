@@ -315,7 +315,6 @@ function SchemeItemSheet({
           </View>
           <ProgressBar
             progress={scheme.benefit > 0 ? selectedTotal / scheme.benefit : 0}
-            color={overBudget ? colors.red : colors.accent}
             accessibilityLabel="Benefit used"
           />
           {overBudget && (

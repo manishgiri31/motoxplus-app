@@ -10,10 +10,10 @@ import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { alpha, colors, font, layout, motion, radii } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
-// primary     blue pill, white text: the one main action on a screen.
-// secondary   blue outline pill.
+// primary     red pill, white text: the one main action on a screen.
+// secondary   red outline pill.
 // destructive red text, no fill: sign out, delete, cancel order.
-// link        plain blue text with a trailing chevron.
+// link        plain red text with a trailing chevron.
 //
 // 'brand' / 'ghost' / 'solid' are the names the app has always used; they
 // keep working and map to primary / secondary / an ink-filled pill, so no
