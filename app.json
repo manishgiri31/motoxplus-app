@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "motoxplus-app",
+    "name": "MotoXplus",
     "slug": "motoxplus-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +12,11 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["tez", "phonepe", "paytmmp"]
+        "LSApplicationQueriesSchemes": [
+          "tez",
+          "phonepe",
+          "paytmmp"
+        ]
       }
     },
     "android": {
