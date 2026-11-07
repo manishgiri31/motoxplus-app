@@ -15,25 +15,33 @@ export interface SearchBarProps
   placeholder?: string;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  /**
+   * For a screen that is only a search (app/search.tsx): Cancel is always
+   * shown and calls this instead of just clearing the field.
+   */
+  onCancel?: () => void;
 }
 
 // iOS-style search bar: a grey rounded field with a magnifier and a clear
 // button. While it is focused (or holds text) a "Cancel" link slides in on the
-// right; Cancel clears the text and dismisses the keyboard.
+// right; Cancel clears the text and dismisses the keyboard. With `onCancel`,
+// Cancel stays visible and leaves the screen instead.
 export function SearchBar({
   value,
   onChangeText,
   placeholder = 'Search',
   accessibilityLabel,
   style,
+  onCancel,
   ...inputProps
 }: SearchBarProps) {
   const reduceMotion = useReduceMotion();
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
-  const active = focused || value.length > 0;
+  const active = !!onCancel || focused || value.length > 0;
 
-  const progress = useSharedValue(0);
+  // With onCancel the Cancel link is part of the layout from the first frame.
+  const progress = useSharedValue(onCancel ? 1 : 0);
   const cancelWidth = useSharedValue(0);
 
   useEffect(() => {
@@ -62,6 +70,8 @@ export function SearchBar({
           maxFontSizeMultiplier={1.2}
           clearButtonMode="never"
           returnKeyType="search"
+          selectionColor={colors.accent}
+          accessibilityRole="search"
           accessibilityLabel={accessibilityLabel ?? placeholder}
           {...inputProps}
         />
@@ -70,7 +80,7 @@ export function SearchBar({
             onPress={() => onChangeText('')}
             accessibilityRole="button"
             accessibilityLabel="Clear search"
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            hitSlop={{ top: 13, bottom: 13, left: 12, right: 12 }}
             style={styles.clear}
           >
             <Feather name="x-circle" size={18} color={colors.ink3} />
@@ -87,11 +97,16 @@ export function SearchBar({
       >
         <Pressable
           onPress={() => {
+            if (onCancel) {
+              inputRef.current?.blur();
+              onCancel();
+              return;
+            }
             onChangeText('');
             inputRef.current?.blur();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Cancel search"
+          accessibilityLabel={onCancel ? 'Close search' : 'Cancel search'}
           accessibilityElementsHidden={!active}
           importantForAccessibility={active ? 'yes' : 'no-hide-descendants'}
           style={({ pressed }) => [styles.cancelPress, pressed && styles.pressed]}

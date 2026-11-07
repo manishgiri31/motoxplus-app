@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FileText } from '@/components/icons/FileText';
 import { Headset } from '@/components/icons/Headset';
+import { Heart } from '@/components/icons/Heart';
 import { MapPin } from '@/components/icons/MapPin';
-import { Search } from '@/components/icons/Search';
 import { iconSizes } from '@/components/icons/iconSizes';
 import type { IconProps } from '@/components/icons/types';
 import { useFocusRing } from '@/hooks/use-focus-ring';
@@ -12,7 +12,7 @@ import { colors, screenPaddingX, textStyles } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
 export interface QuickActionsProps {
-  onSearch: () => void;
+  onWishlist: () => void;
   onTrack: () => void;
   onInvoices: () => void;
   onSupport: () => void;
@@ -55,10 +55,11 @@ function Action({ icon: ActionIcon, label, onPress }: ActionProps) {
 }
 
 // Four equal round buttons: 56pt bgAlt circle with an ink icon, 12pt label below.
-export function QuickActions({ onSearch, onTrack, onInvoices, onSupport }: QuickActionsProps) {
+// No Search here: the search field sits at the top of the same screen.
+export function QuickActions({ onWishlist, onTrack, onInvoices, onSupport }: QuickActionsProps) {
   return (
     <View style={styles.row}>
-      <Action icon={Search} label="Search" onPress={onSearch} />
+      <Action icon={Heart} label="Wishlist" onPress={onWishlist} />
       <Action icon={MapPin} label="Track" onPress={onTrack} />
       <Action icon={FileText} label="Invoices" onPress={onInvoices} />
       <Action icon={Headset} label="Support" onPress={onSupport} />

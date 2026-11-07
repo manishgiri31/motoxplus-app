@@ -16,7 +16,6 @@ import { NotificationBell } from '@/src/components/home/NotificationBell';
 import { ProductRail } from '@/src/components/home/ProductRail';
 import { QuickActions } from '@/src/components/home/QuickActions';
 import { SearchPill } from '@/src/components/home/SearchPill';
-import { SearchSheet } from '@/src/components/home/SearchSheet';
 import { SectionError } from '@/src/components/home/SectionError';
 import { SectionHeader } from '@/src/components/home/SectionHeader';
 import { StatGrid } from '@/src/components/home/StatGrid';
@@ -66,7 +65,6 @@ export default function HomeScreen() {
   const categoriesQuery = useCategories();
   const { scrollY, onScroll } = useLargeTitleScroll();
 
-  const [searchOpen, setSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const { summary } = summaryQuery;
@@ -89,8 +87,18 @@ export default function HomeScreen() {
   };
 
   const goToOrders = () => router.push('/(tabs)/orders');
+  // Opens the Orders tab on its Active filter. The timestamp makes a repeat tap
+  // re-apply the filter even if the dealer switched it in between.
+  const goToActiveOrders = () =>
+    router.push({ pathname: '/(tabs)/orders', params: { filter: 'active', at: String(Date.now()) } });
   const trackShipment = () =>
-    summary.trackableOrderId ? router.push(`/order/${summary.trackableOrderId}/tracking`) : goToOrders();
+    summary.trackableOrderId ? router.push(`/order/${summary.trackableOrderId}/tracking`) : goToActiveOrders();
+  // One order in transit / awaiting payment: open it. Several: list them.
+  const openInTransit = () => (summary.ordersInTransit === 1 ? trackShipment() : goToActiveOrders());
+  const openPendingPayments = () =>
+    summary.pendingPaymentOrders === 1 && summary.paymentDueOrderId
+      ? router.push(`/order/${summary.paymentDueOrderId}`)
+      : goToActiveOrders();
 
   const displayName = user?.name ?? dealer?.ownerName ?? 'Dealer';
   const greeting = greetingForHour(new Date().getHours());
@@ -133,7 +141,7 @@ export default function HomeScreen() {
         </LargeTitleHeader>
 
         <View style={styles.sections}>
-          <SearchPill onPress={() => setSearchOpen(true)} />
+          <SearchPill onPress={() => router.push('/search')} />
 
           <VehiclePickerCard />
 
@@ -162,14 +170,14 @@ export default function HomeScreen() {
             inTransit={summary.ordersInTransit}
             processing={summary.processingOrders}
             pendingPayments={summary.pendingPaymentOrders}
-            onOutstanding={goToOrders}
-            onInTransit={trackShipment}
-            onProcessing={goToOrders}
-            onPendingPayments={goToOrders}
+            onOutstanding={goToActiveOrders}
+            onInTransit={openInTransit}
+            onProcessing={goToActiveOrders}
+            onPendingPayments={openPendingPayments}
           />
 
           <QuickActions
-            onSearch={() => setSearchOpen(true)}
+            onWishlist={() => router.push('/wishlist')}
             onTrack={trackShipment}
             onInvoices={() => router.push('/invoices')}
             onSupport={() => router.push('/contact')}
@@ -212,7 +220,6 @@ export default function HomeScreen() {
         <NotificationBell onPress={() => router.push('/notifications')} />
       </View>
 
-      <SearchSheet visible={searchOpen} onClose={() => setSearchOpen(false)} />
     </View>
   );
 }

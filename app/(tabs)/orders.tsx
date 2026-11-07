@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -101,6 +101,14 @@ export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const { scrollY, onScroll } = useLargeTitleScroll();
   const [filter, setFilter] = useState<Filter>('all');
+
+  // Home's summary cards open this tab with ?filter=active (plus a timestamp so
+  // a repeat tap re-applies it after the dealer changed the filter here).
+  const params = useLocalSearchParams<{ filter?: string; at?: string }>();
+  useEffect(() => {
+    const requested = FILTER_OPTIONS.find((o) => o.value === params.filter)?.value;
+    if (requested) setFilter(requested);
+  }, [params.filter, params.at]);
   const [refreshing, setRefreshing] = useState(false);
 
   const {

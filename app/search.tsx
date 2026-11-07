@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/api/hooks/useCategories';
@@ -12,8 +12,10 @@ import { Image } from '@/components/ui';
 import { useGridColumns } from '@/hooks/use-grid-columns';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
+import { SEARCH_PLACEHOLDER } from '@/src/components/home/SearchPill';
 import { EmptyState, Skeleton, SkeletonProductCard } from '@/src/components/ui';
-import { colors, font, radii, textStyles } from '@/src/theme';
+import { SearchBar } from '@/src/components/ui/SearchBar';
+import { colors, font, radii, screenPaddingX, textStyles } from '@/src/theme';
 import { POPULAR_SEARCHES } from '@/constants/popularSearches';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useRecentSearchesStore } from '@/stores/recentSearchesStore';
@@ -25,13 +27,20 @@ import { isOutOfStock } from '@/utils/stock';
 
 const DEFAULT_FILTERS: CatalogFilters = { categorySlug: null, inStockOnly: false, sort: 'default' };
 
-const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: ProductSuggestion }) {
+// Dealers mostly search by part number, so it leads the second line.
+const SuggestionRow = memo(function SuggestionRow({
+  suggestion,
+  onOpen,
+}: {
+  suggestion: ProductSuggestion;
+  onOpen: (suggestion: ProductSuggestion) => void;
+}) {
   return (
     <Pressable
-      onPress={() => router.push(`/product/${suggestion.id}`)}
+      onPress={() => onOpen(suggestion)}
       style={({ pressed }) => [styles.suggestionRow, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${suggestion.name}, ${suggestion.categoryName}, ${suggestion.brand}`}
+      accessibilityLabel={`${suggestion.name}, part ${suggestion.partNumber}, ${suggestion.categoryName}`}
     >
       <Image
         source={getImageSource(suggestion.imageUrl)}
@@ -44,9 +53,10 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion }: { suggestion: 
           {suggestion.name}
         </Text>
         <Text style={styles.suggestionMeta} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-          {suggestion.categoryName} · {suggestion.brand}
+          {[suggestion.partNumber, suggestion.categoryName].filter(Boolean).join(' · ')}
         </Text>
       </View>
+      <Feather name="chevron-right" size={18} color={colors.ink3} />
     </Pressable>
   );
 });
@@ -79,9 +89,14 @@ function SuggestionSkeletons() {
 export default function SearchScreen() {
   const columns = useGridColumns();
   const insets = useSafeAreaInsets();
-  // The home Search sheet hands its text over as ?q= for the full results view.
+  // ?q= opens straight onto the results for that text.
   const { q } = useLocalSearchParams<{ q?: string }>();
-  const [query, setQuery] = useState(typeof q === 'string' ? q : '');
+  const initialQuery = typeof q === 'string' ? q : '';
+  const [query, setQuery] = useState(initialQuery);
+  // Pressing Search on the keyboard (or picking a recent/popular search) shows
+  // the full results even for a short query such as "H4"; typing again goes
+  // back to live suggestions.
+  const [submitted, setSubmitted] = useState(initialQuery.trim().length >= 2);
   const debouncedQuery = useDebouncedValue(query, 300);
   const selectedVehicle = useVehicleStore((s) => s.selectedVehicle);
 
@@ -118,16 +133,39 @@ export default function SearchScreen() {
   const hasActiveFilters = !!filters.categorySlug || filters.inStockOnly || filters.sort !== 'default';
 
   // Which body to show follows what's typed right now (<2 idle, 2-3 instant
-  // suggestions, 4+ results); the data behind it follows the debounced value.
-  // While the two differ the body shows skeletons instead of stale or
-  // unrelated content. A failed suggestions request falls through to results.
-  const trimmedLength = query.trim().length;
+  // suggestions, 4+ or submitted: results); the data behind it follows the
+  // debounced value. While the two differ the body shows skeletons instead of
+  // stale or unrelated content. A failed suggestions request falls through to
+  // results.
+  const trimmed = query.trim();
+  const trimmedLength = trimmed.length;
   const settling = query !== debouncedQuery;
   const mode: 'idle' | 'suggest' | 'results' =
-    trimmedLength < 2 ? 'idle' : trimmedLength < 4 && !suggestionsQuery.isError ? 'suggest' : 'results';
+    trimmedLength < 2
+      ? 'idle'
+      : trimmedLength < 4 && !submitted && !suggestionsQuery.isError
+        ? 'suggest'
+        : 'results';
   const suggestions = suggestionsQuery.data?.suggestions ?? [];
   const suggestionsLoading = settling || suggestionsQuery.isLoading;
   const resultsLoading = settling || resultsQuery.isLoading;
+
+  const changeQuery = (text: string) => {
+    setQuery(text);
+    setSubmitted(false);
+  };
+
+  const showResults = (text: string) => {
+    if (text.trim().length < 2) return;
+    setQuery(text);
+    recordSearch(text);
+    setSubmitted(true);
+  };
+
+  const openSuggestion = (suggestion: ProductSuggestion) => {
+    recordSearch(query);
+    router.push(`/product/${suggestion.id}`);
+  };
 
   const selectCategory = (category: Category) => {
     router.push(`/category/${category.slug}`);
@@ -149,55 +187,25 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+      {/* The same SearchBar as Categories and the pickers (Home's search field
+          is drawn to match it); here Cancel closes the screen. */}
       <View style={styles.header}>
-        <View style={styles.searchField}>
-          <Feather name="search" size={18} color={colors.ink3} />
-          <TextInput
-            autoFocus
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={() => recordSearch(query)}
-            placeholder="Search parts or part number"
-            placeholderTextColor={colors.ink3}
-            selectionColor={colors.accent}
-            style={styles.searchInput}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-            maxFontSizeMultiplier={1.2}
-            accessibilityRole="search"
-            accessibilityLabel="Search parts, brands, part numbers"
-          />
-          {query.length > 0 && (
-            <Pressable
-              onPress={() => setQuery('')}
-              style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
-              <Feather name="x-circle" size={18} color={colors.ink3} />
-            </Pressable>
-          )}
-        </View>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-        >
-          <Text style={styles.cancelLabel} maxFontSizeMultiplier={1.2}>
-            Cancel
-          </Text>
-        </Pressable>
+        <SearchBar
+          autoFocus={!initialQuery}
+          value={query}
+          onChangeText={changeQuery}
+          onSubmitEditing={() => showResults(query)}
+          onCancel={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          placeholder={SEARCH_PLACEHOLDER}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
       </View>
 
       {mode === 'idle' ? (
         <SearchSuggestions
           recentSearches={recentSearches}
-          onSelectSearch={(q) => {
-            setQuery(q);
-            recordSearch(q);
-          }}
+          onSelectSearch={showResults}
           onRemoveRecent={removeRecentSearch}
           onClearRecent={clearRecentSearches}
           popularSearches={POPULAR_SEARCHES}
@@ -213,7 +221,7 @@ export default function SearchScreen() {
           <FlatList
             data={suggestions}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <SuggestionRow suggestion={item} />}
+            renderItem={({ item }) => <SuggestionRow suggestion={item} onOpen={openSuggestion} />}
             ItemSeparatorComponent={SuggestionSeparator}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -225,9 +233,29 @@ export default function SearchScreen() {
                   HapticService.light();
                   suggestionsQuery.refetch();
                 }}
-                tintColor={colors.link}
-                colors={[colors.link]}
+                tintColor={colors.ink3}
+                colors={[colors.ink3]}
               />
+            }
+            ListFooterComponent={
+              suggestions.length > 0 ? (
+                <>
+                  <SuggestionSeparator />
+                  <Pressable
+                    onPress={() => showResults(query)}
+                    style={({ pressed }) => [styles.suggestionRow, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`See all results for ${trimmed}`}
+                  >
+                    <View style={styles.seeAllIcon}>
+                      <Feather name="search" size={18} color={colors.link} />
+                    </View>
+                    <Text style={styles.seeAllLabel} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                      {`See all results for "${trimmed}"`}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null
             }
             ListEmptyComponent={noResults}
           />
@@ -287,11 +315,11 @@ export default function SearchScreen() {
                   HapticService.light();
                   resultsQuery.refetch();
                 }}
-                tintColor={colors.link}
-                colors={[colors.link]}
+                tintColor={colors.ink3}
+                colors={[colors.ink3]}
               />
             }
-            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.link} /> : null}
+            ListFooterComponent={resultsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.ink3} /> : null}
             ListEmptyComponent={
               resultsLoading ? (
                 <View style={styles.loadingGrid} accessibilityLabel="Loading results" accessibilityLiveRegion="polite">
@@ -323,30 +351,15 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   pressed: { opacity: 0.6 },
 
-  // Search bar row: bgAlt field + a plain "Cancel" on the right, hairline below.
+  // Search bar row: the shared SearchBar with Cancel, hairline below.
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: screenPaddingX,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.line,
   },
-  searchField: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 44,
-    borderRadius: radii.input,
-    paddingLeft: 12,
-    backgroundColor: colors.bgAlt,
-  },
-  searchInput: { flex: 1, ...font(400), fontSize: 17, letterSpacing: -0.34, color: colors.ink, paddingVertical: 8 },
-  clearButton: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  cancelButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingLeft: 4 },
-  cancelLabel: { ...textStyles.body, color: colors.link },
+  seeAllIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  seeAllLabel: { flex: 1, ...font(600), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.link },
 
   // Instant suggestions
   suggestionRow: {

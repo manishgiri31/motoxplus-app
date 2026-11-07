@@ -69,16 +69,13 @@ export function SearchSuggestions({
               ))}
             </View>
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.chipRow}
-            >
+            // Wrapped, not a horizontal scroller: with only a handful of chips
+            // the last one stopped at the screen edge and looked cut off.
+            <View style={styles.chipWrap}>
               {suggestedCategories.map((category) => (
                 <Chip key={category.id} label={category.name} onPress={() => onSelectCategory(category)} />
               ))}
-            </ScrollView>
+            </View>
           )}
         </View>
       )}
@@ -87,16 +84,11 @@ export function SearchSuggestions({
         <Text style={[styles.sectionTitle, styles.inset]} accessibilityRole="header" maxFontSizeMultiplier={1.2}>
           Popular searches
         </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.chipRow}
-        >
+        <View style={styles.chipWrap}>
           {popularSearches.map((q) => (
             <Chip key={q} label={q} onPress={() => onSelectSearch(q)} />
           ))}
-        </ScrollView>
+        </View>
       </View>
     </ScrollView>
   );
@@ -147,6 +139,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { ...textStyles.cardTitle },
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, rowGap: 12, paddingHorizontal: 20 },
   recentRow: { flexDirection: 'row', alignItems: 'center' },
   recentMain: { flex: 1 },
   remove: { width: 52, minHeight: 52, alignItems: 'center', justifyContent: 'center' },

@@ -29,8 +29,16 @@ export function useDealerSummary() {
 
     const outstandingBalance = active.reduce((sum, o) => sum + o.amountDue, 0);
     const ordersInTransit = active.filter((o) => o.status === 'SHIPPED').length;
-    const processingOrders = active.filter((o) => o.status === 'PENDING' || o.status === 'CONFIRMED').length;
-    const pendingPaymentOrders = active.filter((o) => o.amountDue > 0).length;
+    // Paid and being prepared: the orders the Orders list labels Confirmed or
+    // Processing. (Unpaid PENDING orders are counted under pending payments,
+    // not here, so no order is counted twice.)
+    const processingOrders = active.filter((o) => o.status === 'CONFIRMED' || o.status === 'PROCESSING').length;
+    // Orders still waiting for the dealer to pay online. A confirmed advance
+    // order's remaining 80% is collected on delivery, so it isn't one of these.
+    const awaitingPayment = [...active]
+      .filter((o) => o.status === 'PENDING' && o.amountDue > 0)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+    const pendingPaymentOrders = awaitingPayment.length;
 
     const recentOrders = [...orders]
       .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
@@ -56,6 +64,8 @@ export function useDealerSummary() {
       ordersInTransit,
       processingOrders,
       pendingPaymentOrders,
+      /** The newest order awaiting payment, for jumping straight to it. */
+      paymentDueOrderId: awaitingPayment[0]?.id ?? null,
       recentOrders,
       recentlyOrderedProducts,
       lowStockProducts,
