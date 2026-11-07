@@ -9,6 +9,7 @@ import { Truck } from '@/components/icons/Truck';
 import { Button, EmptyState, ErrorState, Skeleton } from '@/src/components/ui';
 import { Timeline, type TimelineItem } from '@/src/components/ui/Timeline';
 import { colors, radii, screenPaddingX, sectionGap, space, textStyles } from '@/src/theme';
+import { formatDate, formatDateTime } from '@/utils/format';
 import { isHttpsUrl } from '@/utils/url';
 
 // The carrier's status text is free-form, so match on keywords: a truck for
@@ -60,7 +61,7 @@ export default function OrderTrackingScreen() {
       key: `${event.timestamp}-${i}`,
       title: event.status,
       detail: event.activity,
-      meta: `${event.location} · ${new Date(event.timestamp).toLocaleString('en-IN')}`,
+      meta: `${event.location} · ${formatDateTime(event.timestamp)}`,
       state: i === 0 && marker.icon !== PackageCheck ? 'current' : 'done',
       ...marker,
     };
@@ -90,11 +91,11 @@ export default function OrderTrackingScreen() {
             ) : null}
             {data.estimatedDelivery && (
               <Text style={styles.detail} maxFontSizeMultiplier={1.2}>
-                {`Estimated delivery: ${new Date(data.estimatedDelivery).toLocaleDateString('en-IN')}`}
+                {`Estimated delivery: ${formatDate(data.estimatedDelivery)}`}
               </Text>
             )}
             <Text style={styles.caption} maxFontSizeMultiplier={1.2}>
-              {`Last updated ${new Date(data.lastUpdate).toLocaleString('en-IN')}`}
+              {`Last updated ${formatDateTime(data.lastUpdate)}`}
             </Text>
           </View>
 

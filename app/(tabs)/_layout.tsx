@@ -30,7 +30,13 @@ export default function TabLayout() {
         // and are the `color` handed to each tabBarIcon below.
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.ink3,
-        tabBarLabelStyle: { fontFamily: fonts.body.medium, fontSize: 12, letterSpacing: -0.12 },
+        // React Navigation sizes its 49pt bar for a 28pt icon box and a 10pt
+        // label. With our 12pt Inter label that overflowed by ~4pt: clipped
+        // on web, pressed against the bottom edge on phones. Fit the box to
+        // the 24pt icon and pin the label's line height so 5 + 24 + 14 + 5
+        // fits the bar without changing its height.
+        tabBarLabelStyle: { fontFamily: fonts.body.medium, fontSize: 12, lineHeight: 14, letterSpacing: -0.12 },
+        tabBarIconStyle: { height: iconSizes.tabBar },
         tabBarBackground: () => <TabBarBackground />,
         tabBarStyle: {
           backgroundColor: 'transparent',

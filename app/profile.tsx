@@ -11,20 +11,22 @@ import { StatusBadge } from '@/src/components/ui/StatusBadge';
 import { colors, font, layout, screenPaddingX, sectionGap, space } from '@/src/theme';
 
 // One read-only field: small ink2 label above the value (same layout as the
-// grouped InputField), optional trailing badge. Selectable so a dealer can
-// copy their GST number or address.
+// grouped InputField). An optional badge sits on the label line, so a long
+// value such as an email keeps the full row width instead of breaking
+// mid-word next to it. Selectable so a dealer can copy their GST number or
+// address.
 function FieldRow({ label, value, trailing, tabular }: { label: string; value: string; trailing?: ReactNode; tabular?: boolean }) {
   return (
     <View accessible accessibilityLabel={`${label}, ${value}`} style={styles.field}>
-      <View style={styles.fieldText}>
+      <View style={styles.fieldLabelRow}>
         <Text style={styles.fieldLabel} maxFontSizeMultiplier={layout.maxFontScale}>
           {label}
         </Text>
-        <Text selectable style={[styles.fieldValue, tabular && styles.tabular]} maxFontSizeMultiplier={layout.maxFontScale}>
-          {value}
-        </Text>
+        {trailing}
       </View>
-      {trailing}
+      <Text selectable style={[styles.fieldValue, tabular && styles.tabular]} maxFontSizeMultiplier={layout.maxFontScale}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -113,14 +115,13 @@ const styles = StyleSheet.create({
   status: { alignItems: 'flex-start' },
   field: {
     minHeight: layout.rowMinHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
+    justifyContent: 'center',
+    gap: 2,
     paddingHorizontal: layout.rowInset,
     paddingVertical: space.md,
   },
-  fieldText: { flex: 1, gap: 2 },
-  fieldLabel: { ...font(400), fontSize: 12, lineHeight: 16, color: colors.ink2 },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  fieldLabel: { flexShrink: 1, ...font(400), fontSize: 12, lineHeight: 16, color: colors.ink2 },
   fieldValue: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink },
   tabular: { fontVariant: ['tabular-nums'] },
   support: { alignItems: 'center', marginTop: -space.md },

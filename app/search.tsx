@@ -157,7 +157,7 @@ export default function SearchScreen() {
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={() => recordSearch(query)}
-            placeholder="Search parts, brands, part numbers"
+            placeholder="Search parts or part number"
             placeholderTextColor={colors.ink3}
             selectionColor={colors.accent}
             style={styles.searchInput}

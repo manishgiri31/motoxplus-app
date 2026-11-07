@@ -8,6 +8,26 @@ export function formatCurrency(amount: number): string {
   return inrFormatter.format(amount);
 }
 
+const dateTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+const dateFormatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** "6 Nov 2026, 10:30 am" — the app's date format plus the time, no seconds. */
+export function formatDateTime(iso: string | Date): string {
+  return dateTimeFormatter.format(typeof iso === 'string' ? new Date(iso) : iso);
+}
+
+/** "6 Nov 2026" — the date format used across the app. */
+export function formatDate(iso: string | Date): string {
+  return dateFormatter.format(typeof iso === 'string' ? new Date(iso) : iso);
+}
+
 /** Percentage off MRP, rounded down. Returns null when there's nothing to show. */
 export function discountPercent(price: number, mrp: number | null): number | null {
   if (!mrp || mrp <= price) return null;

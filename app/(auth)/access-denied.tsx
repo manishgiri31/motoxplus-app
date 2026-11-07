@@ -42,7 +42,7 @@ export default function AccessDeniedScreen() {
 
         <View style={styles.textBlock}>
           <Text accessibilityRole="header" aria-level={1} style={styles.title} maxFontSizeMultiplier={1.2}>
-            Dealer Access Required
+            Dealer access required
           </Text>
           <Text style={styles.body} maxFontSizeMultiplier={1.2}>
             This app is available only for approved MotoXPlus dealers.
@@ -54,7 +54,7 @@ export default function AccessDeniedScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Button label="Apply on Website" variant="primary" fullWidth onPress={() => Linking.openURL(DEALER_APPLICATION_URL)} />
+          <Button label="Apply on website" variant="primary" fullWidth onPress={() => Linking.openURL(DEALER_APPLICATION_URL)} />
           <Button label="Back to sign in" variant="link" hideChevron onPress={backToSignIn} />
         </View>
       </View>

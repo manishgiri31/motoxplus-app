@@ -227,7 +227,9 @@ export default function ProductDetailScreen() {
           contentContainerStyle={styles.chipRow}
         >
           <StatusBadge label={stockLabel(product)} tone={outOfStock ? 'danger' : isFewLeft(product) ? 'warning' : 'success'} />
-          {product.warranty && product.warranty !== 'No Warranty' && <StatusBadge label={product.warranty} tone="neutral" />}
+          {!!product.warranty && !/^no warranty$/i.test(product.warranty.trim()) && (
+            <StatusBadge label={product.warranty} tone="neutral" />
+          )}
           <SpecCapsule label="Part No." value={product.partNumber} />
           <SpecCapsule label="HSN" value={product.hsnCode} />
           <SpecCapsule label="MOQ" value={String(product.moq)} />

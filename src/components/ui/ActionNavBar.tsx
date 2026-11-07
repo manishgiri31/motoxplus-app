@@ -56,7 +56,8 @@ export function ActionNavBar({ title, onBack, action, scrollY }: ActionNavBarPro
           accessibilityLabel="Go back"
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}
         >
-          <Feather name="chevron-left" size={28} color={colors.link} />
+          {/* Ink, like the back button in the native headers and on product pages. */}
+          <Feather name="chevron-left" size={28} color={colors.ink} />
         </Pressable>
 
         <Animated.Text

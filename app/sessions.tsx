@@ -1,20 +1,31 @@
-import { Feather } from '@expo/vector-icons';
+import type { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRevokeSession, useSessions } from '@/api/hooks/useSessions';
 import { getErrorMessage } from '@/api/errors';
 import type { UserSessionInfo } from '@/api/types';
-import { Badge, Card, ErrorState, SkeletonListRow, Toast } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
+import { ErrorState, GroupedList, ListRow, Skeleton, Toast } from '@/src/components/ui';
+import { StatusBadge } from '@/src/components/ui/StatusBadge';
+import { colors, font, layout, radii, screenPaddingX, sectionGap, space } from '@/src/theme';
+import { formatDateTime } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const DEVICE_ICON: Record<string, React.ComponentProps<typeof Feather>['name']> = {
-  Mobile: 'smartphone',
-  Tablet: 'tablet',
-  Desktop: 'monitor',
-};
+type IconName = React.ComponentProps<typeof Feather>['name'];
+
+// deviceInfo is free text from the server ("Samsung Galaxy M34 · Android 14",
+// "Chrome on Windows 11"), so pick the icon by keyword.
+function deviceIcon(deviceInfo: string): IconName {
+  if (/ipad|tablet/i.test(deviceInfo)) return 'tablet';
+  if (/android|iphone|ios|mobile|phone/i.test(deviceInfo)) return 'smartphone';
+  return 'monitor';
+}
+
+function sessionSubtitle(session: UserSessionInfo, isCurrent: boolean) {
+  const active = isCurrent ? 'Active now' : `Last active ${formatDateTime(session.lastUsedAt)}`;
+  return session.ipAddress ? `${active} · ${session.ipAddress}` : active;
+}
 
 export default function SessionsScreen() {
   const { data, isLoading, isError, error, refetch } = useSessions();
@@ -46,9 +57,9 @@ export default function SessionsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.screen} edges={['bottom']}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <SkeletonListRow key={i} />
-        ))}
+        <View style={styles.content}>
+          <Skeleton height={3 * 68} radius={radii.card} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -61,57 +72,75 @@ export default function SessionsScreen() {
     );
   }
 
+  // The current device first, then the most recently used.
+  const sessions = [...data.sessions].sort((a, b) =>
+    a.id === data.currentSessionId ? -1 : b.id === data.currentSessionId ? 1 : +new Date(b.lastUsedAt) - +new Date(a.lastUsedAt)
+  );
+
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <FlatList
-        data={data.sessions}
-        keyExtractor={(s) => s.id}
-        contentContainerStyle={styles.content}
-        renderItem={({ item }) => {
-          const isCurrent = item.id === data.currentSessionId;
-          return (
-            <Card style={styles.row}>
-              <Feather name={DEVICE_ICON[item.deviceInfo] ?? 'globe'} size={22} color={colors.ink} />
-              <View style={styles.rowInfo}>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.deviceLabel}>{item.deviceInfo}</Text>
-                  {isCurrent && <Badge label="This device" variant="brand" />}
-                </View>
-                {item.ipAddress && <Text style={styles.meta}>{item.ipAddress}</Text>}
-                <Text style={styles.meta}>Last active {new Date(item.lastUsedAt).toLocaleString('en-IN')}</Text>
-              </View>
-              {!isCurrent && (
-                <Pressable
-                  onPress={() => confirmRevoke(item)}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Sign out ${item.deviceInfo}`}
-                  disabled={revokingId === item.id}
-                >
-                  {revokingId === item.id ? (
-                    <ActivityIndicator size="small" color={colors.red} />
-                  ) : (
-                    <Feather name="log-out" size={18} color={colors.red} />
-                  )}
-                </Pressable>
-              )}
-            </Card>
-          );
-        }}
-        ListEmptyComponent={<Text style={styles.meta}>No active sessions.</Text>}
-      />
+      <ScrollView contentContainerStyle={styles.content}>
+        {sessions.length === 0 ? (
+          <Text style={styles.empty} maxFontSizeMultiplier={1.2}>
+            No active sessions.
+          </Text>
+        ) : (
+          <GroupedList footer="Signing out a device ends its session there straight away. You stay signed in on this phone.">
+            {sessions.map((session) => {
+              const isCurrent = session.id === data.currentSessionId;
+              const revoking = revokingId === session.id;
+              return (
+                <ListRow
+                  key={session.id}
+                  icon={deviceIcon(session.deviceInfo)}
+                  iconColor={isCurrent ? colors.success : colors.ink2}
+                  label={session.deviceInfo}
+                  subtitle={sessionSubtitle(session, isCurrent)}
+                  accessibilityLabel={`${session.deviceInfo}, ${sessionSubtitle(session, isCurrent)}${isCurrent ? ', this device' : ''}`}
+                  trailing={
+                    isCurrent ? (
+                      <StatusBadge label="This device" tone="success" />
+                    ) : (
+                      <Pressable
+                        onPress={() => confirmRevoke(session)}
+                        disabled={revoking}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Sign out ${session.deviceInfo}`}
+                        style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}
+                      >
+                        {revoking ? (
+                          <ActivityIndicator size="small" color={colors.red} />
+                        ) : (
+                          <Text style={styles.signOutLabel} maxFontSizeMultiplier={1.2}>
+                            Sign out
+                          </Text>
+                        )}
+                      </Pressable>
+                    )
+                  }
+                />
+              );
+            })}
+          </GroupedList>
+        )}
+      </ScrollView>
       {toastMessage && <Toast message={toastMessage} onHide={() => setToastMessage(null)} />}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  center: { alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, gap: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowInfo: { flex: 1, gap: 2 },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  deviceLabel: { fontFamily: fonts.body.semiBold, fontSize: 14, letterSpacing: -0.224, color: colors.ink },
-  meta: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: screenPaddingX, paddingTop: space.xl, paddingBottom: sectionGap },
+  empty: { ...font(400), fontSize: 17, lineHeight: 22, color: colors.ink2, textAlign: 'center', marginTop: space.x4 },
+  signOut: {
+    minHeight: layout.minTouchTarget,
+    minWidth: layout.minTouchTarget,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginRight: -space.sm,
+    paddingHorizontal: space.sm,
+  },
+  signOutLabel: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.red },
+  pressed: { opacity: 0.6 },
 });

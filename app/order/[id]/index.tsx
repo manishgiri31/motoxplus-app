@@ -16,7 +16,7 @@ import { Button, ErrorState, GroupedList, Skeleton, Toast } from '@/src/componen
 import { StatusBadge, type StatusTone } from '@/src/components/ui/StatusBadge';
 import { Timeline, type TimelineItem } from '@/src/components/ui/Timeline';
 import { colors, font, motion, radii, screenPaddingX, sectionGap, space, textStyles } from '@/src/theme';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, formatDateTime } from '@/utils/format';
 
 const REFUND_STATUS_TONE: Record<RefundStatus, StatusTone> = {
   INITIATED: 'neutral',
@@ -125,7 +125,7 @@ export default function OrderDetailScreen() {
               {`#${order.orderNumber}`}
             </Text>
             <Text style={styles.date} maxFontSizeMultiplier={1.2}>
-              {new Date(order.createdAt).toLocaleString('en-IN')}
+              {formatDateTime(order.createdAt)}
             </Text>
           </View>
           <StatusBadge label={orderStatusLabel[order.status]} tone={orderStatusBadgeTone[order.status]} />

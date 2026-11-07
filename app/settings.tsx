@@ -41,6 +41,14 @@ export default function SettingsScreen() {
     );
   };
 
+  // Same confirmation as the Sign out row on the Account tab.
+  const confirmLogout = () => {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: () => logout() },
+    ]);
+  };
+
   const closeConfirm = () => {
     if (deleting) return;
     setConfirmVisible(false);
@@ -71,7 +79,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GroupedList header="Account">
-          <ListRow label="Sign out" icon="log-out" iconColor={colors.ink2} onPress={logout} />
+          <ListRow label="Sign out" icon="log-out" iconColor={colors.ink2} onPress={confirmLogout} />
         </GroupedList>
 
         {/* Pushed to the bottom of the screen when the content is short. */}

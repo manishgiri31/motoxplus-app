@@ -17,12 +17,24 @@ interface SettingsState {
 // NativeWind colorScheme is always forced to 'light' regardless of pref,
 // including for anyone who already had 'dark'/'system' persisted from
 // before this lock.
+//
+// NativeWind throws if this runs outside a browser, which is what happens
+// while the web dev server renders a page in Node. Uncaught, that killed
+// `npm run web` on the first request. Native and the browser never throw here.
+function forceLightScheme() {
+  try {
+    colorScheme.set('light');
+  } catch {
+    // Server-side web render: nothing to set.
+  }
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       themePreference: 'system',
       setThemePreference: (pref) => {
-        colorScheme.set('light');
+        forceLightScheme();
         set({ themePreference: pref });
       },
     }),
@@ -30,7 +42,7 @@ export const useSettingsStore = create<SettingsState>()(
       name: 'mx_settings',
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => () => {
-        colorScheme.set('light');
+        forceLightScheme();
       },
     }
   )

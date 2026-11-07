@@ -1,45 +1,73 @@
 import { router } from 'expo-router';
 import { memo, useMemo } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAllOrders } from '@/api/hooks/useAllOrders';
 import type { Order, PaymentStatus } from '@/api/types';
-import { Badge, Card, EmptyState, ErrorState, MonoLabel, SkeletonListRow } from '@/src/components/ui';
-import { colors, fonts } from '@/src/theme';
-import { formatCurrency } from '@/utils/format';
+import { useFocusRing } from '@/hooks/use-focus-ring';
+import { EmptyState, ErrorState, Skeleton } from '@/src/components/ui';
+import { StatusBadge, type StatusTone } from '@/src/components/ui/StatusBadge';
+import { colors, font, radii, screenPaddingX, space, textStyles } from '@/src/theme';
+import { formatCurrency, formatDate } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 
-const paymentStatusVariant: Record<PaymentStatus, { label: string; variant: 'success' | 'brand' | 'neutral' | 'info' }> = {
-  PAID: { label: 'Paid', variant: 'success' },
-  PARTIAL: { label: 'Partial', variant: 'brand' },
-  PENDING: { label: 'Unpaid', variant: 'neutral' },
-  REFUNDED: { label: 'Refunded', variant: 'info' },
-  FAILED: { label: 'Payment failed', variant: 'brand' },
+const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: StatusTone }> = {
+  PAID: { label: 'Paid', tone: 'success' },
+  PARTIAL: { label: 'Partly paid', tone: 'warning' },
+  PENDING: { label: 'Unpaid', tone: 'neutral' },
+  REFUNDED: { label: 'Refunded', tone: 'neutral' },
+  FAILED: { label: 'Payment failed', tone: 'danger' },
 };
 
+// Same card as an order in the Orders tab: number and status on top, the
+// order and date underneath, the amount last.
 const InvoiceRow = memo(function InvoiceRow({ order }: { order: Order }) {
+  const focusRing = useFocusRing();
   const invoice = order.invoice!;
-  const status = paymentStatusVariant[order.paymentStatus];
+  const status = PAYMENT_STATUS[order.paymentStatus];
+  const date = formatDate(invoice.issuedAt ?? order.createdAt);
 
   return (
-    <Card onPress={() => router.push(`/invoice/${order.id}`)} accessibilityLabel={`Invoice ${invoice.invoiceNumber}`} style={styles.card}>
-      <View style={styles.row}>
-        <View style={styles.left}>
-          <MonoLabel color="ink" style={styles.invoiceNumber}>{`#${invoice.invoiceNumber}`}</MonoLabel>
-          <Text style={styles.orderLine}>
-            Order #{order.orderNumber} ·{' '}
-            {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </Text>
-        </View>
-        <View style={styles.right}>
-          <Text style={styles.amount}>{formatCurrency(invoice.grandTotal)}</Text>
-          <Badge label={status.label} variant={status.variant} />
-        </View>
+    <Pressable
+      onPress={() => {
+        HapticService.light();
+        router.push(`/invoice/${order.id}`);
+      }}
+      onFocus={focusRing.onFocus}
+      onBlur={focusRing.onBlur}
+      accessibilityRole="button"
+      accessibilityLabel={`Invoice ${invoice.invoiceNumber}, order ${order.orderNumber}, ${date}, ${formatCurrency(invoice.grandTotal)}, ${status.label}`}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed, focusRing.ringStyle]}
+    >
+      <View style={styles.topRow}>
+        <Text style={styles.invoiceNumber} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          {invoice.invoiceNumber}
+        </Text>
+        <StatusBadge label={status.label} tone={status.tone} />
       </View>
-    </Card>
+      <Text style={styles.meta} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+        {`Order #${order.orderNumber} · ${date}`}
+      </Text>
+      <Text style={styles.amount} maxFontSizeMultiplier={1.2}>
+        {formatCurrency(invoice.grandTotal)}
+      </Text>
+    </Pressable>
   );
 });
+
+function InvoiceRowSkeleton() {
+  return (
+    <View style={styles.card}>
+      <View style={styles.topRow}>
+        <Skeleton width="45%" height={22} radius={6} />
+        <Skeleton width={56} height={24} radius={radii.pill} />
+      </View>
+      <Skeleton width="60%" height={20} radius={6} />
+      <Skeleton width="28%" height={22} radius={6} />
+    </View>
+  );
+}
 
 export default function InvoicesScreen() {
   const { data, isLoading, isError, error, refetch, isFetching } = useAllOrders();
@@ -55,12 +83,9 @@ export default function InvoicesScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.screen} edges={['bottom']}>
-        <View style={styles.header}>
-          <Text accessibilityRole="header" aria-level={1} style={styles.title}>Invoices</Text>
-        </View>
         <View style={styles.listContent}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonListRow key={i} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <InvoiceRowSkeleton key={i} />
           ))}
         </View>
       </SafeAreaView>
@@ -77,10 +102,6 @@ export default function InvoicesScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <View style={styles.header}>
-        <Text accessibilityRole="header" aria-level={1} style={styles.title}>Invoices</Text>
-      </View>
-
       <FlatList
         data={invoices}
         keyExtractor={(item) => item.id}
@@ -93,8 +114,8 @@ export default function InvoicesScreen() {
               HapticService.light();
               refetch();
             }}
-            tintColor={colors.link}
-            colors={[colors.link]}
+            tintColor={colors.ink3}
+            colors={[colors.ink3]}
           />
         }
         ListEmptyComponent={
@@ -107,7 +128,11 @@ export default function InvoicesScreen() {
           />
         }
         ListFooterComponent={
-          data?.truncated ? <Text style={styles.footerNote}>Showing invoices from your most recent orders.</Text> : null
+          data?.truncated ? (
+            <Text style={styles.footerNote} maxFontSizeMultiplier={1.2}>
+              Showing invoices from your most recent orders.
+            </Text>
+          ) : null
         }
       />
     </SafeAreaView>
@@ -115,17 +140,14 @@ export default function InvoicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  title: { fontFamily: fonts.display.extraBold, fontSize: 28, letterSpacing: -0.42, color: colors.ink },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  listContent: { paddingHorizontal: screenPaddingX, paddingTop: space.xl, paddingBottom: space.xxl, gap: space.md },
   emptyContent: { flexGrow: 1 },
-  card: { gap: 0 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  left: { flex: 1, gap: 4 },
-  invoiceNumber: { fontSize: 14, letterSpacing: -0.224 },
-  orderLine: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted },
-  right: { alignItems: 'flex-end', gap: 6 },
-  amount: { fontFamily: fonts.display.bold, fontSize: 17, letterSpacing: -0.374, color: colors.ink, textAlign: 'right' },
-  footerNote: { fontFamily: fonts.body.regular, fontSize: 12, letterSpacing: -0.12, color: colors.muted, textAlign: 'center', paddingVertical: 16, paddingHorizontal: 16 },
+  card: { gap: space.sm, padding: space.lg, borderRadius: radii.card, backgroundColor: colors.bgAlt },
+  pressed: { opacity: 0.6 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  invoiceNumber: { flexShrink: 1, ...textStyles.headline, fontVariant: ['tabular-nums'] },
+  meta: { ...textStyles.callout },
+  amount: { ...textStyles.headline, ...font(600), fontVariant: ['tabular-nums'] },
+  footerNote: { ...textStyles.caption, color: colors.ink3, textAlign: 'center', paddingVertical: space.lg },
 });
