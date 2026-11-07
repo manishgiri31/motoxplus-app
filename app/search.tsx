@@ -10,6 +10,7 @@ import type { Category, Product, ProductSuggestion } from '@/api/types';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
 import { Image } from '@/components/ui';
 import { useGridColumns } from '@/hooks/use-grid-columns';
+import { useLightStatusBar } from '@/hooks/use-light-status-bar';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
 import { SEARCH_PLACEHOLDER } from '@/src/components/home/SearchPill';
@@ -87,6 +88,7 @@ function SuggestionSkeletons() {
 }
 
 export default function SearchScreen() {
+  useLightStatusBar();
   const columns = useGridColumns();
   const insets = useSafeAreaInsets();
   // ?q= opens straight onto the results for that text.
@@ -187,10 +189,11 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      {/* The same SearchBar as Categories and the pickers (Home's search field
-          is drawn to match it); here Cancel closes the screen. */}
+      {/* Same red band and white field as Home's search, so tapping it there
+          reads as focusing this field; Cancel closes the screen. */}
       <View style={styles.header}>
         <SearchBar
+          tone="onAccent"
           autoFocus={!initialQuery}
           value={query}
           onChangeText={changeQuery}
@@ -202,6 +205,7 @@ export default function SearchScreen() {
         />
       </View>
 
+      <View style={styles.body}>
       {mode === 'idle' ? (
         <SearchSuggestions
           recentSearches={recentSearches}
@@ -336,6 +340,7 @@ export default function SearchScreen() {
           />
         </>
       )}
+      </View>
       <CatalogFilterSheet
         visible={filterSheetOpen}
         categories={categoriesQuery.data}
@@ -348,16 +353,12 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  // Red behind the status bar and the search band; the body is white.
+  screen: { flex: 1, backgroundColor: colors.accent },
+  body: { flex: 1, backgroundColor: colors.bg },
   pressed: { opacity: 0.6 },
 
-  // Search bar row: the shared SearchBar with Cancel, hairline below.
-  header: {
-    paddingHorizontal: screenPaddingX,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-  },
+  header: { paddingHorizontal: screenPaddingX, paddingTop: 4, paddingBottom: 12, backgroundColor: colors.accent },
   seeAllIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   seeAllLabel: { flex: 1, ...font(600), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.link },
 

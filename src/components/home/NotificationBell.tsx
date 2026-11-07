@@ -9,10 +9,12 @@ export interface NotificationBellProps {
   onPress: () => void;
   /** Shows the unread dot. */
   unread?: boolean;
+  /** Icon colour; white on the red Home header. */
+  color?: string;
 }
 
 // Icon-only button: 44x44 target, labelled for VoiceOver / TalkBack.
-export function NotificationBell({ onPress, unread = false }: NotificationBellProps) {
+export function NotificationBell({ onPress, unread = false, color = colors.ink }: NotificationBellProps) {
   const focusRing = useFocusRing();
   return (
     <Pressable
@@ -26,7 +28,7 @@ export function NotificationBell({ onPress, unread = false }: NotificationBellPr
       accessibilityLabel={unread ? 'Notifications, unread' : 'Notifications'}
       style={({ pressed }) => [styles.button, pressed && styles.pressed, focusRing.ringStyle]}
     >
-      <Bell size={24} color={colors.ink} />
+      <Bell size={24} color={color} />
       {unread && <View style={styles.dot} />}
     </Pressable>
   );

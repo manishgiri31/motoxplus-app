@@ -1,15 +1,19 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/api/hooks/useCategories';
 import { useDealerSummary } from '@/api/hooks/useDealerSummary';
 import { useProducts } from '@/api/hooks/useProducts';
+import type { Product } from '@/api/types';
 import { useAuth } from '@/auth/useAuth';
 import { BannerCarousel, type BannerSlide } from '@/components/BannerCarousel';
+import { ChevronRight } from '@/components/icons/ChevronRight';
+import { MapPin } from '@/components/icons/MapPin';
 import { dealerStatusBadgeTone, dealerStatusLabel } from '@/constants/dealerStatus';
+import { useLightStatusBar } from '@/hooks/use-light-status-bar';
 import { CategoryRail, CategoryRailSkeleton } from '@/src/components/catalog/CategoryRail';
 import { MoreSection } from '@/src/components/home/MoreSection';
 import { NotificationBell } from '@/src/components/home/NotificationBell';
@@ -19,10 +23,9 @@ import { SearchPill } from '@/src/components/home/SearchPill';
 import { SectionError } from '@/src/components/home/SectionError';
 import { SectionHeader } from '@/src/components/home/SectionHeader';
 import { StatGrid } from '@/src/components/home/StatGrid';
-import { CompactTitleBar, LargeTitleHeader, useLargeTitleScroll } from '@/src/components/ui/LargeTitleHeader';
 import { StatusBadge } from '@/src/components/ui/StatusBadge';
 import { VehiclePickerCard } from '@/src/components/vehicle/VehiclePickerCard';
-import { colors, sectionGap, space, textStyles } from '@/src/theme';
+import { alpha, colors, font, screenPaddingX, space, textStyles } from '@/src/theme';
 import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { discountPercent, formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
@@ -33,28 +36,45 @@ import { HapticService } from '@/utils/haptics';
 const PROMO_SLIDES: BannerSlide[] = [
   {
     id: 'genuine-parts',
-    eyebrow: 'Genuine Parts, Direct to Dealer',
+    tone: 'brand',
+    eyebrow: 'Genuine parts, direct to dealer',
     title: 'Order in minutes,\ndelivered nationwide.',
+    cta: 'Shop now',
+    onPress: () => router.push('/(tabs)/categories'),
   },
   {
     id: 'free-delivery',
-    eyebrow: 'Free Delivery',
+    tone: 'dark',
+    eyebrow: 'Free delivery',
     title: `Free shipping on orders\nover ${formatCurrency(FREE_DELIVERY_THRESHOLD)}.`,
+    cta: 'View cart',
+    onPress: () => router.push('/(tabs)/cart'),
   },
   {
     id: 'new-arrivals',
-    eyebrow: 'New This Week',
+    tone: 'brand',
+    eyebrow: 'New this week',
     title: 'Fresh stock added\nevery week.',
+    cta: 'Browse parts',
+    onPress: () => router.push('/(tabs)/categories'),
   },
 ];
-
-// Matches CompactTitleBar's height: the slot above the large title where the bell sits.
-const NAV_BAR_HEIGHT = 44;
 
 function greetingForHour(hour: number): string {
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+// A rail renders nothing once loaded with no products; skip its white block too.
+function railVisible(products: Product[], loading: boolean, error: boolean) {
+  return loading || error || products.length > 0;
+}
+
+// White content block on the grey page, the marketplace layout: blocks are
+// separated by the grey showing through.
+function Block({ children }: { children: ReactNode }) {
+  return <View style={styles.block}>{children}</View>;
 }
 
 export default function HomeScreen() {
@@ -63,7 +83,7 @@ export default function HomeScreen() {
   const summaryQuery = useDealerSummary();
   const productsQuery = useProducts({ pageSize: 20 });
   const categoriesQuery = useCategories();
-  const { scrollY, onScroll } = useLargeTitleScroll();
+  useLightStatusBar();
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -103,50 +123,69 @@ export default function HomeScreen() {
   const displayName = user?.name ?? dealer?.ownerName ?? 'Dealer';
   const greeting = greetingForHour(new Date().getHours());
   const categories = categoriesQuery.data ?? [];
-  const navBarHeight = insets.top + NAV_BAR_HEIGHT;
+  const deliverTo = [dealer?.city, dealer?.pincode].filter(Boolean).join(' ');
 
   return (
     <View style={styles.screen}>
+      {/* Red behind the status bar; the header below continues it. */}
+      <View style={[styles.statusBand, { height: insets.top }]} />
+
       <Animated.ScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={16}
+        // The search band (child 1) pins under the status bar once the
+        // greeting has scrolled away, like a marketplace app's search.
+        stickyHeaderIndices={[1]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: navBarHeight, paddingBottom: sectionGap + space.lg }}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.ink3}
-            colors={[colors.ink3]}
-            progressViewOffset={navBarHeight}
+            tintColor={colors.white}
+            colors={[colors.accent]}
           />
         }
       >
-        <LargeTitleHeader
-          eyebrow={greeting}
-          title={displayName}
-          subtitle={dealer?.companyName}
-          subtitleSize="small"
-          numberOfLines={1}
-          scrollY={scrollY}
+        {/* 0 — greeting and bell */}
+        <View style={styles.headerTop}>
+          {/* Keeps the pull-down overscroll red instead of grey. */}
+          <View style={styles.overscroll} />
+          <View style={styles.greetText}>
+            <Text style={styles.greet} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+              {`${greeting},`}
+            </Text>
+            <Text accessibilityRole="header" style={styles.name} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+              {displayName}
+            </Text>
+          </View>
+          <NotificationBell color={colors.white} onPress={() => router.push('/notifications')} />
+        </View>
+
+        {/* 1 — sticky search band */}
+        <View style={styles.searchBand}>
+          <SearchPill tone="onAccent" onPress={() => router.push('/search')} />
+        </View>
+
+        {/* 2 — deliver-to strip */}
+        <Pressable
+          onPress={() => router.push('/profile')}
+          accessibilityRole="button"
+          accessibilityLabel={`Deliver to ${dealer?.companyName ?? displayName}${deliverTo ? `, ${deliverTo}` : ''}. Opens your profile.`}
+          style={({ pressed }) => [styles.deliver, pressed && styles.pressed]}
         >
-          {dealer && (
-            <View style={styles.statusLine}>
-              <StatusBadge label={dealerStatusLabel[dealer.status]} tone={dealerStatusBadgeTone[dealer.status]} />
-              <Text style={styles.credit} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-                Credit limit {formatCurrency(dealer.creditLimit)}
-              </Text>
-            </View>
-          )}
-        </LargeTitleHeader>
+          <MapPin size={16} color={colors.white} />
+          <Text style={styles.deliverText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            {'Deliver to '}
+            <Text style={styles.deliverStrong}>{dealer?.companyName ?? displayName}</Text>
+            {deliverTo ? ` · ${deliverTo}` : ''}
+          </Text>
+          <ChevronRight size={16} color={colors.white} />
+        </Pressable>
 
-        <View style={styles.sections}>
-          <SearchPill onPress={() => router.push('/search')} />
-
-          <VehiclePickerCard />
-
+        {/* 3 — content blocks */}
+        <View style={styles.blocks}>
           {(categoriesQuery.isLoading || categoriesQuery.isError || categories.length > 0) && (
-            <View style={styles.section}>
+            <Block>
               <SectionHeader
                 title="Shop by category"
                 onSeeAll={categories.length > 0 ? () => router.push('/(tabs)/categories') : undefined}
@@ -158,78 +197,139 @@ export default function HomeScreen() {
               ) : (
                 <CategoryRail categories={categories.slice(0, 12)} />
               )}
-            </View>
+            </Block>
           )}
 
-          <StatGrid
-            loading={summaryQuery.isLoading}
-            error={summaryQuery.isError}
-            onRetry={() => summaryQuery.refetch()}
-            outstanding={formatCurrency(summary.outstandingBalance)}
-            outstandingDue={summary.outstandingBalance > 0}
-            inTransit={summary.ordersInTransit}
-            processing={summary.processingOrders}
-            pendingPayments={summary.pendingPaymentOrders}
-            onOutstanding={goToActiveOrders}
-            onInTransit={openInTransit}
-            onProcessing={goToActiveOrders}
-            onPendingPayments={openPendingPayments}
-          />
+          <Block>
+            <BannerCarousel slides={PROMO_SLIDES} />
+          </Block>
 
-          <QuickActions
-            onWishlist={() => router.push('/wishlist')}
-            onTrack={trackShipment}
-            onInvoices={() => router.push('/invoices')}
-            onSupport={() => router.push('/contact')}
-          />
+          {railVisible(offers, productsQuery.isLoading, productsQuery.isError) && (
+            <Block>
+              <ProductRail
+                title="Today's offers"
+                products={offers}
+                loading={productsQuery.isLoading}
+                error={productsQuery.isError}
+                onRetry={() => productsQuery.refetch()}
+              />
+            </Block>
+          )}
 
-          <BannerCarousel slides={PROMO_SLIDES} />
+          <Block>
+            <VehiclePickerCard />
+          </Block>
 
-          <ProductRail
-            title="Today's Offers"
-            products={offers}
-            loading={productsQuery.isLoading}
-            error={productsQuery.isError}
-            onRetry={() => productsQuery.refetch()}
-          />
+          <Block>
+            <View style={styles.accountHead}>
+              <SectionHeader title="Your account" />
+              {dealer && (
+                <View style={styles.statusLine}>
+                  <StatusBadge label={dealerStatusLabel[dealer.status]} tone={dealerStatusBadgeTone[dealer.status]} />
+                  <Text style={styles.credit} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    {`Credit limit ${formatCurrency(dealer.creditLimit)}`}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <StatGrid
+              loading={summaryQuery.isLoading}
+              error={summaryQuery.isError}
+              onRetry={() => summaryQuery.refetch()}
+              outstanding={formatCurrency(summary.outstandingBalance)}
+              outstandingDue={summary.outstandingBalance > 0}
+              inTransit={summary.ordersInTransit}
+              processing={summary.processingOrders}
+              pendingPayments={summary.pendingPaymentOrders}
+              onOutstanding={goToActiveOrders}
+              onInTransit={openInTransit}
+              onProcessing={goToActiveOrders}
+              onPendingPayments={openPendingPayments}
+            />
+            <View style={styles.actions}>
+              <QuickActions
+                onWishlist={() => router.push('/wishlist')}
+                onTrack={trackShipment}
+                onInvoices={() => router.push('/invoices')}
+                onSupport={() => router.push('/contact')}
+              />
+            </View>
+          </Block>
 
-          <ProductRail
-            title="Recently Ordered"
-            products={summary.recentlyOrderedProducts}
-            loading={summaryQuery.isLoading}
-            error={summaryQuery.isError}
-            onRetry={() => summaryQuery.refetch()}
-            onSeeAll={goToOrders}
-          />
+          {railVisible(summary.recentlyOrderedProducts, summaryQuery.isLoading, summaryQuery.isError) && (
+            <Block>
+              <ProductRail
+                title="Buy again"
+                products={summary.recentlyOrderedProducts}
+                loading={summaryQuery.isLoading}
+                error={summaryQuery.isError}
+                onRetry={() => summaryQuery.refetch()}
+                onSeeAll={goToOrders}
+              />
+            </Block>
+          )}
 
-          <ProductRail
-            title="Low Stock"
-            products={summary.lowStockProducts}
-            loading={summaryQuery.isLoading}
-            error={summaryQuery.isError}
-            onRetry={() => summaryQuery.refetch()}
-            stockBadge
-          />
+          {railVisible(summary.lowStockProducts, summaryQuery.isLoading, summaryQuery.isError) && (
+            <Block>
+              <ProductRail
+                title="Running low"
+                products={summary.lowStockProducts}
+                loading={summaryQuery.isLoading}
+                error={summaryQuery.isError}
+                onRetry={() => summaryQuery.refetch()}
+                stockBadge
+              />
+            </Block>
+          )}
 
-          <MoreSection recentOrders={summary.recentOrders.slice(0, 5)} recommended={recommended} />
+          <Block>
+            <MoreSection recentOrders={summary.recentOrders.slice(0, 5)} recommended={recommended} />
+          </Block>
         </View>
       </Animated.ScrollView>
-
-      <CompactTitleBar title={displayName} scrollY={scrollY} />
-      <View style={[styles.bell, { top: insets.top }]}>
-        <NotificationBell onPress={() => router.push('/notifications')} />
-      </View>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  sections: { paddingTop: space.lg, gap: sectionGap },
-  section: { gap: 4 },
-  statusLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  screen: { flex: 1, backgroundColor: colors.accent },
+  statusBand: { backgroundColor: colors.accent },
+  scroll: { flex: 1, backgroundColor: colors.bgAlt },
+  content: { paddingBottom: space.xxl },
+
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingLeft: screenPaddingX,
+    paddingRight: space.sm,
+    paddingTop: space.sm,
+    backgroundColor: colors.accent,
+  },
+  overscroll: { position: 'absolute', left: 0, right: 0, top: -600, height: 600, backgroundColor: colors.accent },
+  greetText: { flex: 1 },
+  greet: { ...font(400), fontSize: 14, lineHeight: 18, color: alpha(colors.white, 0.85) },
+  name: { ...font(700), fontSize: 22, lineHeight: 28, letterSpacing: -0.4, color: colors.white },
+
+  searchBand: { paddingHorizontal: screenPaddingX, paddingTop: space.sm, paddingBottom: space.md, backgroundColor: colors.accent },
+
+  deliver: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: screenPaddingX,
+    backgroundColor: colors.accentActive,
+  },
+  deliverText: { flex: 1, ...font(400), fontSize: 13, lineHeight: 18, color: alpha(colors.white, 0.9) },
+  deliverStrong: { ...font(600), color: colors.white },
+  pressed: { opacity: 0.8 },
+
+  blocks: { gap: space.sm, paddingTop: space.sm },
+  block: { backgroundColor: colors.white, paddingVertical: space.lg, gap: space.sm },
+
+  accountHead: { gap: 2 },
+  statusLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: screenPaddingX, marginBottom: space.sm },
   credit: { flexShrink: 1, ...textStyles.callout },
-  // Sits in the nav-bar slot above the large title, over the compact bar too.
-  bell: { position: 'absolute', right: space.sm, zIndex: 2 },
+  actions: { marginTop: space.md },
 });

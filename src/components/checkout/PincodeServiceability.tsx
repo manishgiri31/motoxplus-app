@@ -16,6 +16,8 @@ interface Props {
    * parent uses this to auto-fill city.
    */
   onResult?: (result: ShippingServiceabilityResponse | null) => void;
+  /** Drop the list-row padding, for use inside a block that pads itself (product page). */
+  inline?: boolean;
 }
 
 const PINCODE_REGEX = /^\d{6}$/;
@@ -30,7 +32,7 @@ function useDebouncedValue(value: string, delayMs: number) {
 }
 
 // Caption that sits under the pincode field, inside its list row.
-export function PincodeServiceability({ pincode, onResult }: Props) {
+export function PincodeServiceability({ pincode, onResult, inline = false }: Props) {
   const debounced = useDebouncedValue(pincode.trim(), 500);
   const valid = PINCODE_REGEX.test(debounced);
   const { data, isFetching, isError } = useServiceability(valid ? debounced : undefined);
@@ -67,7 +69,7 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
 
   if (isFetching && !data) {
     return (
-      <View style={styles.caption} accessibilityLiveRegion="polite">
+      <View style={[styles.caption, inline && styles.inline]} accessibilityLiveRegion="polite">
         <ActivityIndicator size="small" color={colors.ink3} />
         <Text style={styles.text} maxFontSizeMultiplier={1.2}>
           Checking delivery availability…
@@ -85,7 +87,7 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
     const city = data?.city;
     const days = data?.estimatedDeliveryDays;
     return (
-      <View style={styles.caption} accessibilityLiveRegion="polite">
+      <View style={[styles.caption, inline && styles.inline]} accessibilityLiveRegion="polite">
         <CircleCheck size={16} color={colors.success} />
         <Text style={styles.text} maxFontSizeMultiplier={1.2}>
           Deliverable{city ? ` — ${city}` : ''}
@@ -97,7 +99,7 @@ export function PincodeServiceability({ pincode, onResult }: Props) {
 
   // Non-blocking: the order still goes through and the team arranges delivery.
   return (
-    <View style={styles.caption} accessibilityLiveRegion="polite">
+    <View style={[styles.caption, inline && styles.inline]} accessibilityLiveRegion="polite">
       <Feather name="alert-circle" size={14} color={colors.warning} />
       <Text style={styles.text} maxFontSizeMultiplier={1.2}>
         {result.error ?? 'Delivery may not be available to this pincode.'} Your order will still be placed and our
@@ -115,5 +117,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingBottom: space.md,
   },
+  inline: { paddingHorizontal: 0, paddingBottom: 0 },
   text: { flex: 1, ...font(400), fontSize: 12, lineHeight: 16, color: colors.ink2 },
 });

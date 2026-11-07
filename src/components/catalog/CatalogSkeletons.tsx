@@ -22,7 +22,7 @@ export function CategoryCardSkeleton() {
   );
 }
 
-/** Mirrors <CatalogProductCard>: image block on top, then five text rows. */
+/** Mirrors <CatalogProductCard>: image block on top, then name, part, price rows. */
 export function ProductTileSkeleton() {
   const { fontScale } = useWindowDimensions();
   const scale = Math.min(Math.max(fontScale, 1), 1.2);
@@ -32,11 +32,13 @@ export function ProductTileSkeleton() {
         <Skeleton width="100%" height="100%" radius={radii.input} />
       </View>
       <View style={styles.tileBody}>
-        <Skeleton width="40%" height={12} radius={6} />
-        <Skeleton width="90%" height={17} radius={6} />
-        <Skeleton width="65%" height={17} radius={6} style={{ marginBottom: 22 * scale - 17 }} />
-        <Skeleton width="50%" height={12} radius={6} />
-        <Skeleton width="35%" height={17} radius={6} style={{ marginTop: 6 }} />
+        <View style={{ height: 40 * scale, gap: 6, justifyContent: 'center' }}>
+          <Skeleton width="90%" height={14} radius={6} />
+          <Skeleton width="65%" height={14} radius={6} />
+        </View>
+        <Skeleton width="45%" height={12} radius={6} />
+        <Skeleton width="40%" height={17} radius={6} style={{ marginTop: 6 }} />
+        <Skeleton width="55%" height={12} radius={6} />
       </View>
     </View>
   );
@@ -52,7 +54,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
   },
   categoryText: { gap: 6 },
-  tile: { flex: 1, overflow: 'hidden', backgroundColor: colors.bgAlt, borderRadius: radii.card },
+  tile: {
+    flex: 1,
+    overflow: 'hidden',
+    backgroundColor: colors.white,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+  },
   tileImage: { width: '100%', aspectRatio: 1, padding: 12, backgroundColor: colors.white },
-  tileBody: { padding: 12, gap: 6 },
+  tileBody: { paddingHorizontal: 10, paddingTop: 2, paddingBottom: 10, gap: 6 },
 });

@@ -1,7 +1,7 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useNavigation, router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,13 +10,19 @@ import { canAccessDealerApp } from '@/auth/access';
 import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct, useProducts } from '@/api/hooks/useProducts';
 import { ProductGallery } from '@/components/ProductGallery';
+import { BadgeCheck } from '@/components/icons/BadgeCheck';
+import { MapPin } from '@/components/icons/MapPin';
+import { RotateCcw } from '@/components/icons/RotateCcw';
+import { Truck } from '@/components/icons/Truck';
+import type { IconProps } from '@/components/icons/types';
 import { usePulseAnimation } from '@/hooks/use-pulse-animation';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
 import { ProductDetailSkeleton } from '@/src/components/catalog/ProductDetailSkeleton';
+import { ProductPrice } from '@/src/components/catalog/ProductPrice';
+import { PincodeServiceability } from '@/src/components/checkout/PincodeServiceability';
 import {
   Button,
-  EmptyState,
   ErrorState,
   FLOATING_NAV_HEIGHT,
   FloatingNavBar,
@@ -29,30 +35,63 @@ import {
   Toast,
   type SegmentedOption,
 } from '@/src/components/ui';
-import { colors, font, motion, screenPaddingX, sectionGap, textStyles } from '@/src/theme';
+import { colors, font, motion, screenPaddingX, space, textStyles } from '@/src/theme';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { FREE_DELIVERY_THRESHOLD } from '@/utils/cartTotals';
 import { groupCompatibility } from '@/utils/compatibility';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
 import { isFewLeft, isOutOfStock, stockLabel } from '@/utils/stock';
 
-type Tab = 'details' | 'compatible' | 'reviews';
+type Tab = 'details' | 'compatible';
 
 const TABS: readonly SegmentedOption<Tab>[] = [
-  { value: 'details', label: 'Details' },
-  { value: 'compatible', label: 'Compatible' },
-  { value: 'reviews', label: 'Reviews' },
+  { value: 'details', label: 'Description' },
+  { value: 'compatible', label: 'Compatible vehicles' },
 ];
 
 const COLLAPSED_VEHICLE_COUNT = 6;
 
-function SpecCapsule({ label, value }: { label: string; value: string }) {
+function hasWarranty(warranty: string | null | undefined): warranty is string {
+  return !!warranty && !/^no warranty$/i.test(warranty.trim());
+}
+
+// White block on the grey page; blocks are separated by the grey between them.
+function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <View style={styles.capsule}>
-      <Text style={styles.capsuleLabel} maxFontSizeMultiplier={1.2}>
+    <View style={styles.block}>
+      {!!title && (
+        <Text accessibilityRole="header" style={styles.blockTitle} maxFontSizeMultiplier={1.2}>
+          {title}
+        </Text>
+      )}
+      {children}
+    </View>
+  );
+}
+
+// One line of the delivery block: a small icon and a sentence.
+function InfoLine({ icon: Icon, children }: { icon: ComponentType<IconProps>; children: ReactNode }) {
+  return (
+    <View style={styles.infoLine}>
+      <View style={styles.infoIcon}>
+        <Icon size={18} color={colors.ink2} />
+      </View>
+      <View style={styles.infoText}>{children}</View>
+    </View>
+  );
+}
+
+// Specifications table: label column on the left, value on the right, hairlines between rows.
+function SpecRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View style={[styles.specRow, !last && styles.specDivider]} accessible accessibilityLabel={`${label}, ${value}`}>
+      <Text style={styles.specLabel} maxFontSizeMultiplier={1.2}>
         {label}
-        <Text style={styles.capsuleValue}>{`  ${value}`}</Text>
+      </Text>
+      <Text selectable style={styles.specValue} maxFontSizeMultiplier={1.2}>
+        {value}
       </Text>
     </View>
   );
@@ -86,6 +125,7 @@ export default function ProductDetailScreen() {
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
   // Re-adding while a toast is up restarts its 2.5s timer.
   const [toastKey, setToastKey] = useState(0);
+  const [buying, setBuying] = useState(false);
   const [vehiclesExpanded, setVehiclesExpanded] = useState(false);
   const [tab, setTab] = useState<Tab>('details');
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
@@ -132,31 +172,44 @@ export default function ProductDetailScreen() {
   const outOfStock = isOutOfStock(product);
   const primaryImage = product.productImages?.find((i) => i.isPrimary) ?? product.productImages?.[0];
   const visibleVehicles = vehiclesExpanded ? product.compatibility : product.compatibility.slice(0, COLLAPSED_VEHICLE_COUNT);
-  const showMrp = product.mrp != null && product.mrp > product.price;
-  const addLabel = outOfStock
-    ? 'Out of stock'
-    : isDealerApproved
-      ? `Add to cart · ${formatCurrency(product.price * quantity)}`
-      : 'Add to cart';
+  const warranty = hasWarranty(product.warranty) ? product.warranty : null;
+  const deliverTo = [dealer?.city, dealer?.pincode].filter(Boolean).join(' ');
 
-  const handleAddToCart = () => {
+  const specs = [
+    { label: 'Brand', value: product.brand },
+    { label: 'Part number', value: product.partNumber },
+    product.oemNumber ? { label: 'OEM number', value: product.oemNumber } : null,
+    { label: 'Category', value: product.category.name },
+    { label: 'HSN code', value: product.hsnCode },
+    { label: 'GST', value: `${product.gstRate}%` },
+    { label: 'Minimum order', value: `${product.moq} ${product.moq === 1 ? 'piece' : 'pieces'}` },
+    { label: 'Warranty', value: warranty ?? 'No warranty' },
+    product.countryOfOrigin ? { label: 'Country of origin', value: product.countryOfOrigin } : null,
+  ].filter((s): s is { label: string; value: string } => !!s?.value);
+
+  const add = (then?: () => void) => {
     HapticService.light();
     addToCart.mutate(
       { payload: { productId: product.id, quantity }, product },
       {
         onSuccess: () => {
+          if (then) {
+            then();
+            return;
+          }
           setAddedMessage(`Added ${product.name} × ${quantity} to cart`);
           setToastKey((k) => k + 1);
         },
         onError: () => Alert.alert('Could not add to cart', 'Please try again.'),
+        onSettled: () => setBuying(false),
       }
     );
   };
 
   const handleBuyNow = () => {
-    HapticService.light();
+    setBuying(true);
     setAddedMessage(null);
-    router.push('/checkout');
+    add(() => router.push('/checkout'));
   };
 
   const handleShare = () => {
@@ -186,59 +239,103 @@ export default function ProductDetailScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: bottomBarHeight + sectionGap }}
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: bottomBarHeight + space.lg, gap: space.sm }}
       >
-        <ProductGallery images={product.productImages ?? []} topInset={navTop} />
+        {/* Photos, then the title and price on one white block. */}
+        <View style={styles.hero}>
+          <ProductGallery images={product.productImages ?? []} topInset={navTop} />
 
-        <View style={styles.header}>
-          <Text style={styles.eyebrow} maxFontSizeMultiplier={1.2}>
-            {product.category.name}
-          </Text>
-          <Text accessibilityRole="header" style={styles.name} maxFontSizeMultiplier={1.2}>
-            {product.name}
-          </Text>
-          <Text style={styles.partNumber} maxFontSizeMultiplier={1.2}>{`Part #${product.partNumber}`}</Text>
-        </View>
+          <View style={styles.summary}>
+            <Pressable
+              onPress={() => router.push(`/category/${product.category.slug}`)}
+              accessibilityRole="link"
+              accessibilityLabel={`More in ${product.category.name}`}
+              hitSlop={8}
+              style={styles.categoryLink}
+            >
+              <Text style={styles.categoryText} maxFontSizeMultiplier={1.2}>
+                {product.category.name}
+              </Text>
+            </Pressable>
+            <Text accessibilityRole="header" style={styles.name} maxFontSizeMultiplier={1.2}>
+              {product.name}
+            </Text>
+            <Text style={styles.byline} maxFontSizeMultiplier={1.2}>
+              {`${product.brand} · Part #${product.partNumber}`}
+            </Text>
 
-        <View style={styles.priceBlock}>
-          {isDealerApproved ? (
-            <>
-              <View style={styles.priceRow}>
-                <Text style={styles.price} maxFontSizeMultiplier={1.2}>
-                  {formatCurrency(product.price)}
+            <View style={styles.badges}>
+              <StatusBadge label={stockLabel(product)} tone={outOfStock ? 'danger' : isFewLeft(product) ? 'warning' : 'success'} />
+              {warranty && <StatusBadge label={`${warranty} warranty`} tone="neutral" />}
+            </View>
+
+            <View style={styles.priceBlock}>
+              <ProductPrice price={product.price} mrp={product.mrp} isDealerApproved={isDealerApproved} size="detail" />
+              {isDealerApproved && (
+                <Text style={styles.gstNote} maxFontSizeMultiplier={1.2}>
+                  {`Dealer price · + GST ${product.gstRate}%`}
                 </Text>
-                {showMrp && (
-                  <Text style={styles.mrp} maxFontSizeMultiplier={1.2}>
-                    {formatCurrency(product.mrp as number)}
+              )}
+            </View>
+
+            {!outOfStock && (
+              <View style={styles.quantityRow}>
+                <View style={styles.quantityText}>
+                  <Text style={styles.quantityLabel} maxFontSizeMultiplier={1.2}>
+                    Quantity
                   </Text>
-                )}
+                  {product.moq > 1 && (
+                    <Text style={styles.quantityHint} maxFontSizeMultiplier={1.2}>
+                      {`Sold in multiples of ${product.moq}`}
+                    </Text>
+                  )}
+                </View>
+                <Stepper value={quantity} moq={product.moq} onChange={setQuantity} label={product.name} />
               </View>
-              <Text style={styles.gstNote} maxFontSizeMultiplier={1.2}>{`Dealer price · GST ${product.gstRate}% extra`}</Text>
-            </>
-          ) : (
-            <Button label="Login to see dealer price" variant="link" onPress={() => router.push('/(auth)/login')} />
-          )}
+            )}
+          </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroller}
-          contentContainerStyle={styles.chipRow}
-        >
-          <StatusBadge label={stockLabel(product)} tone={outOfStock ? 'danger' : isFewLeft(product) ? 'warning' : 'success'} />
-          {!!product.warranty && !/^no warranty$/i.test(product.warranty.trim()) && (
-            <StatusBadge label={product.warranty} tone="neutral" />
-          )}
-          <SpecCapsule label="Part No." value={product.partNumber} />
-          <SpecCapsule label="HSN" value={product.hsnCode} />
-          <SpecCapsule label="MOQ" value={String(product.moq)} />
-          <SpecCapsule label="GST" value={`${product.gstRate}%`} />
-        </ScrollView>
+        <Block title="Delivery & services">
+          <View style={styles.infoList}>
+            <InfoLine icon={MapPin}>
+              <Text style={styles.infoMain} maxFontSizeMultiplier={1.2}>
+                {'Deliver to '}
+                <Text style={styles.infoStrong}>{deliverTo || 'your registered address'}</Text>
+              </Text>
+              {!!dealer?.pincode && <PincodeServiceability pincode={dealer.pincode} inline />}
+            </InfoLine>
+            <InfoLine icon={Truck}>
+              <Text style={styles.infoMain} maxFontSizeMultiplier={1.2}>
+                {`Free delivery on orders over ${formatCurrency(FREE_DELIVERY_THRESHOLD)}`}
+              </Text>
+            </InfoLine>
+            {warranty && (
+              <InfoLine icon={BadgeCheck}>
+                <Text style={styles.infoMain} maxFontSizeMultiplier={1.2}>
+                  {`${warranty} warranty`}
+                </Text>
+              </InfoLine>
+            )}
+            <InfoLine icon={RotateCcw}>
+              <Text style={styles.infoMain} maxFontSizeMultiplier={1.2}>
+                Cancellable before dispatch (2% charge)
+              </Text>
+            </InfoLine>
+          </View>
+        </Block>
 
-        <View style={styles.tabs}>
+        <Block title="Specifications">
+          <View style={styles.specTable}>
+            {specs.map((s, i) => (
+              <SpecRow key={s.label} label={s.label} value={s.value} last={i === specs.length - 1} />
+            ))}
+          </View>
+        </Block>
+
+        <Block>
           <SegmentedControl options={TABS} value={tab} onChange={setTab} />
-
           <Animated.View key={tab} entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.fast).easing(motion.easing)}>
             {tab === 'details' &&
               (product.description ? (
@@ -280,14 +377,14 @@ export default function ProductDetailScreen() {
                   No compatible vehicles listed.
                 </Text>
               ))}
-
-            {tab === 'reviews' && <EmptyState icon="star" title="No reviews yet" style={styles.reviews} />}
           </Animated.View>
-        </View>
+        </Block>
 
         {related.length > 0 && (
-          <View style={styles.related}>
-            <Text accessibilityRole="header" style={styles.relatedTitle} maxFontSizeMultiplier={1.2}>{`More from ${product.category.name}`}</Text>
+          <View style={styles.relatedBlock}>
+            <Text accessibilityRole="header" style={[styles.blockTitle, styles.relatedTitle]} maxFontSizeMultiplier={1.2}>
+              {`Similar parts in ${product.category.name}`}
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedRow}>
               {related.map((p) => (
                 <View key={p.id} style={styles.relatedItem}>
@@ -313,28 +410,44 @@ export default function ProductDetailScreen() {
             selected: wishlisted,
             icon: (
               <Animated.View style={heartPulse.style}>
-                <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={22} color={colors.ink} />
+                <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={22} color={wishlisted ? colors.accent : colors.ink} />
               </Animated.View>
             ),
           },
         ]}
       />
 
+      {/* Marketplace bottom bar: Add to cart and Buy now side by side. */}
       <View
         onLayout={(e) => setBottomBarHeight(e.nativeEvent.layout.height)}
         style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}
       >
         <NavBarBackground />
         <View style={styles.bottomHairline} />
-        <Stepper value={quantity} moq={product.moq} onChange={setQuantity} disabled={outOfStock} label={product.name} />
-        <Button
-          label={addLabel}
-          variant="primary"
-          onPress={handleAddToCart}
-          loading={addToCart.isPending}
-          disabled={outOfStock}
-          style={styles.addButton}
-        />
+        {outOfStock ? (
+          <Button label="Out of stock" variant="primary" disabled fullWidth />
+        ) : (
+          <>
+            <Button
+              label="Add to cart"
+              variant="neutral"
+              onPress={() => add()}
+              loading={addToCart.isPending && !buying}
+              disabled={buying}
+              accessibilityLabel={`Add ${quantity} to cart`}
+              style={styles.barButton}
+            />
+            <Button
+              label="Buy now"
+              variant="primary"
+              onPress={handleBuyNow}
+              loading={buying}
+              disabled={addToCart.isPending && !buying}
+              accessibilityLabel={`Buy ${quantity} now${isDealerApproved ? `, ${formatCurrency(product.price * quantity)}` : ''}`}
+              style={styles.barButton}
+            />
+          </>
+        )}
       </View>
 
       {addedMessage && (
@@ -342,7 +455,7 @@ export default function ProductDetailScreen() {
           key={toastKey}
           message={addedMessage}
           onHide={() => setAddedMessage(null)}
-          action={{ label: 'Buy Now', onPress: handleBuyNow }}
+          action={{ label: 'View cart', onPress: () => router.push('/(tabs)/cart') }}
           bottomOffset={bottomBarHeight + 12}
         />
       )}
@@ -353,36 +466,55 @@ export default function ProductDetailScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { backgroundColor: colors.bgAlt },
 
-  header: { alignItems: 'center', gap: 4, paddingHorizontal: screenPaddingX, marginTop: 8 },
-  eyebrow: { ...textStyles.caption, ...font(600), textAlign: 'center' },
-  name: { ...textStyles.title, textAlign: 'center' },
-  partNumber: { ...textStyles.callout, textAlign: 'center' },
-
-  priceBlock: { alignItems: 'center', gap: 4, marginTop: 20, paddingHorizontal: screenPaddingX },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 },
-  price: { ...textStyles.title },
-  mrp: { ...textStyles.callout, color: colors.ink3, textDecorationLine: 'line-through' },
+  hero: { backgroundColor: colors.white, paddingBottom: space.lg },
+  summary: { paddingHorizontal: screenPaddingX, paddingTop: space.sm, gap: space.xs },
+  categoryLink: { alignSelf: 'flex-start' },
+  categoryText: { ...font(600), fontSize: 14, lineHeight: 20, color: colors.link },
+  name: { ...font(500), fontSize: 20, lineHeight: 26, letterSpacing: -0.3, color: colors.ink },
+  byline: { ...textStyles.callout },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
+  priceBlock: { marginTop: space.md, gap: 2 },
   gstNote: { ...textStyles.caption },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    marginTop: space.lg,
+    paddingTop: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+  },
+  quantityText: { flex: 1, gap: 2 },
+  quantityLabel: { ...textStyles.headline },
+  quantityHint: { ...textStyles.caption },
 
-  chipScroller: { marginTop: 20, flexGrow: 0 },
-  // flexGrow + center: the row centers when it fits and scrolls when it doesn't.
-  chipRow: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: screenPaddingX },
-  capsule: { height: 28, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.bgAlt },
-  capsuleLabel: { ...textStyles.caption },
-  capsuleValue: { ...textStyles.caption, ...font(600), color: colors.ink },
+  block: { backgroundColor: colors.white, paddingHorizontal: screenPaddingX, paddingVertical: space.lg, gap: space.md },
+  blockTitle: { ...font(700), fontSize: 18, lineHeight: 24, letterSpacing: -0.3, color: colors.ink },
 
-  tabs: { marginTop: sectionGap, paddingHorizontal: screenPaddingX, gap: 20 },
+  infoList: { gap: space.md },
+  infoLine: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  infoIcon: { width: 22, paddingTop: 1, alignItems: 'center' },
+  infoText: { flex: 1, gap: 2 },
+  infoMain: { ...font(400), fontSize: 15, lineHeight: 20, color: colors.ink },
+  infoStrong: { ...font(600) },
+
+  specTable: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, overflow: 'hidden' },
+  specRow: { flexDirection: 'row', gap: space.md, paddingHorizontal: space.md, paddingVertical: 10 },
+  specDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.lineSoft },
+  specLabel: { width: '40%', ...font(400), fontSize: 14, lineHeight: 20, color: colors.ink2 },
+  specValue: { flex: 1, ...font(500), fontSize: 14, lineHeight: 20, color: colors.ink },
+
   description: { ...textStyles.body, lineHeight: 25 },
   mutedLine: { ...textStyles.body, color: colors.ink2 },
   compatible: { gap: 20 },
   expand: { alignSelf: 'center' },
-  reviews: { flex: 0, paddingVertical: 32 },
 
-  related: { marginTop: sectionGap, gap: 16 },
-  relatedTitle: { ...textStyles.cardTitle, paddingHorizontal: screenPaddingX },
+  relatedBlock: { backgroundColor: colors.white, paddingVertical: space.lg, gap: space.md },
+  relatedTitle: { paddingHorizontal: screenPaddingX },
   relatedRow: { paddingHorizontal: screenPaddingX, gap: 12 },
-  relatedItem: { width: 180 },
+  relatedItem: { width: 160 },
 
   bottomBar: {
     position: 'absolute',
@@ -403,5 +535,5 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.line,
   },
-  addButton: { flex: 1 },
+  barButton: { flex: 1, paddingHorizontal: space.md },
 });

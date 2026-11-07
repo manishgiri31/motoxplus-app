@@ -9,9 +9,10 @@ import { HapticService } from '@/utils/haptics';
 export const SEARCH_PLACEHOLDER = 'Search parts or part number';
 
 // Tap target that opens the Search screen. Drawn exactly like SearchBar at rest
-// (same height, corner radius, grey and icon), so tapping it reads as focusing
-// the same field rather than jumping to a different control.
-export function SearchPill({ onPress }: { onPress: () => void }) {
+// (same height, corner radius and icon), so tapping it reads as focusing the
+// same field rather than jumping to a different control. `onAccent` is the
+// white field used on the red header band (Home, Search).
+export function SearchPill({ onPress, tone = 'default' }: { onPress: () => void; tone?: 'default' | 'onAccent' }) {
   const focusRing = useFocusRing();
   return (
     <Pressable
@@ -24,9 +25,9 @@ export function SearchPill({ onPress }: { onPress: () => void }) {
       accessibilityRole="search"
       accessibilityLabel={SEARCH_PLACEHOLDER}
       accessibilityHint="Opens search"
-      style={({ pressed }) => [styles.field, pressed && styles.pressed, focusRing.ringStyle]}
+      style={({ pressed }) => [styles.field, tone === 'onAccent' && styles.fieldOnAccent, pressed && styles.pressed, focusRing.ringStyle]}
     >
-      <Search size={iconSizes.inline} color={colors.ink3} />
+      <Search size={iconSizes.inline} color={tone === 'onAccent' ? colors.ink2 : colors.ink3} />
       <Text style={styles.placeholder} numberOfLines={1} maxFontSizeMultiplier={1.2}>
         {SEARCH_PLACEHOLDER}
       </Text>
@@ -45,6 +46,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.input,
     backgroundColor: colors.lineSoft,
   },
+  fieldOnAccent: { marginHorizontal: 0, backgroundColor: colors.white },
   pressed: { opacity: 0.6 },
   placeholder: { flex: 1, ...textStyles.body, color: colors.ink3 },
 });

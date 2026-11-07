@@ -10,7 +10,7 @@ import type { CartItem } from '@/api/types';
 import { useAuth } from '@/auth/useAuth';
 import { ShoppingBag } from '@/components/icons/ShoppingBag';
 import { iconSizes } from '@/components/icons/iconSizes';
-import { CartLine, CART_LINE_TEXT_INSET, FreeLine } from '@/src/components/cart/CartLine';
+import { CartLine, FreeLine } from '@/src/components/cart/CartLine';
 import { CartSkeleton } from '@/src/components/cart/CartSkeleton';
 import { FreeDeliveryCard } from '@/src/components/cart/FreeDeliveryCard';
 import { OutOfStockSheet } from '@/src/components/cart/OutOfStockSheet';
@@ -73,6 +73,16 @@ export default function CartScreen() {
   const totals = useMemo(() => calculateCartTotals(cart?.items ?? []), [cart]);
   const taxedTotal = totals.subtotal + totals.gstAmount;
   const hasItems = items.length > 0;
+  // Dealer price vs MRP across the payable lines, for the green "You save" line.
+  const savings = useMemo(
+    () =>
+      items.reduce((sum, item) => {
+        const price = item.variant?.price ?? item.product.price;
+        const mrp = item.product.mrp;
+        return mrp != null && mrp > price ? sum + (mrp - price) * item.quantity : sum;
+      }, 0),
+    [items]
+  );
 
   const onRefresh = () => {
     HapticService.light();
@@ -111,7 +121,7 @@ export default function CartScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, styles.screenWhite]}>
         <ScrollView scrollEnabled={false} contentContainerStyle={{ paddingTop: topPadding }}>
           <LargeTitleHeader title={TITLE} />
           <View style={styles.titleGap} />
@@ -123,7 +133,7 @@ export default function CartScreen() {
 
   if (isError) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, styles.screenWhite]}>
         <View style={{ paddingTop: topPadding }}>
           <LargeTitleHeader title={TITLE} />
         </View>
@@ -151,7 +161,7 @@ export default function CartScreen() {
     .join('\n');
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, !hasItems && styles.screenWhite]}>
       <Animated.FlatList
         data={lines}
         keyExtractor={(line) => line.item.id}
@@ -182,8 +192,13 @@ export default function CartScreen() {
           />
         }
         ListHeaderComponent={
-          <View>
-            <LargeTitleHeader title={TITLE} scrollY={scrollY} />
+          <View style={hasItems && styles.headerBlock}>
+            <LargeTitleHeader
+              title={TITLE}
+              subtitle={hasItems ? `${items.length} ${items.length === 1 ? 'item' : 'items'}` : undefined}
+              subtitleSize="small"
+              scrollY={scrollY}
+            />
             {hasItems && (
               <View style={styles.cards}>
                 <SchemeBenefitCard
@@ -200,7 +215,6 @@ export default function CartScreen() {
                 <FreeDeliveryCard taxedTotal={taxedTotal} />
               </View>
             )}
-            {hasItems && <View style={styles.listGap} />}
           </View>
         }
         ListEmptyComponent={
@@ -215,18 +229,27 @@ export default function CartScreen() {
         ListFooterComponent={
           hasItems ? (
             <View style={styles.footerBlock}>
-              <GroupedList footer={summaryFootnote}>
-                <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
-                <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
-                <SummaryRow
-                  label="Shipping"
-                  value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}
-                  tone={totals.shipping === 0 ? 'success' : 'default'}
-                />
-                <SummaryRow label="Total" value={formatCurrency(totals.grandTotal)} strong />
-              </GroupedList>
+              <View style={styles.whiteBlock}>
+                <GroupedList header="Price details" footer={summaryFootnote}>
+                  <SummaryRow label={`Price (${items.length} ${items.length === 1 ? 'item' : 'items'})`} value={formatCurrency(totals.subtotal)} />
+                  <SummaryRow label="GST" value={formatCurrency(totals.gstAmount)} />
+                  <SummaryRow
+                    label="Delivery charges"
+                    value={totals.shipping === 0 ? 'Free' : formatCurrency(totals.shipping)}
+                    tone={totals.shipping === 0 ? 'success' : 'default'}
+                  />
+                  <SummaryRow label="Total amount" value={formatCurrency(totals.grandTotal)} strong />
+                </GroupedList>
+                {savings > 0 && (
+                  <View style={styles.savings} accessible accessibilityLabel={`You save ${formatCurrency(savings)} compared to MRP`}>
+                    <Text style={styles.savingsText} maxFontSizeMultiplier={layout.maxFontScale}>
+                      {`You save ${formatCurrency(savings)} compared to MRP on this order`}
+                    </Text>
+                  </View>
+                )}
+              </View>
 
-              <View style={styles.pincode}>
+              <View style={[styles.whiteBlock, styles.pincode]}>
                 <InputField
                   label="Check delivery pincode"
                   keyboardType="number-pad"
@@ -243,15 +266,19 @@ export default function CartScreen() {
 
       {hasItems && (
         <CheckoutBottomBar aboveTabBar onHeightChange={setBarHeight}>
-          <View style={styles.totalRow} accessible accessibilityLabel={`Total, ${formatCurrency(totals.grandTotal)}`}>
-            <Text style={styles.totalLabel} maxFontSizeMultiplier={layout.maxFontScale}>
-              Total
-            </Text>
-            <Text style={styles.totalValue} maxFontSizeMultiplier={layout.maxFontScale}>
-              {formatCurrency(totals.grandTotal)}
-            </Text>
+          {/* Marketplace bar: total on the left, the action on the right. */}
+          <View style={styles.barRow}>
+            <View style={styles.barTotal} accessible accessibilityLabel={`Total, ${formatCurrency(totals.grandTotal)}`}>
+              <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={layout.maxFontScale}>
+                {formatCurrency(totals.grandTotal)}
+              </Text>
+              <Text style={[styles.totalLabel, savings > 0 && styles.totalSaving]} numberOfLines={1} maxFontSizeMultiplier={layout.maxFontScale}>
+                {savings > 0 ? `Saving ${formatCurrency(savings)}` : 'Total incl. GST'}
+              </Text>
+            </View>
+            {/* Not "Place order": that's the Checkout button, which actually places it. */}
+            <Button label="Proceed to buy" variant="primary" onPress={handleCheckout} style={styles.barButton} />
           </View>
-          <Button label="Proceed to checkout" variant="primary" fullWidth onPress={handleCheckout} />
         </CheckoutBottomBar>
       )}
 
@@ -294,23 +321,29 @@ function Separator() {
   return <View style={styles.separator} />;
 }
 
+// Grey page, white blocks: the title and offer cards, each cart line, the
+// price details and the pincode check sit on separate white blocks.
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: colors.bgAlt },
   titleGap: { height: space.xl },
-  cards: { paddingHorizontal: screenPaddingX, marginTop: space.xl, gap: space.sm },
-  listGap: { height: space.md },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: CART_LINE_TEXT_INSET,
-    backgroundColor: colors.line,
-  },
+  headerBlock: { backgroundColor: colors.white, paddingBottom: space.lg, marginBottom: space.sm },
+  cards: { paddingHorizontal: screenPaddingX, marginTop: space.lg, gap: space.sm },
+  // The grey page shows between lines.
+  separator: { height: space.sm },
   empty: { flex: 0, paddingTop: 96 },
-  footerBlock: { paddingHorizontal: screenPaddingX, marginTop: sectionGap, gap: sectionGap },
+  footerBlock: { marginTop: space.sm, gap: space.sm },
+  whiteBlock: { backgroundColor: colors.white, paddingHorizontal: screenPaddingX, paddingVertical: space.lg, gap: space.md },
+  savings: { paddingVertical: space.sm, paddingHorizontal: space.md, borderRadius: 10, backgroundColor: colors.successSoft },
+  savingsText: { ...font(600), fontSize: 14, lineHeight: 20, color: colors.success },
   pincode: { gap: space.sm },
-  totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  totalLabel: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink2 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  barTotal: { flex: 1, gap: 2 },
+  barButton: { flex: 1.2 },
+  totalLabel: { ...font(400), fontSize: 13, lineHeight: 18, color: colors.ink2 },
+  totalSaving: { ...font(600), color: colors.success },
+  screenWhite: { backgroundColor: colors.bg },
   totalValue: {
-    ...font(600),
+    ...font(700),
     fontSize: 21,
     lineHeight: 25,
     letterSpacing: -0.42,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +19,11 @@ export interface BannerSlide {
   id: string;
   eyebrow: string;
   title: string;
+  /** brand: the accent red; dark: the ink card (default). */
+  tone?: 'brand' | 'dark';
+  /** Link text shown under the title ("Shop now"); the whole card is tappable. */
+  cta?: string;
+  onPress?: () => void;
 }
 
 // Promo carousel: one 18pt-radius dark card per page, page dots below. It
@@ -79,18 +85,27 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
       >
         {slides.map((slide) => (
           <View key={slide.id} style={{ width: pageWidth || '100%', paddingHorizontal: screenPaddingX }}>
-            <View
-              style={styles.card}
-              accessible
-              accessibilityLabel={`${slide.eyebrow}. ${slide.title.replace(/\n/g, ' ')}`}
+            <Pressable
+              onPress={slide.onPress}
+              disabled={!slide.onPress}
+              style={({ pressed }) => [styles.card, slide.tone === 'brand' && styles.cardBrand, pressed && styles.pressed]}
+              accessibilityRole={slide.onPress ? 'button' : undefined}
+              accessibilityLabel={`${slide.eyebrow}. ${slide.title.replace(/\n/g, ' ')}${slide.cta ? `. ${slide.cta}` : ''}`}
             >
-              <Text style={styles.eyebrow} maxFontSizeMultiplier={1.2}>
+              <Text style={[styles.eyebrow, slide.tone === 'brand' && styles.eyebrowBrand]} maxFontSizeMultiplier={1.2}>
                 {slide.eyebrow}
               </Text>
               <Text style={styles.title} maxFontSizeMultiplier={1.2}>
                 {slide.title}
               </Text>
-            </View>
+              {!!slide.cta && (
+                <View style={styles.cta}>
+                  <Text style={[styles.ctaLabel, slide.tone === 'brand' && styles.ctaLabelBrand]} maxFontSizeMultiplier={1.2}>
+                    {`${slide.cta} ›`}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
           </View>
         ))}
       </ScrollView>
@@ -109,15 +124,22 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
 const styles = StyleSheet.create({
   wrap: { gap: 12 },
   card: {
-    minHeight: 168,
+    minHeight: 150,
     justifyContent: 'flex-end',
-    gap: 8,
-    padding: 24,
-    borderRadius: radii.card,
+    gap: 6,
+    padding: 20,
+    borderRadius: radii.sm,
     backgroundColor: colors.inkSurface,
   },
+  cardBrand: { backgroundColor: colors.accent },
+  pressed: { opacity: 0.85 },
   eyebrow: { ...textStyles.caption, ...font(600), color: colors.onDarkMuted, textTransform: 'uppercase', letterSpacing: 0.6 },
-  title: { ...textStyles.title, color: colors.white },
+  eyebrowBrand: { color: alpha(colors.white, 0.8) },
+  title: { ...textStyles.cardTitle, fontSize: 22, lineHeight: 27, color: colors.white },
+  // White pill, like a marketplace "Shop now" chip.
+  cta: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.white },
+  ctaLabel: { ...font(600), fontSize: 14, lineHeight: 18, color: colors.ink },
+  ctaLabelBrand: { color: colors.accent },
   dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: alpha(colors.ink, 0.2) },
   dotActive: { backgroundColor: colors.ink },

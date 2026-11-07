@@ -6,7 +6,7 @@ import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct } from '@/api/hooks/useProducts';
 import { Image } from '@/components/ui/Image';
 import { FilledHeart } from '@/src/components/account/FilledHeart';
-import { BlurredPrice } from '@/src/components/ui/BlurredPrice';
+import { ProductPrice } from '@/src/components/catalog/ProductPrice';
 import { alpha, colors, font, layout, motion, radii, space, textStyles } from '@/src/theme';
 import { useWishlistStore, type WishlistItem } from '@/stores/wishlistStore';
 import { HapticService } from '@/utils/haptics';
@@ -83,8 +83,8 @@ export const WishlistTile = memo(function WishlistTile({ item, isDealerApproved,
         <Text style={[styles.name, { height: NAME_LINES * 22 * scale }]} numberOfLines={NAME_LINES} maxFontSizeMultiplier={layout.maxFontScale}>
           {item.name}
         </Text>
-        <View style={[styles.price, { minHeight: 22 * scale }]}>
-          <BlurredPrice price={item.price} isDealerApproved={isDealerApproved} compact />
+        <View style={styles.price}>
+          <ProductPrice price={item.price} mrp={item.mrp} isDealerApproved={isDealerApproved} scale={scale} />
         </View>
 
         <Pressable
@@ -111,7 +111,15 @@ export const WishlistTile = memo(function WishlistTile({ item, isDealerApproved,
 });
 
 const styles = StyleSheet.create({
-  tile: { flex: 1, backgroundColor: colors.bgAlt, borderRadius: radii.card, overflow: 'hidden' },
+  // Same white, hairline-bordered card as CatalogProductCard.
+  tile: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    overflow: 'hidden',
+  },
   imageWrap: { width: '100%', aspectRatio: 1, backgroundColor: colors.white },
   imageLink: { padding: space.md },
   image: { width: '100%', height: '100%' },

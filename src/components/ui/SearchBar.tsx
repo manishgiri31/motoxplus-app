@@ -20,6 +20,8 @@ export interface SearchBarProps
    * shown and calls this instead of just clearing the field.
    */
   onCancel?: () => void;
+  /** onAccent: white field and white Cancel, for the red header band. */
+  tone?: 'default' | 'onAccent';
 }
 
 // iOS-style search bar: a grey rounded field with a magnifier and a clear
@@ -33,8 +35,10 @@ export function SearchBar({
   accessibilityLabel,
   style,
   onCancel,
+  tone = 'default',
   ...inputProps
 }: SearchBarProps) {
+  const onAccent = tone === 'onAccent';
   const reduceMotion = useReduceMotion();
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
@@ -56,8 +60,8 @@ export function SearchBar({
 
   return (
     <View style={[styles.row, style]}>
-      <Animated.View style={[styles.field, fieldStyle]}>
-        <Search size={iconSizes.inline} color={colors.ink3} />
+      <Animated.View style={[styles.field, onAccent && styles.fieldOnAccent, fieldStyle]}>
+        <Search size={iconSizes.inline} color={onAccent ? colors.ink2 : colors.ink3} />
         <TextInput
           ref={inputRef}
           value={value}
@@ -111,7 +115,7 @@ export function SearchBar({
           importantForAccessibility={active ? 'yes' : 'no-hide-descendants'}
           style={({ pressed }) => [styles.cancelPress, pressed && styles.pressed]}
         >
-          <Text style={styles.cancelLabel} maxFontSizeMultiplier={1.2}>
+          <Text style={[styles.cancelLabel, onAccent && styles.cancelLabelOnAccent]} maxFontSizeMultiplier={1.2}>
             Cancel
           </Text>
         </Pressable>
@@ -131,10 +135,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.input,
     backgroundColor: colors.lineSoft,
   },
+  fieldOnAccent: { backgroundColor: colors.white },
   input: { flex: 1, height: '100%', padding: 0, ...textStyles.body },
   clear: { alignItems: 'center', justifyContent: 'center' },
   cancel: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
   cancelPress: { minHeight: layout.minTouchTarget, justifyContent: 'center', paddingLeft: 12 },
   cancelLabel: { ...font(400), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.link },
+  cancelLabelOnAccent: { ...font(600), color: colors.white },
   pressed: { opacity: 0.6 },
 });

@@ -1,3 +1,4 @@
+import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useInfiniteOrders } from '@/api/hooks/useOrders';
 import type { Order, OrderStatus } from '@/api/types';
+import { Image } from '@/components/ui';
 import { orderStatusBadgeTone, orderStatusLabel } from '@/constants/orderStatus';
 import { useFocusRing } from '@/hooks/use-focus-ring';
 import { Button, EmptyState, ErrorState, Skeleton } from '@/src/components/ui';
@@ -15,6 +17,7 @@ import { StatusBadge } from '@/src/components/ui/StatusBadge';
 import { colors, font, radii, screenPaddingX, space } from '@/src/theme';
 import { formatCurrency } from '@/utils/format';
 import { HapticService } from '@/utils/haptics';
+import { getImageSource } from '@/utils/image';
 
 type Filter = 'all' | 'active' | 'delivered' | 'cancelled';
 
@@ -55,6 +58,12 @@ const OrderCard = memo(function OrderCard({ order }: { order: Order }) {
   const date = formatDate(order.createdAt);
   const status = orderStatusLabel[order.status];
 
+  // Lead with what was bought, like a marketplace order list: the first part's
+  // photo and name, "+ N more" for the rest.
+  const first = order.items[0]?.product;
+  const firstImage = first?.productImages?.find((i) => i.isPrimary) ?? first?.productImages?.[0];
+  const productLine = first ? (count > 1 ? `${first.name} + ${count - 1} more` : first.name) : itemsLabel;
+
   return (
     <Pressable
       onPress={() => {
@@ -64,7 +73,7 @@ const OrderCard = memo(function OrderCard({ order }: { order: Order }) {
       onFocus={focusRing.onFocus}
       onBlur={focusRing.onBlur}
       accessibilityRole="button"
-      accessibilityLabel={`Order ${order.orderNumber}, ${status}, ${date}, ${itemsLabel}, total ${formatCurrency(order.grandTotal)}`}
+      accessibilityLabel={`Order ${order.orderNumber}, ${status}, ${date}, ${productLine}, total ${formatCurrency(order.grandTotal)}`}
       style={({ pressed }) => [styles.card, pressed && styles.pressed, focusRing.ringStyle]}
     >
       <View style={styles.topRow}>
@@ -73,12 +82,23 @@ const OrderCard = memo(function OrderCard({ order }: { order: Order }) {
         </Text>
         <StatusBadge label={status} tone={orderStatusBadgeTone[order.status]} />
       </View>
-      <Text style={styles.meta} maxFontSizeMultiplier={1.2}>
-        {`${date} · ${itemsLabel}`}
-      </Text>
-      <Text style={styles.total} maxFontSizeMultiplier={1.2}>
-        {formatCurrency(order.grandTotal)}
-      </Text>
+      <View style={styles.productRow}>
+        <Image source={getImageSource(firstImage?.imageUrl)} style={styles.thumb} contentFit="contain" cachePolicy="memory-disk" />
+        <View style={styles.productText}>
+          <Text style={styles.productName} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+            {productLine}
+          </Text>
+          <Text style={styles.meta} maxFontSizeMultiplier={1.2}>
+            {`${date} · ${itemsLabel}`}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.bottomRow}>
+        <Text style={styles.total} maxFontSizeMultiplier={1.2}>
+          {formatCurrency(order.grandTotal)}
+        </Text>
+        <Feather name="chevron-right" size={18} color={colors.ink3} />
+      </View>
     </Pressable>
   );
 });
@@ -88,10 +108,16 @@ function OrderCardSkeleton() {
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <Skeleton width="42%" height={22} radius={6} />
+        <Skeleton width="42%" height={20} radius={6} />
         <Skeleton width={72} height={24} radius={radii.pill} />
       </View>
-      <Skeleton width="55%" height={20} radius={6} />
+      <View style={styles.productRow}>
+        <Skeleton width={56} height={56} radius={radii.sm} />
+        <View style={styles.productText}>
+          <Skeleton width="80%" height={16} radius={6} />
+          <Skeleton width="50%" height={14} radius={6} />
+        </View>
+      </View>
       <Skeleton width="28%" height={22} radius={6} />
     </View>
   );
@@ -277,7 +303,12 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.6 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
-  orderNumber: { flexShrink: 1, ...font(600), fontSize: 17, lineHeight: 22, letterSpacing: -0.34, color: colors.ink },
+  orderNumber: { flexShrink: 1, ...font(600), fontSize: 15, lineHeight: 20, letterSpacing: -0.2, color: colors.ink2 },
+  productRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  thumb: { width: 56, height: 56, borderRadius: radii.sm, backgroundColor: colors.white },
+  productText: { flex: 1, gap: 2 },
+  productName: { ...font(500), fontSize: 15, lineHeight: 20, color: colors.ink },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   meta: { ...font(400), fontSize: 14, lineHeight: 20, color: colors.ink2 },
   total: {
     ...font(600),
