@@ -1,9 +1,3 @@
-// Per-weight subpaths: the package root requires all 18 Inter TTFs (~7.8 MB),
-// and Metro bundles every font it sees required, used or not.
-import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
-import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
-import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
-import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Platform, type TextStyle } from 'react-native';
 
 import { motion } from './motion';
@@ -144,11 +138,14 @@ export const fonts = {
 // Passed straight to expo-font's useFonts() in the root layout — keeping the
 // family-name -> asset mapping here means theme.fonts stays the single
 // source of truth for the string values used in typography styles below.
+// The files are Inter subset to Latin, punctuation, arrows and the rupee sign
+// (78 KB each instead of 342 KB); see scripts/subset-fonts.sh. Characters
+// outside the subset fall back to the system font per glyph.
 export const fontsToLoad = {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
+  Inter_400Regular: require('../../assets/fonts/Inter_400Regular.ttf'),
+  Inter_500Medium: require('../../assets/fonts/Inter_500Medium.ttf'),
+  Inter_600SemiBold: require('../../assets/fonts/Inter_600SemiBold.ttf'),
+  Inter_700Bold: require('../../assets/fonts/Inter_700Bold.ttf'),
 };
 
 type Variant = Pick<

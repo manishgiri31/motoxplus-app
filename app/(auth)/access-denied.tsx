@@ -1,8 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DEALER_APPLICATION_URL } from '@/auth/access';
@@ -30,14 +29,9 @@ export default function AccessDeniedScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        {/* Shield on a soft accent disc: the SF Symbol on iOS, a Feather
-            glyph of the same shape elsewhere. Decorative, hidden from screen readers. */}
+        {/* Shield on a soft accent disc. Decorative, hidden from screen readers. */}
         <View style={styles.iconDisc} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {Platform.OS === 'ios' ? (
-            <SymbolView name="shield.fill" size={ICON_SIZE * 0.5} tintColor={colors.accent} />
-          ) : (
-            <Feather name="shield" size={ICON_SIZE * 0.5} color={colors.accent} />
-          )}
+          <Feather name="shield" size={ICON_SIZE * 0.5} color={colors.accent} />
         </View>
 
         <View style={styles.textBlock}>

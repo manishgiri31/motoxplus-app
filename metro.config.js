@@ -21,10 +21,50 @@ const ZUSTAND_CJS_ENTRIES = {
   'zustand/shallow': path.join(zustandRoot, 'shallow.js'),
 };
 
+// Bundle-size shims (Metro does not tree-shake):
+//  - `assert`: only @ide/backoff (expo-notifications) uses it, for plain
+//    `assert(cond, msg)` checks. See shims/assert.js.
+//  - zod's locale barrel: every language, though the app only uses English.
+//    See shims/zod-locales.js.
+//  - @hookform/resolvers/zod resolves to its CommonJS build, which require()s
+//    zod and react-hook-form, so Metro bundled their CJS builds next to the
+//    ESM builds the app imports: two copies of each (~550 KB). Point it at its
+//    ESM build, and resolve zod subpaths (e.g. zod/v4/core, which otherwise
+//    picks its nested package.json's CJS "main") through zod's "import"
+//    exports, so everything lands on one ESM copy.
+const SHIMS = {
+  assert: path.join(__dirname, 'shims/assert.js'),
+  zodLocales: path.join(__dirname, 'shims/zod-locales.js'),
+};
+const HOOKFORM_ZOD_ESM = path.join(
+  path.dirname(require.resolve('@hookform/resolvers/package.json')),
+  'zod/dist/zod.mjs'
+);
+const zodRoot = path.dirname(require.resolve('zod/package.json'));
+const zodExports = require('zod/package.json').exports;
+const ZOD_ESM_ENTRIES = Object.fromEntries(
+  Object.entries(zodExports)
+    .filter(([subpath, target]) => !subpath.includes('*') && typeof target === 'object' && target.import)
+    .map(([subpath, target]) => [path.posix.join('zod', subpath), path.join(zodRoot, target.import)])
+);
+const ZOD_DIR = `${path.sep}node_modules${path.sep}zod${path.sep}`;
+
 const { resolveRequest: defaultResolveRequest } = config.resolver;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web' && ZUSTAND_CJS_ENTRIES[moduleName]) {
     return { type: 'sourceFile', filePath: ZUSTAND_CJS_ENTRIES[moduleName] };
+  }
+  if (moduleName === 'assert') {
+    return { type: 'sourceFile', filePath: SHIMS.assert };
+  }
+  if (moduleName === '../locales/index.js' && context.originModulePath.includes(ZOD_DIR)) {
+    return { type: 'sourceFile', filePath: SHIMS.zodLocales };
+  }
+  if (moduleName === '@hookform/resolvers/zod') {
+    return { type: 'sourceFile', filePath: HOOKFORM_ZOD_ESM };
+  }
+  if (ZOD_ESM_ENTRIES[moduleName]) {
+    return { type: 'sourceFile', filePath: ZOD_ESM_ENTRIES[moduleName] };
   }
   return defaultResolveRequest
     ? defaultResolveRequest(context, moduleName, platform)
