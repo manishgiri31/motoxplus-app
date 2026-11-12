@@ -1,7 +1,9 @@
+import { onlineManager } from '@tanstack/react-query';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 import { emitAuthFailure, emitVerificationRequired } from '@/auth/authEvents';
 import { secureStorage } from '@/auth/secureStorage';
+import { isSessionRejection } from '@/auth/sessionPolicy';
 import { env } from '@/config/env';
 import { HapticService } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
@@ -59,7 +61,7 @@ function isLoginRequest(config: RetryableConfig): boolean {
   return config.url?.endsWith('/mobile/auth/login') ?? false;
 }
 
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise: Promise<RefreshResult> | null = null;
 
 // A 401 that survives a successful token refresh is not proof the session is
 // dead: some routes answer 401 for per-route reasons (GET /cart does for a
@@ -73,20 +75,28 @@ async function isSessionStillValid(): Promise<boolean> {
     await refreshClient.get('/mobile/auth/me', { headers: { Authorization: `Bearer ${tokens.accessToken}` } });
     return true;
   } catch (err) {
-    return !(axios.isAxiosError(err) && err.response?.status === 401);
+    return !isSessionRejection(err);
   }
 }
+
+// Outcome of a refresh attempt. Only `rejected` (no refresh token stored, or
+// the server answered 401/403) may clear the session; `transient` (network
+// error, timeout, 5xx, malformed body) keeps the stored tokens untouched.
+type RefreshResult =
+  | { kind: 'ok'; accessToken: string }
+  | { kind: 'rejected' }
+  | { kind: 'transient'; error: unknown };
 
 // POST /mobile/auth/refresh returns only a token pair, not (user, dealer) —
 // there's nothing here for auth/access.ts#canAccessDealerApp to check. That's
 // fine: role/status are re-verified the next time this token is used to hit
 // GET /mobile/auth/me (app cold start, or a future refreshUser() call), and
 // if the backend has revoked the refresh token itself (e.g. account
-// suspended server-side), this call fails outright and the `!newAccessToken`
+// suspended server-side), this call fails with a 401 and the `rejected`
 // branch below logs the user out regardless.
-async function refreshAccessToken(): Promise<string | null> {
+async function refreshAccessToken(): Promise<RefreshResult> {
   const tokens = await secureStorage.getTokens();
-  if (!tokens?.refreshToken) return null;
+  if (!tokens?.refreshToken) return { kind: 'rejected' };
 
   try {
     const { data: rawData } = await refreshClient.post<RefreshResponse>('/mobile/auth/refresh', {
@@ -96,9 +106,9 @@ async function refreshAccessToken(): Promise<string | null> {
     // secure storage as the new bearer token — parse before persisting.
     const data = refreshResponseSchema.parse(rawData);
     await secureStorage.setTokens(data);
-    return data.accessToken;
-  } catch {
-    return null;
+    return { kind: 'ok', accessToken: data.accessToken };
+  } catch (err) {
+    return isSessionRejection(err) ? { kind: 'rejected' } : { kind: 'transient', error: err };
   }
 }
 
@@ -117,16 +127,26 @@ apiClient.interceptors.response.use(
         refreshPromise ??= refreshAccessToken().finally(() => {
           refreshPromise = null;
         });
-        const newAccessToken = await refreshPromise;
+        const refresh = await refreshPromise;
 
-        if (!newAccessToken) {
+        if (refresh.kind === 'rejected') {
           await secureStorage.clearTokens();
           emitAuthFailure();
           HapticService.error();
           return Promise.reject(error);
         }
 
-        config.headers.set('Authorization', `Bearer ${newAccessToken}`);
+        if (refresh.kind === 'transient') {
+          // Couldn't reach the refresh endpoint (offline, timeout, 5xx) —
+          // that says nothing about the session, so keep the tokens. Reject
+          // with the refresh failure rather than the original 401, so callers
+          // (AuthProvider's cold start) see a connectivity error, not a
+          // session rejection.
+          HapticService.error();
+          return Promise.reject(refresh.error);
+        }
+
+        config.headers.set('Authorization', `Bearer ${refresh.accessToken}`);
         return apiClient(config);
       }
 
@@ -161,7 +181,9 @@ apiClient.interceptors.response.use(
     const isIdempotent = (config.method ?? 'get').toLowerCase() === 'get';
     config._retryCount = config._retryCount ?? 0;
 
-    if (isTransient && isIdempotent && config._retryCount < 2) {
+    // One retry, and none when the device is known to be offline: a dead
+    // network otherwise meant ~46 s of spinner (3 tries x 15 s timeout).
+    if (isTransient && isIdempotent && config._retryCount < 1 && onlineManager.isOnline()) {
       config._retryCount += 1;
       const backoffMs = 500 * 2 ** (config._retryCount - 1);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));

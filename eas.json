@@ -19,7 +19,8 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://motoxplus.com/api",
-        "SLIM_RELEASE_BUILD": "1"
+        "SLIM_RELEASE_BUILD": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
@@ -27,7 +28,8 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://motoxplus.com/api",
-        "SLIM_RELEASE_BUILD": "1"
+        "SLIM_RELEASE_BUILD": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },

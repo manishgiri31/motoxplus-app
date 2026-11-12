@@ -10,8 +10,7 @@ import { CatalogGridScreen } from '@/src/components/catalog/CatalogGridScreen';
 import { ErrorState } from '@/src/components/ui';
 import { colors } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
-import { sortProducts } from '@/utils/sortProducts';
-import { isOutOfStock } from '@/utils/stock';
+import { applyCatalogFilters, brandsOf, defaultCatalogFilters, hasCatalogFilters } from '@/utils/catalogFilters';
 
 export default function CategoryProductsScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -22,7 +21,7 @@ export default function CategoryProductsScreen() {
   const fetchedProducts = useMemo(() => query.data?.pages.flatMap((p) => p.products) ?? [], [query.data]);
 
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<CatalogFilters>({ categorySlug: slug ?? null, inStockOnly: false, sort: 'default' });
+  const [filters, setFilters] = useState<CatalogFilters>(() => defaultCatalogFilters(slug ?? null));
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const category = categoriesQuery.data?.find((c) => c.slug === slug);
@@ -34,16 +33,16 @@ export default function CategoryProductsScreen() {
     if (q) {
       list = list.filter((p) => p.partNumber.toUpperCase().includes(q) || p.name.toUpperCase().includes(q));
     }
-    if (filters.inStockOnly) {
-      list = list.filter((p) => !isOutOfStock(p));
-    }
-    return sortProducts(list, filters.sort);
+    // The server already scoped this list to the category (sub-categories
+    // included), so don't filter by slug again here.
+    return applyCatalogFilters(list, { ...filters, categorySlug: null });
   }, [fetchedProducts, search, filters]);
+  const productBrands = useMemo(() => brandsOf(fetchedProducts), [fetchedProducts]);
 
-  const hasActiveFilters = !!search || filters.inStockOnly || filters.sort !== 'default';
+  const hasActiveFilters = !!search || hasCatalogFilters(filters, slug ?? null);
   const clearFilters = () => {
     setSearch('');
-    setFilters({ categorySlug: slug ?? null, inStockOnly: false, sort: 'default' });
+    setFilters(defaultCatalogFilters(slug ?? null));
   };
 
   if (query.isError) {
@@ -60,7 +59,7 @@ export default function CategoryProductsScreen() {
       searchValue={search}
       onSearchChange={setSearch}
       onFilterPress={() => setFilterSheetOpen(true)}
-      filterActive={filters.inStockOnly || filters.sort !== 'default'}
+      filterActive={hasCatalogFilters(filters, slug ?? null)}
       products={products}
       loading={query.isLoading}
       vehicle={selectedVehicle}
@@ -78,6 +77,7 @@ export default function CategoryProductsScreen() {
       <CatalogFilterSheet
         visible={filterSheetOpen}
         categories={undefined}
+        brands={productBrands}
         value={filters}
         onApply={setFilters}
         onClose={() => setFilterSheetOpen(false)}

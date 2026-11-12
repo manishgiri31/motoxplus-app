@@ -14,11 +14,18 @@ import '../global.css';
 
 import { useAuth } from '@/auth/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useIsOnline } from '@/hooks/use-online';
 import { configureNotifications, getNotificationUrl } from '@/hooks/use-push-notifications';
 import { AppProviders } from '@/providers/AppProviders';
+import { NoConnectionScreen, OfflineBanner } from '@/src/components/auth/NoConnectionScreen';
 import { AppSplash } from '@/src/components/ui/AppSplash';
 import { NAV_BAR_FILL } from '@/src/components/ui/NavBarBackground';
 import { colors, fonts, fontsToLoad, layout } from '@/src/theme';
+import { initCrashReporting } from '@/utils/crashReporting';
+
+// As early as possible, so errors during startup are reported. No-op unless
+// this is a release build with EXPO_PUBLIC_SENTRY_DSN set.
+initCrashReporting();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -49,7 +56,8 @@ function WebColumn({ children }: { children: React.ReactNode }) {
 }
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isOffline, connectionError, isRetrying, retryConnection } = useAuth();
+  const isOnline = useIsOnline();
   const [fontsLoaded, fontError] = useFonts(fontsToLoad);
   const ready = !isLoading && (fontsLoaded || !!fontError);
 
@@ -97,6 +105,18 @@ function RootNavigator() {
     return <AppSplash onShown={() => SplashScreen.hideAsync()} />;
   }
 
+  // Stored session, server unreachable, nothing cached to show: offer a
+  // retry rather than the login screen (the tokens are still valid as far
+  // as we know).
+  if (connectionError && !isAuthenticated) {
+    return (
+      <>
+        <NoConnectionScreen onRetry={retryConnection} retrying={isRetrying} />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
+
   return (
     <ThemeProvider value={navigationTheme}>
       <WebColumn>
@@ -117,7 +137,6 @@ function RootNavigator() {
           <Stack.Screen name="order/[id]/index" options={{ title: 'Order' }} />
           <Stack.Screen name="order/[id]/tracking" options={{ title: 'Track order' }} />
           <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
-          <Stack.Screen name="order-placed" options={{ title: 'Order placed', headerShown: false, gestureEnabled: false }} />
           <Stack.Screen
             name="search"
             options={{ title: 'Search', headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom', animationDuration: 280 }}
@@ -141,6 +160,11 @@ function RootNavigator() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>
+      {!isOnline ? (
+        <OfflineBanner label="You're offline" />
+      ) : isOffline ? (
+        <OfflineBanner label="Can't reach MotoXplus · showing saved account" />
+      ) : null}
       </WebColumn>
       {/* Redesigned screens are light-only (bg paper) regardless of the
           system/Settings dark-mode preference, so "auto" would show white

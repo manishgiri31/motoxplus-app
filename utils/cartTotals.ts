@@ -1,5 +1,7 @@
 import type { CartItem } from '@/api/types';
 
+import { roundToPaise } from './format';
+
 // Shared by cart.tsx, checkout.tsx, and the home banner's free-delivery
 // promo slide — was previously duplicated as a local constant in the first
 // two and a bare literal in the third.
@@ -26,23 +28,26 @@ export function splitCartItems(items: CartItem[]): { regularItems: CartItem[]; s
   };
 }
 
-/** Same subtotal/GST/shipping math the cart and checkout screens both need. */
+/**
+ * Same subtotal/GST/shipping math the cart and checkout screens both need.
+ * Mirrors the server (motoxplus-web lib/pricing/compute.ts): each line's GST
+ * is rounded to paise on its own and the order GST is the sum of those
+ * rounded lines, so the rows shown always add up to the server's total.
+ */
 export function calculateCartTotals(allItems: CartItem[]): CartTotals {
   const { regularItems: items } = splitCartItems(allItems);
-  let subtotal = 0;
-  let gstAmount = 0;
+  let rawSubtotal = 0;
+  let rawGst = 0;
   for (const item of items) {
     const unitPrice = item.variant?.price ?? item.product.price;
     const lineSubtotal = unitPrice * item.quantity;
-    subtotal += lineSubtotal;
-    gstAmount += (lineSubtotal * item.product.gstRate) / 100;
+    rawSubtotal += lineSubtotal;
+    rawGst += roundToPaise((lineSubtotal * item.product.gstRate) / 100);
   }
-  const taxedTotal = subtotal + gstAmount;
+  const subtotal = roundToPaise(rawSubtotal);
+  const gstAmount = roundToPaise(rawGst);
+  const taxedTotal = roundToPaise(subtotal + gstAmount);
   const shipping =
-    items.length === 0
-      ? 0
-      : taxedTotal >= FREE_DELIVERY_THRESHOLD
-        ? 0
-        : Math.round(taxedTotal * SHIPPING_RATE * 100) / 100;
-  return { subtotal, gstAmount, shipping, grandTotal: taxedTotal + shipping };
+    items.length === 0 ? 0 : taxedTotal >= FREE_DELIVERY_THRESHOLD ? 0 : roundToPaise(taxedTotal * SHIPPING_RATE);
+  return { subtotal, gstAmount, shipping, grandTotal: roundToPaise(taxedTotal + shipping) };
 }

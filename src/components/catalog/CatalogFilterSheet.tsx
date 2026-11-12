@@ -1,20 +1,19 @@
 import type { Category } from '@/api/types';
-import { PRODUCT_SORT_OPTIONS, type ProductSortOption } from '@/utils/sortProducts';
+import { PRICE_BANDS, type CatalogFilters } from '@/utils/catalogFilters';
+import { PRODUCT_SORT_OPTIONS } from '@/utils/sortProducts';
 
 import { Button } from '../ui/Button';
 import { GroupedList } from '../ui/GroupedList';
 import { Sheet } from '../ui/Sheet';
 import { CheckRow, SwitchRow } from '../ui/SelectRows';
 
-export interface CatalogFilters {
-  categorySlug: string | null;
-  inStockOnly: boolean;
-  sort: ProductSortOption;
-}
+export type { CatalogFilters } from '@/utils/catalogFilters';
 
 export interface CatalogFilterSheetProps {
   visible: boolean;
   categories?: Category[];
+  /** Brands in the loaded results (utils/catalogFilters.ts brandsOf). */
+  brands?: string[];
   value: CatalogFilters;
   onApply: (filters: CatalogFilters) => void;
   onClose: () => void;
@@ -22,7 +21,7 @@ export interface CatalogFilterSheetProps {
 
 // "Filter & Sort" bottom sheet. Opens at the 50% detent (drag up for 90%).
 // Every change is applied immediately; "Done" just closes the sheet.
-export function CatalogFilterSheet({ visible, categories, value, onApply, onClose }: CatalogFilterSheetProps) {
+export function CatalogFilterSheet({ visible, categories, brands, value, onApply, onClose }: CatalogFilterSheetProps) {
   return (
     <Sheet
       visible={visible}
@@ -50,6 +49,29 @@ export function CatalogFilterSheet({ visible, categories, value, onApply, onClos
           />
         ))}
       </GroupedList>
+
+      <GroupedList header="Price">
+        <CheckRow title="Any price" selected={value.priceBand === null} onPress={() => onApply({ ...value, priceBand: null })} />
+        {PRICE_BANDS.map((band) => (
+          <CheckRow
+            key={band.id}
+            title={band.label}
+            selected={value.priceBand === band.id}
+            onPress={() => onApply({ ...value, priceBand: band.id })}
+          />
+        ))}
+      </GroupedList>
+
+      {/* A brand that is selected but no longer in the results (results
+          changed) stays listed so it can be cleared. */}
+      {brands && (brands.length > 1 || value.brand) && (
+        <GroupedList header="Brand">
+          <CheckRow title="All brands" selected={value.brand === null} onPress={() => onApply({ ...value, brand: null })} />
+          {(value.brand && !brands.includes(value.brand) ? [value.brand, ...brands] : brands).map((b) => (
+            <CheckRow key={b} title={b} selected={value.brand === b} onPress={() => onApply({ ...value, brand: b })} />
+          ))}
+        </GroupedList>
+      )}
 
       {categories && categories.length > 0 && (
         <GroupedList header="Category">

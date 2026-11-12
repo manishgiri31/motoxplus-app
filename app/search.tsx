@@ -23,10 +23,10 @@ import { useRecentSearchesStore } from '@/stores/recentSearchesStore';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { HapticService } from '@/utils/haptics';
 import { getImageSource } from '@/utils/image';
-import { PRODUCT_SORT_OPTIONS, sortProducts } from '@/utils/sortProducts';
-import { isOutOfStock } from '@/utils/stock';
+import { applyCatalogFilters, brandsOf, defaultCatalogFilters, hasCatalogFilters } from '@/utils/catalogFilters';
+import { PRODUCT_SORT_OPTIONS } from '@/utils/sortProducts';
 
-const DEFAULT_FILTERS: CatalogFilters = { categorySlug: null, inStockOnly: false, sort: 'default' };
+const DEFAULT_FILTERS: CatalogFilters = defaultCatalogFilters();
 
 // Dealers mostly search by part number, so it leads the second line.
 const SuggestionRow = memo(function SuggestionRow({
@@ -118,21 +118,13 @@ export default function SearchScreen() {
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const fetchedResults = useMemo(() => resultsQuery.data?.pages.flatMap((p) => p.products) ?? [], [resultsQuery.data]);
-  const results = useMemo(() => {
-    let list = fetchedResults;
-    if (filters.categorySlug) {
-      list = list.filter((p) => p.category.slug === filters.categorySlug);
-    }
-    if (filters.inStockOnly) {
-      list = list.filter((p) => !isOutOfStock(p));
-    }
-    return sortProducts(list, filters.sort);
-  }, [fetchedResults, filters]);
+  const results = useMemo(() => applyCatalogFilters(fetchedResults, filters), [fetchedResults, filters]);
+  const resultBrands = useMemo(() => brandsOf(fetchedResults), [fetchedResults]);
   const sortLabel = PRODUCT_SORT_OPTIONS.find((o) => o.value === filters.sort)?.label ?? 'Featured';
   const filterCategoryLabel = filters.categorySlug
     ? (categoriesQuery.data?.find((c) => c.slug === filters.categorySlug)?.name ?? null)
     : null;
-  const hasActiveFilters = !!filters.categorySlug || filters.inStockOnly || filters.sort !== 'default';
+  const hasActiveFilters = hasCatalogFilters(filters);
 
   // Which body to show follows what's typed right now (<2 idle, 2-3 instant
   // suggestions, 4+ or submitted: results); the data behind it follows the
@@ -276,11 +268,13 @@ export default function SearchScreen() {
                 hitSlop={{ top: 4, bottom: 4 }}
                 style={({ pressed }) => [styles.filterButton, pressed && styles.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel={`Filter and sort, currently ${filterCategoryLabel ? `${filterCategoryLabel}, ` : ''}${filters.inStockOnly ? 'in stock only, ' : ''}sorted by ${sortLabel}`}
+                accessibilityLabel={`Filter and sort, currently ${filterCategoryLabel ? `${filterCategoryLabel}, ` : ''}${filters.brand ? `${filters.brand}, ` : ''}${filters.priceBand ? 'price filtered, ' : ''}${filters.inStockOnly ? 'in stock only, ' : ''}sorted by ${sortLabel}`}
               >
                 <Feather name="sliders" size={16} color={hasActiveFilters ? colors.accent : colors.ink2} />
                 <Text style={styles.filterLabel} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                   {filterCategoryLabel ? `${filterCategoryLabel} · ` : ''}
+                  {filters.brand ? `${filters.brand} · ` : ''}
+                  {filters.priceBand ? 'Price · ' : ''}
                   {filters.inStockOnly ? 'In stock · ' : ''}
                   {sortLabel}
                 </Text>
@@ -344,6 +338,7 @@ export default function SearchScreen() {
       <CatalogFilterSheet
         visible={filterSheetOpen}
         categories={categoriesQuery.data}
+        brands={resultBrands}
         value={filters}
         onApply={setFilters}
         onClose={() => setFilterSheetOpen(false)}

@@ -3,6 +3,12 @@
 Honest state as of this audit — not a generic template. Items are marked done/deferred based on what
 actually exists in this repo right now.
 
+> **Status update (2026-11-05).** Statuses below were re-checked against the latest pre-release QA
+> report (`docs/qa-release-report.md`, 2026-11-02; IDs like "QA 9.2" point to its rows). Where this
+> checklist and the QA report disagreed, the QA report wins and the line is marked *Corrected*.
+> Also fixed since the July bug audit and confirmed in source: the home banner crash, the
+> forgot-password dead end and the missing checkout field limits (see `BUGS-APP.md`).
+
 ## Done
 
 - [x] **Splash screen** — configured in `app.json` (`expo-splash-screen` plugin) and wired in
@@ -33,7 +39,8 @@ actually exists in this repo right now.
     strings, private keys) — clean. Only `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_RAZORPAY_KEY_ID`
     exist, both public-by-design.
   - Transport: `config/env.ts` throws at load time if a non-`__DEV__` build's API URL isn't
-    `https://`. `android.usesCleartextTraffic: false` set in `app.json`.
+    `https://`. *Corrected 2026-11-05:* `android.usesCleartextTraffic` is **not** set in `app.json`;
+    the platform default already blocks cleartext, so this is harmless (QA 11.2 PASS).
   - 401 handling: single-flight refresh with a retry-once guard (`api/client.ts`) — no retry loops;
     exhausting the refresh clears tokens and logs out cleanly. `utils/logger.ts` never logs
     headers/bodies/raw errors outside `__DEV__` (bearer tokens, passwords, OTPs, PII all excluded
@@ -54,8 +61,21 @@ actually exists in this repo right now.
     bundle for secrets — no Android SDK/EAS credentials available here. The source-level secrets
     audit above is a reasonable proxy, but treat an actual release-APK grep as still outstanding
     before shipping.
-- [x] **Permissions** — the app currently requests none beyond what Expo's default template needs
-      (no camera/location/contacts usage), so there's nothing to declare in `app.json` yet.
+- [x] **Permissions** — *Fixed 2026-11-12 (QA 9.2).* `android.blockedPermissions` in `app.json`
+      removes CAMERA, RECORD_AUDIO, READ/WRITE_EXTERNAL_STORAGE, READ_MEDIA_*, and
+      SYSTEM_ALERT_WINDOW. The document upload uses the system photo picker
+      (`launchImageLibraryAsync`), which needs no permission. Checked with
+      `SLIM_RELEASE_BUILD=1 npx expo config --type introspect`. Still to do: test a document upload
+      on Android 10–12 and 13+ devices.
+- [x] **Offline cold start** — *Fixed 2026-11-12 (QA 8.6).* Only a 401/403 clears the session
+      (`auth/sessionPolicy.ts`). Network errors and 5xx keep the tokens and show the last account
+      from `auth/sessionCache.ts`, or a "No connection" retry screen. Test:
+      `node scripts/test-auth-session.js`.
+- [x] **Duplicate orders on retry** — *Fixed 2026-11-12 (QA 4.11).* The app sends an
+      `Idempotency-Key` per checkout attempt (`api/checkoutAttempt.ts`). The server side is on
+      `motoxplus-web` branch `release/idempotency` (includes migration
+      `20261112100000_order_idempotency_key`). Deploy the server first. The header is optional
+      there, so older builds keep working.
 - [x] **CI** — `.github/workflows/ci.yml` runs `tsc --noEmit` and `expo lint` on every PR to `main`.
 - [x] **EAS build profiles** — `eas.json` has `development`/`preview`/`production` profiles with the
       right `EXPO_PUBLIC_API_URL` per environment. Running an actual build needs `eas login` with a
@@ -63,10 +83,18 @@ actually exists in this repo right now.
 
 ## Deferred — needs your input or an external account
 
-- [ ] **Crash reporting (Sentry/Bugsnag/etc.)** — not installed. `utils/logger.ts` is already the
-      single place to wire a real SDK's `captureException` into once you pick one and have a DSN.
+- [ ] **Crash reporting (Sentry)** — *Code done 2026-11-12 (QA 12.2); needs a DSN.*
+      `@sentry/react-native` 7.2.0 is in `utils/crashReporting.ts`. It catches uncaught JS errors,
+      unhandled promise rejections, ErrorBoundary render errors, and native crashes, and sends no
+      personal data. It stays off until `EXPO_PUBLIC_SENTRY_DSN` is set. To turn it on:
+      1. Create a Sentry project (React Native).
+      2. Run `eas env:create --name EXPO_PUBLIC_SENTRY_DSN --value <dsn> --environment production --environment preview`.
+      3. Rebuild.
+      Source maps are not uploaded yet (`SENTRY_DISABLE_AUTO_UPLOAD`), so stack traces stay minified.
+      In Play's Data safety form, declare "Crash logs" and "Diagnostics" (collected, not shared,
+      used for app functionality). Test: `node scripts/test-crash-reporting.js`.
 - [ ] **Push notifications (Android, FCM via Expo Push)** — app side is wired; end-to-end test on a
-      real build is still pending.
+      real build is still pending. *2026-11-05: MANUAL, QA 6.8 / 9.4.*
   - **Done in the app:** `expo-notifications` plugin in `app.json` (channel `orders`),
     `google-services.json` committed (no secret in it) and set as `android.googleServicesFile`,
     `extra.eas.projectId` set. `hooks/use-push-notifications.ts` asks permission, gets the Expo
@@ -94,19 +122,23 @@ actually exists in this repo right now.
     5. Log out and confirm the token is removed (`DELETE /mobile/push-token`).
   - **iOS — deferred:** needs an APNs key and `GoogleService-Info.plist` (git-ignored) plus an
     Apple Developer account. Not set up; revisit after the Android release.
-- [ ] **OTA updates (`expo-updates`)** — needs an EAS project ID in `app.json`
-      (`extra.eas.projectId`), which is created via `eas init` under your account.
+- [ ] **OTA updates (`expo-updates`)** — *2026-11-05: MANUAL, QA 11.9.* `extra.eas.projectId` and
+      `updates.url` are now set in `app.json`. Remaining: make sure only the `production` channel gets
+      production updates; consider update code signing.
 - [ ] **Actual EAS builds (Android/iOS)** — `eas build --profile preview` needs `eas login`. iOS
-      additionally needs an Apple Developer account for signing.
+      additionally needs an Apple Developer account for signing. *2026-11-05: MANUAL, QA 13.3 (release
+      gate).* The local `app-release.apk` is outdated and debug-signed; confirm the EAS upload keystore.
 - [ ] **App Store / Play Store submission** — needs store listings, screenshots, privacy-policy URL
       (the web app's `/privacy` already exists and is linked from Settings — reuse that URL for the
-      store listing), and signing credentials.
+      store listing), and signing credentials. *2026-11-05: MANUAL, QA 13.1, 13.7–13.10, 13.12;
+      launcher name FAIL (major), QA 1.7.*
 - [x] **Online payment (Razorpay) native SDK** — done. `react-native-razorpay` (New Architecture
       build) is wired: prepaid orders (`FULL_100` / `ADVANCE_20`) are paid in-app via the native SDK
       (`app/order/[id]/pay.tsx` + `hooks/useRazorpayPayment`, server-side verify via
       `POST /payments/verify`). The old manual UPI/bank-transfer stopgap
       (`upiService.ts` / `pay-upi.tsx` / `ONLINE_PAYMENTS_ENABLED` flag) has been removed.
-      Needs a dev/production build — not Expo Go.
+      Needs a dev/production build — not Expo Go. *2026-11-05: QA 5.1 PASS; a live payment on a
+      minified production build is still a release gate (QA 5.10 MANUAL).*
 - [ ] **`/api/shipping/estimate` mobile auth** — still session-only, not patched for the mobile JWT
       (see `docs/api.md` §9). Low priority since checkout doesn't depend on it (the order's own
       `shippingCost` is authoritative), but worth fixing if you want a live shipping estimate before
@@ -120,4 +152,5 @@ actually exists in this repo right now.
 - No address book (a dealer has exactly one address on the backend) — checkout always uses/edits
   that single address per order.
 - No product reviews (no public reviews endpoint, only admin moderation).
-- No order cancel/return/reorder, no invoice PDF download — none of these have backend endpoints.
+- No return/reorder. *Corrected 2026-11-05:* order cancellation now exists (QA 6.3 PASS) and invoice
+  PDF share exists (QA 6.7 MANUAL — `EXPO_PUBLIC_COMPANY_*` must be set for the seller block).

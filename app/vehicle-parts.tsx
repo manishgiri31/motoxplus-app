@@ -11,8 +11,7 @@ import { ErrorState } from '@/src/components/ui';
 import { VEHICLE_PILL_BLOCK_HEIGHT, VehiclePill } from '@/src/components/vehicle/VehiclePill';
 import { colors } from '@/src/theme';
 import { useVehicleStore } from '@/stores/vehicleStore';
-import { sortProducts } from '@/utils/sortProducts';
-import { isOutOfStock } from '@/utils/stock';
+import { applyCatalogFilters, brandsOf, defaultCatalogFilters, hasCatalogFilters } from '@/utils/catalogFilters';
 
 // Results screen for the home-screen vehicle picker (VehiclePickerCard).
 // `vehicle`/`variant` are the model/variant slugs from GET /api/vehicles,
@@ -28,7 +27,7 @@ export default function VehiclePartsScreen() {
   const fetchedProducts = useMemo(() => query.data?.pages.flatMap((p) => p.products) ?? [], [query.data]);
 
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<CatalogFilters>({ categorySlug: null, inStockOnly: false, sort: 'default' });
+  const [filters, setFilters] = useState<CatalogFilters>(() => defaultCatalogFilters(null));
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const products = useMemo(() => {
@@ -37,19 +36,14 @@ export default function VehiclePartsScreen() {
     if (q) {
       list = list.filter((p) => p.partNumber.toUpperCase().includes(q) || p.name.toUpperCase().includes(q));
     }
-    if (filters.categorySlug) {
-      list = list.filter((p) => p.category.slug === filters.categorySlug);
-    }
-    if (filters.inStockOnly) {
-      list = list.filter((p) => !isOutOfStock(p));
-    }
-    return sortProducts(list, filters.sort);
+    return applyCatalogFilters(list, filters);
   }, [fetchedProducts, search, filters]);
+  const productBrands = useMemo(() => brandsOf(fetchedProducts), [fetchedProducts]);
 
-  const hasActiveFilters = !!search || filters.inStockOnly || filters.sort !== 'default' || !!filters.categorySlug;
+  const hasActiveFilters = !!search || hasCatalogFilters(filters, null);
   const clearFilters = () => {
     setSearch('');
-    setFilters({ categorySlug: null, inStockOnly: false, sort: 'default' });
+    setFilters(defaultCatalogFilters(null));
   };
 
   if (query.isError) {
@@ -66,7 +60,7 @@ export default function VehiclePartsScreen() {
       searchValue={search}
       onSearchChange={setSearch}
       onFilterPress={() => setFilterSheetOpen(true)}
-      filterActive={filters.inStockOnly || filters.sort !== 'default' || !!filters.categorySlug}
+      filterActive={hasCatalogFilters(filters, null)}
       accessory={
         selectedVehicle ? (
           <VehiclePill
@@ -98,6 +92,7 @@ export default function VehiclePartsScreen() {
       <CatalogFilterSheet
         visible={filterSheetOpen}
         categories={categoriesQuery.data}
+        brands={productBrands}
         value={filters}
         onApply={setFilters}
         onClose={() => setFilterSheetOpen(false)}

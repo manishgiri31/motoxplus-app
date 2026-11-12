@@ -4,8 +4,9 @@ type LogLevel = 'info' | 'warn' | 'error';
 
 /**
  * Single choke point for all app logging (ErrorBoundary, axios interceptor
- * failures, etc.). Swap the console calls below for a real crash-reporting
- * SDK (Sentry, Bugsnag, ...) once one is installed — see docs/release-checklist.md.
+ * failures, etc.). Console only — crash reporting lives in
+ * utils/crashReporting.ts and is called explicitly, so expected failures
+ * logged here (wrong password, etc.) are not sent to Sentry as crashes.
  */
 function log(level: LogLevel, message: string, extra?: Record<string, unknown>) {
   if (__DEV__) {
@@ -13,7 +14,6 @@ function log(level: LogLevel, message: string, extra?: Record<string, unknown>) 
     return;
   }
   if (level === 'error') {
-    // No crash reporter wired up yet — at least surface it in production logs.
     console.error(message, extra ?? '');
   }
 }

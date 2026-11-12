@@ -254,3 +254,26 @@ It becomes **GO** when:
 - Anything that runs on a device or in Play Console (all MANUAL rows).
 - The backend (`motoxplus-web`). It is not in this repo, so payment verification, webhooks, authorisation and rate limits are unchecked.
 - iOS. The report is Android only.
+
+---
+
+## Status — 2026-11-12
+
+Fixed on branch `release/fixes-2-real`. Checks: `tsc --noEmit` passes, `expo lint` passes, `node scripts/test-auth-session.js` 9/9, `node scripts/test-crash-reporting.js` 5/5. None of this has been run on a device yet.
+
+| ID | Fix |
+|---|---|
+| 1.7 | App name `MotoXplus` (already fixed in `fc56749`) |
+| 9.2 | `android.blockedPermissions` removes camera, mic, storage, media, and overlay permissions. Checked in the introspected manifest. Test a document upload on a device |
+| 8.6 | Opening the app offline no longer signs the user out. Only a 401/403 clears the session |
+| 4.11 | `Idempotency-Key` on `POST /orders`. Server change is on `motoxplus-web` branch `release/idempotency` and must be deployed (with its migration) |
+| 12.2 | Sentry (`utils/crashReporting.ts`) with global error and rejection handlers. Inactive until `EXPO_PUBLIC_SENTRY_DSN` is set in EAS |
+| 3.3, 3.4 | Brand and price-band filters in the Filter & sort sheet (client-side, over loaded results like the other filters) |
+| 4.5 | Amounts with paise show 2 decimals. Cart GST is rounded per line like the server |
+| 6.9 | Dead `order-placed` screen removed |
+| 8.2, 8.7 | NetInfo is wired to React Query's `onlineManager`, and `AppState` to `focusManager`. An offline banner shows, and data refetches on reconnect and on return to the foreground |
+| 8.3 | GET retries cut from 2 to 1, with none while offline. React Query no longer retries on top of that. Worst case ~31 s instead of ~46 s (or up to ~90 s with the old React Query retry) |
+| 12.7 | Cold start shows the cached account at once and verifies in the background, so startup never waits on the network |
+| 11.7 | axios 1.21.0, zod 4.6.7, and transitive `follow-redirects`, `nanoid`, `shell-quote` updated. `npm audit --omit=dev`: 0 critical, 15 high (build tooling, or `expo-router` → `query-string`, which needs an SDK upgrade) |
+
+Still open (release gates): applicationId decision (13.1), EAS keystore (13.3), live Razorpay payment on a production build (5.9, 5.10), push end-to-end, Play Console forms and assets.

@@ -1,5 +1,22 @@
 # MotoXPlus App — Bug & Risk Audit
 
+> **Status update (2026-11-05).** This audit dates from July and several findings are out of date.
+> Items 2, 4 and 6 are **fixed**, confirmed in the current source. The status of the other items comes
+> from the latest pre-release QA report (`docs/qa-release-report.md`, 2026-11-02), not from a new review.
+>
+> | # | Finding | Status | Source |
+> |---|---|---|---|
+> | 1 | Duplicate orders after a dropped connection | **Open** (FAIL, major) | QA 4.11 |
+> | 2 | Home banner crash after ~25 min | **Fixed** | Source: `components/BannerCarousel.tsx` uses `(active + 1) % count` and `scrollTo({ x })`, no `scrollToIndex` (also QA 12.3 PASS) |
+> | 3 | Online payment dead end / no Razorpay SDK | **Fixed** (SDK part) | QA 5.1 PASS, `react-native-razorpay` installed. Payment methods are still a local list. Live payment on a release build is still a release gate (QA 5.10 MANUAL) |
+> | 4 | Forgot-password OTP: no resend, no way back | **Fixed** | Source: `app/(auth)/forgot-password.tsx` has a resend with a 60 s cooldown (`resendOtp`), an in-flow back (`goBack` returns to the request step) and a hardware-back handler (also QA 2.7 PASS) |
+> | 5 | Mobile verification unreachable | Not covered by the QA report | — |
+> | 6 | No max length on checkout fields | **Fixed** | Source: `auth/validation.ts` `checkoutSchema` caps name/city/state at 100, address at 300, notes at 500 (also QA 4.8 PASS) |
+> | 7 | No runtime validation of API responses | Not covered by the QA report | — |
+> | 8 | Shipping math duplicated on the client | **Open** (MANUAL: confirm server still uses 25000 / 5%) | QA 4.6 |
+> | 9 | No feedback during the retry window | **Open** (FAIL, minor) | QA 8.3 |
+> | 10 | Reviewed, not a bug | — | — |
+
 Read-only audit. No code changes made. Reviewed every file under `app/`, `api/`, `auth/`, `components/`,
 `stores/`, `providers/`, `utils/`, `constants/`, plus config (`app.json`, `eas.json`, `.env*`) and the
 in-repo docs (`docs/api.md`, `docs/release-checklist.md`).
@@ -30,6 +47,7 @@ request and transparently refreshes on 401.
 ### High
 
 **1. Placing an order over a dropped connection is ambiguous — can produce duplicate orders.**
+*Status 2026-11-05: Open — QA 4.11 FAIL (major).*
 `app/checkout.tsx:82-114`, `api/hooks/useOrders.ts:33-44`, `api/client.ts:100-113`
 `POST /orders` has no idempotency key, and mutations are explicitly not retried
 (`providers/queryClient.ts: mutations.retry: 0`). If the request reaches the server and the order is
@@ -40,6 +58,7 @@ identical order. There is no post-failure check ("did this actually go through?"
 offered.
 
 **2. Home screen banner can crash after ~25 minutes of the app being open.**
+*Status 2026-11-05: Fixed — confirmed in source (`components/BannerCarousel.tsx`: modulo index + `scrollTo`).*
 `components/BannerCarousel.tsx:38-96`
 The auto-scrolling promo carousel walks a synthetic array of `slides.length * 200` items and calls
 `listRef.current.scrollToIndex({ index: next })` every 5s, starting from the middle of that array. With
@@ -53,6 +72,7 @@ firing even while the user is on a different tab — this is reachable in any no
 open past ~25 minutes, not just someone idling on the Home tab.
 
 **3. Online payment is a dead end in this build — and payment methods are hardcoded, not server-driven.**
+*Status 2026-11-05: Razorpay SDK part fixed — QA 5.1 PASS. Live payment on a release build still a release gate (QA 5.10 MANUAL).*
 `app/checkout.tsx:23-27, 97-106`; `api/services/paymentService.ts`; `docs/release-checklist.md`
 `paymentOptions` (COD / 20% advance / full payment online) is a **local hardcoded array** in
 `checkout.tsx` — the app has no concept of a server-driven payment-method config at all, and no endpoint
@@ -68,6 +88,7 @@ different repo not present here — but the underlying ask, "does the app hardco
 of reading server config," is confirmed true regardless.)*
 
 **4. Forgot-password OTP step has no resend and no way back if the code doesn't arrive.**
+*Status 2026-11-05: Fixed — confirmed in source (`app/(auth)/forgot-password.tsx`: resend with cooldown, in-flow back, hardware back handler).*
 `app/(auth)/forgot-password.tsx:130-159`, `app/(auth)/_layout.tsx:5`
 The `(auth)` stack sets `headerShown: false` globally, so there's no back button on this screen. The `otp`
 step offers only a single "Verify code" action — no resend, no countdown, no link back to the `request`
@@ -80,6 +101,7 @@ forcing a full restart from scratch.
 ### Medium
 
 **5. Mobile-number verification is dead code — the app nags the user with no way to fix it.**
+*Status 2026-11-05: Not covered by the 2026-11-02 QA report.*
 `app/(tabs)/account.tsx:90-94`; `api/services/authService.ts:42-46`
 Account screen shows *"Your mobile number isn't verified yet — verify it to unlock full account
 features"* whenever `user.mobileVerified` is false, but `authService.sendMobileOtp` /
@@ -89,6 +111,7 @@ type definitions). There is no screen, button, or modal that starts this flow. A
 unverified mobile sees this warning permanently.
 
 **6. No max-length validation on checkout free-text fields.**
+*Status 2026-11-05: Fixed — confirmed in source (`auth/validation.ts` `checkoutSchema` has `.max()` on every free-text field).*
 `auth/validation.ts:36-44` (`checkoutSchema`), `components/ui/Input.tsx`
 `deliveryName`, `deliveryAddress`, `deliveryCity`, `deliveryState`, and `notes` all have `.min()` but no
 `.max()` in the Zod schema, and `Input` never defaults a `maxLength`. A pasted 10,000-character string (or
@@ -98,6 +121,7 @@ and a long single-line value will visibly overflow the Notes field's layout (it'
 Address).
 
 **7. No runtime validation of API responses — the app trusts server response shape via TypeScript types only.**
+*Status 2026-11-05: Not covered by the 2026-11-02 QA report.*
 `api/services/*.ts`, `api/types.ts`
 Every service method does `apiClient.get<SomeType>(...).then(r => r.data)` — `SomeType` is a compile-time
 annotation, not a runtime check (no `zod`/`io-ts` parsing of responses, despite `zod` already being a
@@ -108,6 +132,7 @@ generic ErrorBoundary fallback ("Something went wrong"), and there's nothing in 
 *which* field was missing.
 
 **8. Client-side shipping/free-delivery math is duplicated and can silently drift from the server.**
+*Status 2026-11-05: Open — QA 4.6 MANUAL (confirm the server still uses 25000 and 5%).*
 `utils/cartTotals.ts:6-8`
 `FREE_DELIVERY_THRESHOLD = 25000` and `SHIPPING_RATE = 0.05` are hardcoded constants mirroring the
 backend's actual calculation (`docs/api.md` §7) purely to show a pre-checkout estimate. There is no
@@ -120,6 +145,7 @@ fix it without an app-store release.
 ### Low
 
 **9. No visible feedback during the automatic retry window — a dead network can look "stuck" for up to ~46s.**
+*Status 2026-11-05: Open — QA 8.3 FAIL (minor).*
 `api/client.ts:100-113`
 GET requests transiently failing (network blip or 5xx) are retried up to twice with 500ms/1000ms backoff,
 on top of the 15s axios timeout per attempt — worst case ≈ 46s of a plain spinner with no "retrying…"

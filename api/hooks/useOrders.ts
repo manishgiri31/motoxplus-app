@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { checkoutAttempt } from '../checkoutAttempt';
 import { queryKeys } from '../queryKeys';
 import { orderService } from '../services/orderService';
 import type { CreateOrderPayload } from '../types';
@@ -46,8 +47,11 @@ export function useCreateOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: CreateOrderPayload) => orderService.create(payload),
+    // One key per checkout attempt, not per tap: every retry until success
+    // sends the same key (api/checkoutAttempt.ts).
+    mutationFn: (payload: CreateOrderPayload) => orderService.create(payload, checkoutAttempt.key()),
     onSuccess: () => {
+      checkoutAttempt.clear();
       // Server clears the cart and creates the order as a side effect of this call.
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.detail() });
       queryClient.invalidateQueries({ queryKey: ['orders', 'list'] });

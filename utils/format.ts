@@ -4,8 +4,26 @@ const inrFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 0,
 });
 
+const inrPaiseFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Same rounding the server uses (motoxplus-web lib/utils.ts roundToPaise). */
+export function roundToPaise(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * "₹1,235" for whole rupees, "₹1,234.56" otherwise. Never rounds paise away,
+ * so the cart, checkout and Razorpay amounts all show the figure the server
+ * actually charges.
+ */
 export function formatCurrency(amount: number): string {
-  return inrFormatter.format(amount);
+  const paise = roundToPaise(amount);
+  return Number.isInteger(paise) ? inrFormatter.format(paise) : inrPaiseFormatter.format(paise);
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-IN', {

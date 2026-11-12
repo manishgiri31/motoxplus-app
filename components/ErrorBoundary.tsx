@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/src/components/ui/Button';
 import { colors, space, textStyles } from '@/src/theme';
+import { reportError } from '@/utils/crashReporting';
 import { logger } from '@/utils/logger';
 
 interface Props {
@@ -28,6 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
       message: error.message,
       componentStack: info.componentStack ?? undefined,
     });
+    // Caught render errors never reach the global handler, so report them here.
+    reportError(error, { componentStack: info.componentStack ?? undefined });
   }
 
   reset = () => this.setState({ error: null });
