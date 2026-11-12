@@ -18,14 +18,16 @@
       },
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://motoxplus.com/api"
+        "EXPO_PUBLIC_API_URL": "https://motoxplus.com/api",
+        "SLIM_RELEASE_BUILD": "1"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://motoxplus.com/api"
+        "EXPO_PUBLIC_API_URL": "https://motoxplus.com/api",
+        "SLIM_RELEASE_BUILD": "1"
       }
     }
   },

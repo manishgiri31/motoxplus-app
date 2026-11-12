@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+// Web-only page rules; Expo ignores global CSS on iOS/Android.
 import '../global.css';
 
 import { useAuth } from '@/auth/useAuth';
@@ -18,9 +19,6 @@ import { AppProviders } from '@/providers/AppProviders';
 import { AppSplash } from '@/src/components/ui/AppSplash';
 import { NAV_BAR_FILL } from '@/src/components/ui/NavBarBackground';
 import { colors, fonts, fontsToLoad, layout } from '@/src/theme';
-// Side-effect import — starts the persisted theme preference's rehydration
-// (and re-applies it via nativewind's colorScheme.set) as early as possible.
-import '@/stores/settingsStore';
 
 SplashScreen.preventAutoHideAsync();
 

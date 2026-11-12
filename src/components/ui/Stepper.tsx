@@ -67,9 +67,6 @@ export function Stepper({ value, onChange, moq = 1, max, disabled = false, label
   );
 }
 
-export const QuantityStepper = Stepper;
-export type QuantityStepperProps = StepperProps;
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',

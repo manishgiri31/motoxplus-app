@@ -33,9 +33,6 @@ export function CartTabIcon({ color, focused }: { color: string; focused: boolea
         color={color}
         strokeWidth={focused ? iconStroke.selected : iconStroke.default}
       />
-      {/* StyleSheet, not className: NativeWind only styles core RN components,
-          so classes on reanimated's Animated.View were silently dropped and
-          the count rendered white-on-white under the icon. */}
       {count > 0 && (
         <Animated.View style={[styles.badge, badgePulse.style]}>
           <Text style={styles.badgeText} maxFontSizeMultiplier={1}>

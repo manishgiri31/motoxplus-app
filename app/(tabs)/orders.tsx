@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useInfiniteOrders } from '@/api/hooks/useOrders';
 import type { Order, OrderStatus } from '@/api/types';
-import { Image } from '@/components/ui';
+import { Image } from '@/components/ui/Image';
 import { orderStatusBadgeTone, orderStatusLabel } from '@/constants/orderStatus';
 import { useFocusRing } from '@/hooks/use-focus-ring';
 import { Button, EmptyState, ErrorState, Skeleton } from '@/src/components/ui';

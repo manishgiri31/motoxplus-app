@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';

@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from 'expo-router';
 import { useEffect, useRef, type ReactNode } from 'react';

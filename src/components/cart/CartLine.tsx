@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { memo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -10,7 +10,7 @@ import type { CartItem } from '@/api/types';
 import { Trash2 } from '@/components/icons/Trash2';
 import { TriangleAlert } from '@/components/icons/TriangleAlert';
 import { iconSizes } from '@/components/icons/iconSizes';
-import { Image } from '@/components/ui';
+import { Image } from '@/components/ui/Image';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { Button, Stepper } from '@/src/components/ui';
 import { colors, font, layout, motion, radii, screenPaddingX, space } from '@/src/theme';
@@ -21,9 +21,6 @@ import { getImageSource } from '@/utils/image';
 import { isOutOfStock } from '@/utils/stock';
 
 const THUMB = 64;
-// Left edge of the text column: row padding + thumbnail + gap. Separators between
-// lines start here, like iOS list separators.
-export const CART_LINE_TEXT_INSET = screenPaddingX + THUMB + space.md;
 
 // Unlike GET /api/products[/:id], GET /api/cart's embedded product does not
 // include productImages (see docs/api.md §6) — only category is promised.

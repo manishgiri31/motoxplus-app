@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { useAuth } from '@/auth/useAuth';
 import { canAccessDealerApp } from '@/auth/access';
 import type { Product } from '@/api/types';
-import { Image } from '@/components/ui';
+import { Image } from '@/components/ui/Image';
 import { useFocusRing } from '@/hooks/use-focus-ring';
 import { isFewLeft, isOutOfStock } from '@/utils/stock';
 import type { SelectedVehicle } from '@/stores/vehicleStore';

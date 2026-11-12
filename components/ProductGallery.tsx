@@ -1,11 +1,11 @@
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ProductImage } from '@/api/types';
-import { Image } from '@/components/ui';
+import { Image } from '@/components/ui/Image';
 import { colors, motion } from '@/src/theme';
 
 const MAX_ZOOM = 4;

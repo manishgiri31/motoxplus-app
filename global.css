@@ -1,95 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /*
- * Design tokens (also the web-facing token sheet). Values are space-separated
- * RGB triplets so Tailwind's opacity modifier (bg-background/50) works via
- * rgb(var(--x) / <alpha-value>) in tailwind.config.js. Referenced by
- * constants/colors.ts and src/theme (kept in sync by hand) for the JS-side
- * values native color props need (icons, StatusBar).
- *
- * The app is light-only. darkMode: 'class' stays in tailwind.config.js because
- * nativewind's colorScheme.set() throws under the default 'media' strategy, but
- * no `.dark:root` overrides are defined, so the dark class changes nothing.
+ * Web-only page rules. Expo applies global CSS on web and ignores it on
+ * iOS/Android. Colours mirror src/theme (light-only app).
  */
-:root {
-  /* Surfaces */
-  --background: 255 255 255; /* #ffffff */
-  --surface: 245 245 247; /* #f5f5f7 */
-  --card: 245 245 247; /* #f5f5f7 */
-  --border: 210 210 215; /* #d2d2d7 */
-  --border-soft: 232 232 237; /* #e8e8ed */
-
-  /* Text */
-  --text: 29 29 31; /* #1d1d1f */
-  --muted: 110 110 115; /* #6e6e73 */
-  --subtle: 134 134 139; /* #86868b */
-  --on-dark: 245 245 247; /* #f5f5f7 */
-
-  /* Accent: primary buttons only */
-  --primary: 208 31 37; /* #d01f25 */
-  --primary-hover: 219 44 50; /* #db2c32 */
-  --primary-active: 181 24 30; /* #b5181e */
-  --primary-foreground: 255 255 255;
-
-  /* Secondary actions are ink-filled; the red outline button is styled in Button */
-  --secondary: 29 29 31;
-  --secondary-foreground: 255 255 255;
-
-  /* Links */
-  --link: 194 25 31; /* #c2191f */
-  --link-on-dark: 255 107 112; /* #ff6b70 */
-
-  /* Status */
-  --success: 0 128 9; /* #008009 */
-  --warning: 245 99 0; /* #f56300 */
-  --danger: 227 0 0; /* #e30000 */
-
-  /* Shape and motion (used by web-only rules below) */
-  --radius-card: 18px;
-  --radius-input: 12px;
-  --radius-pill: 999px;
-  --motion-duration: 280ms;
-  --motion-ease: cubic-bezier(0.4, 0, 0.6, 1);
-  --focus-ring: 0 0 0 4px rgba(208, 31, 37, 0.25);
+html,
+body {
+  /* Hard stop for horizontal scroll at 375px: nothing may widen the page. */
+  max-width: 100%;
+  overflow-x: hidden;
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
 }
 
-/*
- * Web-only rules. NativeWind emits these as ordinary CSS on web and ignores
- * them on iOS/Android.
- */
-@layer base {
-  html,
-  body {
-    /* Hard stop for horizontal scroll at 375px: nothing may widen the page. */
-    max-width: 100%;
-    overflow-x: hidden;
-    background-color: #ffffff;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  }
+/* Visible focus ring on every interactive element, keyboard focus only. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(208, 31, 37, 0.25);
+  border-radius: 12px;
+}
 
-  /* Visible focus ring on every interactive element, keyboard focus only. */
-  :focus {
-    outline: none;
-  }
-  :focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
-    border-radius: var(--radius-input);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

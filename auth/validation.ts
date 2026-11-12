@@ -14,12 +14,6 @@ export const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 const emailField = z.string().trim().toLowerCase().max(254, 'Email is too long').email('Enter a valid email address');
 const mobileField = z.string().trim().regex(MOBILE_REGEX, 'Enter a valid 10-digit mobile number');
 
-export const loginSchema = z.object({
-  identifier: z.string().trim().min(3, 'Enter your email or mobile number').max(254, 'That value is too long'),
-  password: z.string().min(1, 'Password is required').max(128, 'Password is too long'),
-});
-export type LoginFormValues = z.infer<typeof loginSchema>;
-
 export const forgotPasswordRequestSchema = z.object({
   identifier: z.string().trim().min(3, 'Enter your email or mobile number').max(254, 'That value is too long'),
 });

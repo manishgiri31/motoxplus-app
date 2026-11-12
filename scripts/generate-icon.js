@@ -58,9 +58,4 @@ async function markOnTransparentSquare() {
     .png()
     .toFile(path.join(OUT_DIR, 'android-icon-monochrome.png'));
   console.log('wrote android-icon-monochrome.png');
-
-  // Splash — same transparent mark, sits over the paper/dark splash
-  // background already configured in app.json's expo-splash-screen plugin.
-  await (await markOnTransparentSquare()).toFile(path.join(OUT_DIR, 'splash-icon.png'));
-  console.log('wrote splash-icon.png');
 })();

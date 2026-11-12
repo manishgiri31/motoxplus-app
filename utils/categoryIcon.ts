@@ -1,4 +1,4 @@
-import type { Feather } from '@expo/vector-icons';
+import type Feather from '@expo/vector-icons/Feather';
 import type { ComponentType } from 'react';
 
 import { Eye } from '@/components/icons/Eye';

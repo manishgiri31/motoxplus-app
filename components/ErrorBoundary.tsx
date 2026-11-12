@@ -1,9 +1,10 @@
 import { Component, type ReactNode } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/src/components/ui/Button';
+import { colors, space, textStyles } from '@/src/theme';
 import { logger } from '@/utils/logger';
-import { Button } from './ui';
 
 interface Props {
   children: ReactNode;
@@ -34,9 +35,9 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <SafeAreaView className="flex-1 bg-background items-center justify-center px-2xl gap-md">
-          <Text className="text-h3 font-semibold text-text text-center">Something went wrong</Text>
-          <Text className="text-[14px] text-muted text-center">
+        <SafeAreaView style={styles.root}>
+          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.body}>
             The app hit an unexpected error. Try again, or restart the app if it keeps happening.
           </Text>
           <Button label="Try again" onPress={this.reset} />
@@ -46,3 +47,16 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.xxl,
+    gap: space.md,
+  },
+  title: { ...textStyles.headline, fontSize: 18, textAlign: 'center' },
+  body: { ...textStyles.callout, color: colors.muted, textAlign: 'center' },
+});

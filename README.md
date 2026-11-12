@@ -25,15 +25,9 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Get a fresh project
+## Release builds
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+The EAS `preview` and `production` profiles set `SLIM_RELEASE_BUILD=1`, which makes `app.config.js` ship ARM-only native libraries and leave `expo-dev-client` out of the Android build. The `development` profile is unchanged.
 
 ## Learn more
 

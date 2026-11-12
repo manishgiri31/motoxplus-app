@@ -80,18 +80,6 @@ export function SkeletonProductCard() {
   );
 }
 
-export function SkeletonListRow() {
-  return (
-    <View style={styles.listRow}>
-      <Skeleton width={56} height={56} radius={radii.md} />
-      <View style={styles.listRowText}>
-        <Skeleton height={14} width="70%" />
-        <Skeleton height={14} width="40%" />
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   band: { ...StyleSheet.absoluteFillObject, right: undefined, flexDirection: 'row' },
   productCard: {
@@ -109,15 +97,5 @@ const styles = StyleSheet.create({
   },
   productCardFooter: {
     gap: 6,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-  },
-  listRowText: {
-    flex: 1,
-    gap: 8,
   },
 });

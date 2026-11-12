@@ -1,12 +1,16 @@
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+// Per-weight subpaths: the package root requires all 18 Inter TTFs (~7.8 MB),
+// and Metro bundles every font it sees required, used or not.
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Platform, type TextStyle } from 'react-native';
 
 import { motion } from './motion';
 
 // Design tokens. The look follows a clean, product-store aesthetic: white and
 // light-grey surfaces, near-black type, one red accent reserved for primary
-// buttons, and links in a slightly deeper red. global.css mirrors these values
-// as CSS variables for NativeWind classNames and web — keep the two in sync.
+// buttons, and links in a slightly deeper red.
 //
 // Key names are historical (the app shipped with a red brand), so `red*` now
 // means "danger red" — errors, destructive actions, low-stock warnings — and

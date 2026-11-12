@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { Stack, useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -11,12 +11,14 @@ import { useAddToCart } from '@/api/hooks/useCart';
 import { useProduct, useProducts } from '@/api/hooks/useProducts';
 import { ProductGallery } from '@/components/ProductGallery';
 import { BadgeCheck } from '@/components/icons/BadgeCheck';
+import { Heart } from '@/components/icons/Heart';
 import { MapPin } from '@/components/icons/MapPin';
 import { RotateCcw } from '@/components/icons/RotateCcw';
 import { Truck } from '@/components/icons/Truck';
 import type { IconProps } from '@/components/icons/types';
 import { usePulseAnimation } from '@/hooks/use-pulse-animation';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { FilledHeart } from '@/src/components/account/FilledHeart';
 import { CatalogProductCard } from '@/src/components/catalog/CatalogProductCard';
 import { ProductDetailSkeleton } from '@/src/components/catalog/ProductDetailSkeleton';
 import { ProductPrice } from '@/src/components/catalog/ProductPrice';
@@ -410,7 +412,7 @@ export default function ProductDetailScreen() {
             selected: wishlisted,
             icon: (
               <Animated.View style={heartPulse.style}>
-                <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={22} color={wishlisted ? colors.accent : colors.ink} />
+                {wishlisted ? <FilledHeart size={22} color={colors.accent} /> : <Heart size={22} color={colors.ink} />}
               </Animated.View>
             ),
           },

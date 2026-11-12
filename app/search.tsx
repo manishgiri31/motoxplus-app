@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -8,7 +8,7 @@ import { useCategories } from '@/api/hooks/useCategories';
 import { useInfiniteProducts, useProductSearch } from '@/api/hooks/useProducts';
 import type { Category, Product, ProductSuggestion } from '@/api/types';
 import { SearchSuggestions } from '@/components/SearchSuggestions';
-import { Image } from '@/components/ui';
+import { Image } from '@/components/ui/Image';
 import { useGridColumns } from '@/hooks/use-grid-columns';
 import { useLightStatusBar } from '@/hooks/use-light-status-bar';
 import { CatalogFilterSheet, type CatalogFilters } from '@/src/components/catalog/CatalogFilterSheet';
