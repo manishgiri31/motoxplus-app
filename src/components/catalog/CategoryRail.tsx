@@ -8,7 +8,7 @@ import { colors, layout, screenPaddingX, textStyles } from '@/src/theme';
 import { HapticService } from '@/utils/haptics';
 
 import { Skeleton } from '../ui/Skeleton';
-import { CategoryGlyph } from './CategoryGlyph';
+import { CategoryVisual } from './CategoryGlyph';
 
 const DISC = 64;
 const ITEM_WIDTH = 76;
@@ -62,7 +62,7 @@ function CategoryItem({ category }: { category: Category }) {
       {({ pressed }) => (
         <>
           <View style={[styles.disc, pressed && styles.pressed, focusRing.ringStyle]}>
-            <CategoryGlyph name={category.name} size={26} color={colors.ink} />
+            <CategoryVisual category={category} photoSize={DISC - 10} iconSize={26} color={colors.ink} />
           </View>
           <Text style={styles.label} numberOfLines={2} maxFontSizeMultiplier={1.2}>
             {category.name}
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: screenPaddingX, gap: 8 },
   skeletonRow: { flexDirection: 'row', overflow: 'hidden' },
   item: { width: ITEM_WIDTH, alignItems: 'center', gap: 8, minHeight: layout.minTouchTarget },
-  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, backgroundColor: colors.bgAlt, alignItems: 'center', justifyContent: 'center' },
+  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, backgroundColor: colors.bgAlt, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   pressed: { opacity: 0.6 },
   label: { ...textStyles.caption, color: colors.ink, textAlign: 'center' },
 });

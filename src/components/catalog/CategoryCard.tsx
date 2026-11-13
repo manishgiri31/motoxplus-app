@@ -6,7 +6,7 @@ import { useGridColumns } from '@/hooks/use-grid-columns';
 import { colors, layout, screenPaddingX, textStyles } from '@/src/theme';
 
 import { Card } from '../ui/Card';
-import { CategoryGlyph } from './CategoryGlyph';
+import { CategoryVisual } from './CategoryGlyph';
 
 export interface CategoryCardProps {
   category: Category;
@@ -38,7 +38,7 @@ export function CategoryCard({ category, onPress }: CategoryCardProps) {
       style={[styles.card, { minHeight: side }]}
     >
       <View style={styles.disc}>
-        <CategoryGlyph name={category.name} size={26} color={colors.accent} />
+        <CategoryVisual category={category} photoSize={48} iconSize={26} color={colors.accent} />
       </View>
       <View style={styles.text}>
         <Text style={styles.name} numberOfLines={2} maxFontSizeMultiplier={1.2}>
@@ -61,6 +61,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   text: { gap: 2 },
   name: { ...textStyles.headline },
