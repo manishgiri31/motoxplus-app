@@ -1,6 +1,6 @@
 # MotoXplus Auto Parts — Pre-release QA report (Play Store)
 
-Date: 2026-11-02 · Branch: main · App: Expo SDK 54 / RN 0.81.5 (New Arch, Hermes, React Compiler) · Package: `com.manishgirii.motoxplusapp` · Version 1.0.0
+Date: 2026-11-02 · Branch: main · App: Expo SDK 54 / RN 0.81.5 (New Arch, Hermes, React Compiler) · Package: `com.motoxplus.app` (changed 2026-11-13; was `com.manishgirii.motoxplusapp`) · Version 1.0.0
 
 Scope you confirmed: gateway = Razorpay (native SDK), backend = own API (`motoxplus.com/api`, `/api/mobile/*`). Not live: coupons, vendor/admin screens, camera VIN/part photo. Refund flow: see 5.11.
 
