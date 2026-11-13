@@ -17,6 +17,7 @@ import { Skeleton } from '@/src/components/ui/Skeleton';
 import { StatusBadge } from '@/src/components/ui/StatusBadge';
 import { Toast } from '@/src/components/ui/Toast';
 import { colors, font, layout, motion, screenPaddingX, sectionGap, space, textStyles } from '@/src/theme';
+import { compressImage } from '@/utils/compressImage';
 import { HapticService } from '@/utils/haptics';
 
 const DOCUMENT_TYPES: { type: DealerDocumentType; label: string; hint: string }[] = [
@@ -137,10 +138,12 @@ export default function DocumentsScreen() {
   const send = (type: DealerDocumentType, file: UploadableFile, size: number | undefined) => {
     if (!ACCEPTED_MIME.includes(file.mimeType)) {
       Alert.alert('Unsupported file', 'Please choose a PDF, JPG or PNG file.');
+      setUploadingType(null);
       return;
     }
     if (size != null && size > MAX_BYTES) {
       Alert.alert('File too large', `That file is ${formatSize(size)}. The maximum is 10 MB.`);
+      setUploadingType(null);
       return;
     }
     setUploadingType(type);
@@ -161,9 +164,16 @@ export default function DocumentsScreen() {
   };
 
   const pickPhoto = async (type: DealerDocumentType) => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
     if (result.canceled) return;
     const asset = result.assets[0];
+    // Shrink phone photos (often 3-8 MB) before upload; see utils/compressImage.ts.
+    setUploadingType(type);
+    const small = await compressImage(asset.uri, asset.width, asset.height);
+    if (small) {
+      send(type, { uri: small.uri, mimeType: small.mimeType, name: `${type.toLowerCase()}.jpg` }, undefined);
+      return;
+    }
     const mimeType = asset.mimeType ?? 'image/jpeg';
     send(
       type,
@@ -176,15 +186,16 @@ export default function DocumentsScreen() {
     const result = await DocumentPicker.getDocumentAsync({ type: ACCEPTED_MIME, copyToCacheDirectory: true });
     if (result.canceled) return;
     const asset = result.assets[0];
-    send(
-      type,
-      {
-        uri: asset.uri,
-        mimeType: asset.mimeType ?? 'application/pdf',
-        name: asset.name || `${type.toLowerCase()}.pdf`,
-      },
-      asset.size
-    );
+    const mimeType = asset.mimeType ?? 'application/pdf';
+    if (mimeType.startsWith('image/')) {
+      setUploadingType(type);
+      const small = await compressImage(asset.uri);
+      if (small) {
+        send(type, { uri: small.uri, mimeType: small.mimeType, name: `${type.toLowerCase()}.jpg` }, undefined);
+        return;
+      }
+    }
+    send(type, { uri: asset.uri, mimeType, name: asset.name || `${type.toLowerCase()}.pdf` }, asset.size);
   };
 
   const choose = (type: DealerDocumentType, label: string) => {

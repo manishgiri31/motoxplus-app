@@ -23,6 +23,9 @@ export function getErrorMessage(error: unknown, fallback = FALLBACK_MESSAGE): st
     if (error.response) {
       return error.response.data?.error ?? `Server error (${error.response.status}). Please try again.`;
     }
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return 'The server took too long to respond. Your connection may be slow. Please try again.';
+    }
     if (error.request) {
       return 'Could not reach the server. Check your internet connection and try again.';
     }
