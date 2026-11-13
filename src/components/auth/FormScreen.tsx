@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ACTION_NAV_HEIGHT, ActionNavBar, type NavBarAction } from '@/src/components/ui/ActionNavBar';
@@ -33,18 +33,22 @@ export function FormScreen({ navTitle, title, subtitle, onBack, navAction, actio
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.ScrollView
+      {/* keyboard-controller's KeyboardAvoidingView also works on edge-to-edge
+          Android, where the window no longer resizes for the keyboard: the
+          pinned button rides above it and the focused field scrolls into view. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <KeyboardAwareScrollView
           style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          bottomOffset={space.lg}
         >
           <LargeTitleHeader title={title} subtitle={subtitle} scrollY={scrollY} />
           <View style={styles.form}>{children}</View>
-        </Animated.ScrollView>
+        </KeyboardAwareScrollView>
         <View style={styles.bottomBar}>{action}</View>
       </KeyboardAvoidingView>
       <ActionNavBar title={navTitle} onBack={onBack} action={navAction} scrollY={scrollY} />

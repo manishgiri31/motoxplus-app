@@ -3,8 +3,9 @@ import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { BackHandler, KeyboardAvoidingView, Platform, StyleSheet, View, type TextInput } from 'react-native';
-import Animated, { type SharedValue } from 'react-native-reanimated';
+import { BackHandler, StyleSheet, View, type TextInput } from 'react-native';
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { type SharedValue } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
@@ -198,7 +199,8 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* keyboard-controller: also correct on edge-to-edge Android. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <StepStage index={STEPS.indexOf(step)}>
           <Panel
             title="Reset password"
@@ -368,17 +370,18 @@ interface PanelProps {
 function Panel({ title, subtitle, scrollY, onScroll, action, children }: PanelProps) {
   return (
     <View style={styles.flex}>
-      <Animated.ScrollView
+      <KeyboardAwareScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        bottomOffset={space.lg}
       >
         <LargeTitleHeader title={title} subtitle={subtitle} scrollY={scrollY} />
         <View style={styles.form}>{children}</View>
-      </Animated.ScrollView>
+      </KeyboardAwareScrollView>
       <View style={styles.bottomBar}>{action}</View>
     </View>
   );

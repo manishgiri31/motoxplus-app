@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,6 +70,32 @@ export function Sheet({
   const startHeight = useSharedValue(0);
   // Stays mounted through the closing animation.
   const [mounted, setMounted] = useState(visible);
+  // How far the keyboard overlaps the sheet. Android Modals are their own
+  // window, which may or may not be resized for the keyboard (edge-to-edge),
+  // so only the part the window did not already absorb is lifted: the root's
+  // height with the keyboard down is the reference.
+  const keyboardLift = useSharedValue(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [rootHeight, setRootHeight] = useState(0);
+  const [baseRootHeight, setBaseRootHeight] = useState(0);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [mounted]);
+
+  useEffect(() => {
+    const absorbed = baseRootHeight > 0 ? Math.max(0, baseRootHeight - rootHeight) : 0;
+    const lift = Math.max(0, keyboardHeight - absorbed);
+    keyboardLift.value = withTiming(lift, { duration: reduceMotion ? 0 : motion.duration.fast, easing: motion.easing });
+  }, [keyboardHeight, rootHeight, baseRootHeight, keyboardLift, reduceMotion]);
 
   useEffect(() => {
     const timing = { duration: reduceMotion ? 0 : motion.duration.base, easing: motion.easing };
@@ -126,7 +152,12 @@ export function Sheet({
       });
   }, [handleSnap, heights, maxHeight, onClose, reduceMotion, sheetHeight, startHeight]);
 
-  const sheetStyle = useAnimatedStyle(() => ({ height: sheetHeight.value }));
+  const topLimit = insets.top + 8;
+  const sheetStyle = useAnimatedStyle(() => ({
+    // With the keyboard up, the sheet sits on it and shrinks to fit the space above.
+    height: Math.min(sheetHeight.value, windowHeight - keyboardLift.value - topLimit),
+    marginBottom: keyboardLift.value,
+  }));
   const scrimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(sheetHeight.value, [0, openHeight], [0, 1], Extrapolation.CLAMP),
   }));
@@ -136,7 +167,14 @@ export function Sheet({
   return (
     <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClose}>
       {/* Android Modals are separate windows, so gesture-handler needs its own root inside. */}
-      <GestureHandlerRootView style={styles.root}>
+      <GestureHandlerRootView
+        style={styles.root}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setRootHeight(h);
+          if (keyboardHeight === 0) setBaseRootHeight(h);
+        }}
+      >
         <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         </Animated.View>

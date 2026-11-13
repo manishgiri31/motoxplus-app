@@ -2,7 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
@@ -81,8 +82,8 @@ export default function ContactScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {/* Scrolls the focused field above the keyboard (Android edge-to-edge too). */}
+      <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" bottomOffset={24}>
           <Text style={styles.intro} maxFontSizeMultiplier={1.2}>
             Questions about an order, your account or our parts? Write to us.
           </Text>
@@ -148,8 +149,7 @@ export default function ContactScreen() {
             onPress={form.handleSubmit(onSubmit)}
             loading={form.formState.isSubmitting}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

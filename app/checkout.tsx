@@ -4,8 +4,8 @@ import { router, Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDealerAccount } from '@/api/hooks/useDealerAccount';
@@ -173,8 +173,11 @@ export default function CheckoutScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.ScrollView
+      {/* keyboard-controller: works on edge-to-edge Android too. The bottom
+          bar rides above the keyboard and the focused field scrolls clear of it. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <KeyboardAwareScrollView
+          bottomOffset={barHeight + space.md}
           onScroll={onScroll}
           scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
@@ -264,7 +267,7 @@ export default function CheckoutScreen() {
               </Pressable>
             </View>
           )}
-        </Animated.ScrollView>
+        </KeyboardAwareScrollView>
 
         {!isCartLoading && (
           <CheckoutBottomBar onHeightChange={setBarHeight}>

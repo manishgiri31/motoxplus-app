@@ -3,8 +3,6 @@ import { forwardRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +15,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { evaluatePassword } from '@/auth/passwordPolicy';
@@ -25,6 +24,9 @@ import { alpha, colors, font, layout, radii, screenPaddingX, space } from '@/src
 /* Shared building blocks for the sign-in and sign-up screens. They mirror the
    website's components/auth/auth-ui.tsx one to one (same names, same spacing,
    same error semantics) so the two surfaces read as the same product. */
+
+// Space kept between the focused field and the top of the keyboard.
+const KEYBOARD_GAP = 24;
 
 // The website crops its 1536x1024 logo to the mark's bounding box
 // (685x420); assets/images/brand-mark.png is that crop, downscaled.
@@ -51,21 +53,21 @@ export interface AuthScreenProps {
 export function AuthScreen({ children, scrollRef }: AuthScreenProps) {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          ref={scrollRef}
-          style={styles.flex}
-          contentContainerStyle={styles.pageContent}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.pageHeader}>
-            <BrandMark />
-          </View>
-          <View style={styles.column}>{children}</View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {/* Scrolls the focused field above the keyboard (Android edge-to-edge too). */}
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={styles.flex}
+        contentContainerStyle={styles.pageContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        bottomOffset={KEYBOARD_GAP}
+      >
+        <View style={styles.pageHeader}>
+          <BrandMark />
+        </View>
+        <View style={styles.column}>{children}</View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
